@@ -2,8 +2,8 @@ import type { Preview } from "@storybook/react";
 import React from "react";
 import { Provider } from "react-redux";
 import { store } from "../src/app/store";
-import './tailwindcss.scss'
 import { withThemeByDataAttribute } from '@storybook/addon-styling';
+import './tailwindcss.scss'
 
 const preview: Preview = {
   parameters: {

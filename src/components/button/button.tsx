@@ -21,10 +21,10 @@ type ButtonProps = {
 
 export default function Button({ type = "button", style = "primary", onClick, children }: ButtonProps) {
     if (style === "secondary") {
-        return <button onClick={onClick} className="button secondary" type={type}>{children}</button>;
+        return <button onClick={onClick} className="button bg-orange-400" type={type}>{children}</button>;
     } else if (style === "abort") {
-        return <button onClick={onClick} className="button abort" type={type}>{children}</button>;
+        return <button onClick={onClick} className="button bg-red-400" type={type}>{children}</button>;
     } else {
-        return <button onClick={onClick} className="button primary" type={type}>{children}</button>;
+        return <button onClick={onClick} className="button bg-green-400" type={type}>{children}</button>;
     }
 }

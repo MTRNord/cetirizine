@@ -1,9 +1,10 @@
 import { useState } from 'react';
+import { ApiActions } from '../../app/api/api';
 import { getLoginError, setBaseUrl } from '../../app/api/reducers';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { RootState } from '../../app/store';
 import Button from '../button/button';
-import './login.scss';
+import Header from '../header/header';
 
 export function Login() {
     const loginError = useAppSelector((state: RootState) => getLoginError(state));
@@ -13,9 +14,9 @@ export function Login() {
     const dispatch = useAppDispatch();
 
     return (
-        <div className="loginForm">
-            <h1>Login</h1>
-            {loginError ? <span className='errorMsg'>{loginError}</span> : <></>}
+        <div className="flex flex-col rounded shadow p-4 bg-slate-200 gap-2">
+            <Header>Login</Header>
+            {loginError ? <h2 className='text-red-500 font-normal text-sm'>{loginError}</h2> : <></>}
             <input
                 value={homeserver}
                 type="text"
@@ -38,6 +39,7 @@ export function Login() {
             <Button
                 style="primary"
                 type="button"
+                onClick={() => dispatch({ type: ApiActions.LOGIN })}
             >
                 Login
             </Button>

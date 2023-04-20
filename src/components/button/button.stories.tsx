@@ -1,12 +1,11 @@
 import { Meta, StoryObj } from '@storybook/react';
-import React from 'react';
 import { Provider } from 'react-redux';
 import { store } from '../../app/store';
 import Button from './button';
 import { BADGE } from '@geometricpanda/storybook-addon-badges';
 
 const meta: Meta<typeof Button> = {
-    title: 'Button',
+    title: 'Fundamentals/Buttons/BasicButton',
     tags: ['autodocs'],
     component: Button,
     parameters: {
