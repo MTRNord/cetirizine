@@ -37,11 +37,12 @@ const initialLoginState: ApiLoginStatus = { loginPending: false, error: undefine
 
 export const apiLoginReducer = createReducer(initialLoginState, (builder) => {
     builder
-        .addCase(LOGIN_REQUEST, (state, action) => {
+        .addCase(LOGIN_REQUEST, (state, _) => {
             state.loginPending = true;
             state.error = undefined;
         })
-        .addCase(LOGIN_SUCCESS, (state, action) => {
+        // @ts-ignore: Somehow this state is causing issues here since its written but not read. TS6133
+        .addCase(LOGIN_SUCCESS, (state, _) => {
             state = initialLoginState;
         })
         .addCase(LOGIN_FAILURE, (state, action) => {

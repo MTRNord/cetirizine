@@ -5,6 +5,7 @@ import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { RootState } from '../../app/store';
 import Button from '../button/button';
 import Header from '../header/header';
+import Input from '../input/input';
 
 export function Login() {
     const loginError = useAppSelector((state: RootState) => getLoginError(state));
@@ -14,25 +15,23 @@ export function Login() {
     const dispatch = useAppDispatch();
 
     return (
-        <div className="flex flex-col rounded shadow p-4 bg-slate-200 gap-2">
+        <div className="flex flex-col rounded-md shadow p-4 bg-white gap-2">
             <Header>Login</Header>
             {loginError ? <h2 className='text-red-500 font-normal text-sm'>{loginError}</h2> : <></>}
-            <input
+            <Input
                 value={homeserver}
-                type="text"
                 autoFocus={true}
                 placeholder="Homeserver"
                 onChange={e => { setHomeserver(e.target.value); dispatch(setBaseUrl(e.target.value)) }}
             />
-            <input
+            <Input
                 value={username}
-                type="text"
                 placeholder="Username"
                 onChange={e => setUsername(e.target.value)}
             />
-            <input
+            <Input
                 value={password}
-                type="password"
+                password={true}
                 placeholder="Password"
                 onChange={e => setPassword(e.target.value)}
             />

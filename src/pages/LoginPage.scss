@@ -2,11 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-.LoginPage {
-  text-align: center;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
+.bg-img {
+  background: url("/bg1.jpg");
+  background-position: 50% 0;
 }

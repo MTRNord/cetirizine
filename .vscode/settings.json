@@ -1,3 +1,6 @@
 {
-    "typescript.tsdk": "node_modules/typescript/lib"
+    "typescript.tsdk": "node_modules/typescript/lib",
+    "yaml.schemas": {
+        "https://json.schemastore.org/github-workflow.json": "file:///media/marcel/1ac60e61-e5e2-4157-9a7a-830801a3fb0b/projects/cetirizine/.github/workflows/deploy.yaml"
+    }
 }
