@@ -14,6 +14,11 @@ const preview: Preview = {
         date: /Date$/,
       },
     },
+    options: {
+      storySort: {
+        order: ['Introduction', 'Fundamentals', '*'],
+      },
+    },
   },
   decorators: [
     withThemeByDataAttribute({
