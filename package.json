@@ -2,6 +2,7 @@
   "name": "cetirizine",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "dependencies": {
     "@reduxjs/toolkit": "^1.9.5",
     "@testing-library/jest-dom": "^5.16.5",
@@ -11,23 +12,36 @@
     "@types/node": "^17.0.45",
     "@types/react": "^18.0.37",
     "@types/react-dom": "^18.0.11",
+    "axios": "^1.3.5",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-redux": "^8.0.5",
-    "react-scripts": "5.0.1",
-    "typescript": "^4.9.5",
+    "react-router-dom": "^6.10.0",
+    "redux-saga": "^1.2.3",
+    "typescript": "^5.0.2",
     "web-vitals": "^2.1.4"
   },
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "start": "vite",
+    "build": "tsc && vite build",
+    "serve": "vite preview",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build"
   },
   "eslintConfig": {
     "extends": [
       "react-app",
       "react-app/jest"
+    ],
+    "overrides": [
+      {
+        "files": [
+          "**/*.stories.*"
+        ],
+        "rules": {
+          "import/no-anonymous-default-export": "off"
+        }
+      }
     ]
   },
   "browserslist": {
@@ -41,5 +55,30 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "devDependencies": {
+    "@geometricpanda/storybook-addon-badges": "^2.0.0",
+    "@storybook/addon-a11y": "^7.0.6",
+    "@storybook/addon-essentials": "^7.0.6",
+    "@storybook/addon-interactions": "^7.0.6",
+    "@storybook/addon-links": "^7.0.6",
+    "@storybook/addon-styling": "^1.0.1",
+    "@storybook/blocks": "^7.0.6",
+    "@storybook/builder-vite": "^7.0.6",
+    "@storybook/react": "^7.0.6",
+    "@storybook/react-vite": "^7.0.6",
+    "@storybook/testing-library": "^0.0.14-next.2",
+    "@vitejs/plugin-react": "^4.0.0-beta.0",
+    "autoprefixer": "^10.4.14",
+    "postcss": "^8.4.23",
+    "postcss-loader": "^7.2.4",
+    "prop-types": "^15.8.1",
+    "resolve-url-loader": "^5.0.0",
+    "sass": "^1.62.0",
+    "sass-loader": "^13.2.2",
+    "storybook": "^7.0.6",
+    "storybook-tailwind-dark-mode": "^1.0.22",
+    "tailwindcss": "^3.3.1",
+    "vite": "^4.3.0"
   }
 }

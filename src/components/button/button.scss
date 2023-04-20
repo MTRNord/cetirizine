@@ -1,0 +1,15 @@
+.button {
+    @apply block uppercase mx-auto shadow text-white text-xs py-3 px-10 rounded;
+}
+
+.primary {
+    @apply bg-green-400;
+}
+
+.secondary {
+    @apply bg-orange-400;
+}
+
+.abort {
+    @apply bg-red-400;
+}

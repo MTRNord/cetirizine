@@ -1,0 +1,13 @@
+.loginForm {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-radius: 15px;
+  background: #e0e0e0;
+  box-shadow: 22px 22px 44px #cacaca, -22px -22px 44px #f6f6f6;
+  padding: 16px;
+}
+
+.errorMsg {
+  color: red;
+}
