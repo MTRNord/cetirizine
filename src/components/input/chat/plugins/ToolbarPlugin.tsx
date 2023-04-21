@@ -9,7 +9,8 @@ import {
     ChangeEvent,
     MutableRefObject,
     Dispatch,
-    SetStateAction
+    SetStateAction,
+    createElement
 } from "react";
 import {
     CAN_REDO_COMMAND,
@@ -206,6 +207,8 @@ function FloatingLinkEditor({ editor }: { editor: LexicalEditor }) {
         }
     }, [isEditMode]);
 
+    const safeLink = createElement("a", { href: linkUrl, target: "_blank", rel: "noopener noreferrer" }, linkUrl);
+
     return (
         <div ref={editorRef} className="link-editor">
             {isEditMode ? (
@@ -234,9 +237,7 @@ function FloatingLinkEditor({ editor }: { editor: LexicalEditor }) {
             ) : (
                 <>
                     <div className="link-input">
-                        <a href={linkUrl} target="_blank" rel="noopener noreferrer">
-                            {linkUrl}
-                        </a>
+                        {safeLink}
                         <div
                             className="link-edit"
                             role="button"
