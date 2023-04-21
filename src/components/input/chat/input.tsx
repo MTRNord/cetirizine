@@ -1,4 +1,3 @@
-import React from 'react';
 import { EditorState, LexicalEditor } from 'lexical';
 
 import { InitialConfigType, LexicalComposer } from '@lexical/react/LexicalComposer';
