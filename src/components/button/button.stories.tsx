@@ -1,6 +1,4 @@
 import { Meta, StoryObj } from '@storybook/react';
-import { Provider } from 'react-redux';
-import { store } from '../../app/store';
 import Button from './button';
 import { BADGE } from '@geometricpanda/storybook-addon-badges';
 
@@ -45,9 +43,6 @@ export const Default: Story = {
         type: 'button',
         style: 'primary',
     },
-    render: (args) => <Provider store={store}>
-        <Button {...args} />
-    </Provider>,
 };
 
 export const Submit: Story = {
@@ -56,9 +51,6 @@ export const Submit: Story = {
         type: 'submit',
         style: 'primary',
     },
-    render: (args) => <Provider store={store}>
-        <Button {...args} />
-    </Provider>,
 };
 
 export const Reset: Story = {
@@ -67,9 +59,6 @@ export const Reset: Story = {
         type: 'reset',
         style: 'primary',
     },
-    render: (args) => <Provider store={store}>
-        <Button {...args} />
-    </Provider>,
 };
 
 export const DefaultSecondary: Story = {
@@ -78,9 +67,6 @@ export const DefaultSecondary: Story = {
         type: 'button',
         style: 'secondary',
     },
-    render: (args) => <Provider store={store}>
-        <Button {...args} />
-    </Provider>,
 };
 
 export const SubmitSecondary: Story = {
@@ -89,9 +75,6 @@ export const SubmitSecondary: Story = {
         type: 'submit',
         style: 'secondary',
     },
-    render: (args) => <Provider store={store}>
-        <Button {...args} />
-    </Provider>,
 };
 
 export const ResetSecondary: Story = {
@@ -100,9 +83,6 @@ export const ResetSecondary: Story = {
         type: 'reset',
         style: 'secondary',
     },
-    render: (args) => <Provider store={store}>
-        <Button {...args} />
-    </Provider>,
 };
 
 export const Abort: Story = {
@@ -111,7 +91,4 @@ export const Abort: Story = {
         type: 'button',
         style: 'abort',
     },
-    render: (args) => <Provider store={store}>
-        <Button {...args} />
-    </Provider>,
 };

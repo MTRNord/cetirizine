@@ -1,6 +1,4 @@
 import { Meta, StoryObj } from '@storybook/react';
-import { Provider } from 'react-redux';
-import { store } from '../../../app/store';
 import Input from './input';
 import { BADGE } from '@geometricpanda/storybook-addon-badges';
 
@@ -53,8 +51,5 @@ export const Default: Story = {
         autoFocus: false,
         value: "",
         onChange: (_) => { }
-    },
-    render: (args) => <Provider store={store}>
-        <Input {...args} />
-    </Provider>,
+    }
 };

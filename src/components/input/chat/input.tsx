@@ -38,7 +38,7 @@ type ChatInputProps = {
 };
 
 function Placeholder() {
-    return <div className="editor-placeholder">Enter some rich text...</div>;
+    return <div className="editor-placeholder" id="editor-placeholder">Enter message...</div>;
 }
 
 export default function ChatInput({ namespace, onChange, onError }: ChatInputProps) {
@@ -66,7 +66,7 @@ export default function ChatInput({ namespace, onChange, onError }: ChatInputPro
                 <ToolbarPlugin />
                 <div className="editor-inner">
                     <RichTextPlugin
-                        contentEditable={<ContentEditable className="editor-input" />}
+                        contentEditable={<ContentEditable className="editor-input" aria-labelledby='editor-placeholder' />}
                         placeholder={<Placeholder />}
                         ErrorBoundary={LexicalErrorBoundary}
                     />
