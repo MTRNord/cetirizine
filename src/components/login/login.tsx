@@ -5,7 +5,7 @@ import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { RootState } from '../../app/store';
 import Button from '../button/button';
 import Header from '../header/header';
-import Input from '../input/input';
+import Input from '../input/basic/input';
 
 export function Login() {
     const loginError = useAppSelector((state: RootState) => getLoginError(state));
