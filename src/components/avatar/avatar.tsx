@@ -6,7 +6,7 @@ type AvatarProps = {
     /**
      * The displayname of the avatar user
      */
-    userID: string
+    displayname: string
     /**
      * Wether it is a DM or not
      */
@@ -17,17 +17,17 @@ type AvatarProps = {
     online: boolean
 };
 
-export default function Avatar({ avatarUrl, userID, dm = false, online = false }: AvatarProps) {
+export default function Avatar({ avatarUrl, displayname, dm = false, online = false }: AvatarProps) {
     if (avatarUrl) {
         return (
-            <div className="flex relative w-12 h-12 justify-center items-center m-1 mr-2 text-xl rounded-full text-white">
-                <img className="rounded-full" alt={userID} src={avatarUrl} />
+            <div className="flex relative w-8 h-8 justify-center items-center m-1 mr-2 text-xl rounded-full text-white">
+                <img className="rounded-full" alt={displayname} src={avatarUrl} />
                 {
                     dm ?
                         (
                             online ?
-                                <div className="bg-green-500 rounded-full w-3 h-3 absolute bottom-[2px] right-[2px]"></div> :
-                                <div className="bg-red-500 rounded-full w-3 h-3 absolute bottom-[2px] right-[2px]"></div>
+                                <div className="bg-green-500 rounded-full w-3 h-3 absolute bottom-0 right-0"></div> :
+                                <div className="bg-red-500 rounded-full w-3 h-3 absolute bottom-0 right-0"></div>
                         ) :
                         <></>
                 }
@@ -35,14 +35,14 @@ export default function Avatar({ avatarUrl, userID, dm = false, online = false }
         );
     }
     return (
-        <div className="flex relative w-12 h-12 bg-orange-500 justify-center items-center m-1 mr-2 text-xl rounded-full text-white">
-            {userID[0].toUpperCase()}
+        <div className="flex relative w-8 h-8 bg-orange-500 justify-center items-center m-1 mr-2 text-xl rounded-full text-white">
+            {displayname[0].toUpperCase()}
             {
                 dm ?
                     (
                         online ?
-                            <div className="bg-green-500 rounded-full w-3 h-3 absolute bottom-[2px] right-[2px]"></div> :
-                            <div className="bg-red-500 rounded-full w-3 h-3 absolute bottom-[2px] right-[2px]"></div>
+                            <div className="bg-green-500 rounded-full w-3 h-3 absolute bottom-0 right-0"></div> :
+                            <div className="bg-red-500 rounded-full w-3 h-3 absolute bottom-0 right-0"></div>
                     ) :
                     <></>
             }
