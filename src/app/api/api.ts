@@ -1,84 +1,65 @@
-import axios, { AxiosResponse } from "axios";
-import { all, call, fork, put, select, takeEvery } from "redux-saga/effects";
-import { RootState } from "../store";
-import { LOGIN_FAILURE, LOGIN_REQUEST, LOGIN_SUCCESS } from "./reducers";
+import { all, call, fork, put, takeEvery } from "redux-saga/effects";
+import { LOGIN_REQUEST_ACTION, LOGIN_SUCCESS_ACTION, LOGIN, LOGIN_ACTION, LOGIN_FAILURE_ACTION } from "./reducers";
+import { IndexedDBCryptoStore, IndexedDBStore, MatrixClient, MemoryStore, createClient, setCryptoStoreFactory } from "matrix-js-sdk";
 
-export const getAccessToken = (state: RootState) => state.api.accessToken;
-export const getBaseUrl = (state: RootState) => state.api.baseUrl;
-
-export enum ApiActions {
-    LOGIN = "LOGIN",
-
-    SYNC = "SYNC",
-    SYNC_REQUEST = "SYNC_REQUEST",
-    SYNC_SUCCESS = "SYNC_SUCCESS",
-    SYNC_FAILURE = "SYNC_FAILURE",
+function login(baseUrl: string, userId: string, password: string): Promise<MatrixClient> {
+    return initMatrixClient(baseUrl, userId, undefined, password);
 }
 
-function sync(baseUrl: string, accessToken: string): Promise<AxiosResponse<any, any>> {
-    return axios.get("/sync", {
-        params: {},
-        baseURL: baseUrl,
-        headers: {
-            Authorization: `Bearer ${accessToken}`,
-        },
-    });
-}
-
-function login(baseUrl: string): Promise<AxiosResponse<any, any>> {
-    return axios.get("/login", {
-        params: {},
-        baseURL: baseUrl,
-    });
-}
-
-function* onSyncSaga(): any {
+function* onLoginSaga(action: LOGIN): any {
     try {
-        yield put({ type: ApiActions.SYNC_REQUEST });
-        const accessToken: string = yield select(getAccessToken);
-        const baseUrl: string = yield select(getBaseUrl);
-        const response = yield call(sync, baseUrl, accessToken);
-        const data = response.data;
-        yield put({ type: ApiActions.SYNC_SUCCESS, data });
-    } catch (e) {
-        yield put({
-            type: ApiActions.SYNC_FAILURE,
-            payload: (e as any).toString(),
-        });
-    }
-}
-
-function* onLoginSaga(): any {
-    try {
-        yield put({ type: LOGIN_REQUEST });
-        const baseUrl: string = yield select(getBaseUrl);
-        if (!baseUrl.startsWith("https://")) {
-            yield put({
-                type: LOGIN_FAILURE,
-                payload: "Homeserver url must start with https://",
-            });
+        yield put(LOGIN_REQUEST_ACTION());
+        if (!action.baseUrl.startsWith("https://")) {
+            yield put(LOGIN_FAILURE_ACTION("Homeserver url must start with https://"));
             return;
         }
 
-        const response = yield call(login, baseUrl);
-        const data = response.data;
-        yield put({ type: LOGIN_SUCCESS, data });
+        const client = yield call(login, action.baseUrl, action.username, action.password);
+        yield put(LOGIN_SUCCESS_ACTION(client));
     } catch (e) {
-        yield put({
-            type: LOGIN_FAILURE,
-            payload: (e as any).toString(),
-        });
+        yield put(LOGIN_FAILURE_ACTION((e as any).toString()));
     }
 }
 
 function* watchLoginSaga() {
-    yield takeEvery(ApiActions.LOGIN, onLoginSaga);
-}
-
-function* syncLoginSaga() {
-    yield takeEvery(ApiActions.SYNC, onSyncSaga);
+    yield takeEvery<LOGIN>(LOGIN_ACTION, onLoginSaga);
 }
 
 export function* apiSagas() {
-    yield all([fork(watchLoginSaga), fork(syncLoginSaga)]);
+    yield all([fork(watchLoginSaga)]);
+}
+
+async function initMatrixClient(baseURL: string, userId: string, accessToken?: string, password?: string): Promise<MatrixClient> {
+    // just *accessing* indexedDB throws an exception in firefox with indexeddb disabled.
+    let indexedDB: IDBFactory | undefined;
+    try {
+        indexedDB = global.indexedDB;
+    } catch (e) { }
+
+    // if our browser (appears to) support indexeddb, use an indexeddb crypto store.
+    let store = new MemoryStore({ localStorage: window.localStorage });
+    if (indexedDB) {
+        setCryptoStoreFactory(() => new IndexedDBCryptoStore(indexedDB!, "matrix-js-sdk:crypto"));
+        store = new IndexedDBStore({ indexedDB: indexedDB, localStorage: window.localStorage });
+        await store.startup();
+    }
+
+    const matrixClient = createClient({
+        baseUrl: baseURL,
+        accessToken: accessToken,
+        userId: accessToken ? userId : undefined,
+        useAuthorizationHeader: true,
+        store
+    });
+
+    if (!accessToken && !password) {
+        throw Error("Missing password and accessToken. Unable to proceed")
+    }
+
+    if (!accessToken) {
+        await matrixClient.loginWithPassword(userId, password!!);
+    }
+
+    await matrixClient.initCrypto();
+    return matrixClient
 }

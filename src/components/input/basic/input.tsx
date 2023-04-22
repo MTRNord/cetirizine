@@ -1,4 +1,4 @@
-import { ChangeEvent } from 'react';
+import { ChangeEvent, memo } from 'react';
 
 type InputProps = {
     /**
@@ -23,7 +23,7 @@ type InputProps = {
     onChange: (e: ChangeEvent<HTMLInputElement>) => void;
 };
 
-export default function Input({ placeholder, password = false, autoFocus = false, value, onChange }: InputProps) {
+export default memo(function Input({ placeholder, password = false, autoFocus = false, value, onChange }: InputProps) {
     return (
         <input
             className='form-input rounded-lg'
@@ -34,4 +34,4 @@ export default function Input({ placeholder, password = false, autoFocus = false
             onChange={onChange}
         />
     );
-}
+});

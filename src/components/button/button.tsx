@@ -1,3 +1,4 @@
+import { memo } from "react";
 import "./button.scss";
 
 type ButtonProps = {
@@ -19,7 +20,7 @@ type ButtonProps = {
     children: string
 };
 
-export default function Button({ type = "button", style = "primary", onClick, children }: ButtonProps) {
+export default memo(function Button({ type = "button", style = "primary", onClick, children }: ButtonProps) {
     if (style === "secondary") {
         return <button onClick={onClick} className="button bg-orange-400 hover:bg-orange-500 ease-out duration-150" type={type}>{children}</button>;
     } else if (style === "abort") {
@@ -27,4 +28,4 @@ export default function Button({ type = "button", style = "primary", onClick, ch
     } else {
         return <button onClick={onClick} className="button bg-green-400 hover:bg-green-500 ease-out duration-150" type={type}>{children}</button>;
     }
-}
+});

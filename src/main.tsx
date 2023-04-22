@@ -8,6 +8,9 @@ import './index.scss';
 const container = document.getElementById('root')!;
 const root = createRoot(container);
 
+// js-sdk helper
+window.Olm = await import("olm");
+
 root.render(
   <React.StrictMode>
     <Provider store={store}>

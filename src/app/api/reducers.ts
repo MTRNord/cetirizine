@@ -1,51 +1,34 @@
-import { createAction, createReducer } from "@reduxjs/toolkit";
+import { Action, createAction, createReducer } from "@reduxjs/toolkit";
 import { RootState } from "../store";
-
-interface ApiState {
-    accessToken?: string
-    baseUrl?: string
-}
-
-export const setAccessToken = createAction<string>('api/setAccessToken');
-export const setBaseUrl = createAction<string>('api/setBaseUrl');
-
-const initialApiState: ApiState = { accessToken: undefined, baseUrl: undefined };
-
-
-export const apiDataReducer = createReducer(initialApiState, (builder) => {
-    builder
-        .addCase(setAccessToken, (state, action) => {
-            state.accessToken = action.payload;
-        })
-        .addCase(setBaseUrl, (state, action) => {
-            // TODO: Do we well-known here?
-            state.baseUrl = action.payload;
-        })
-});
+import { MatrixClient } from "matrix-js-sdk";
 
 interface ApiLoginStatus {
     loginPending: boolean
     error?: string
 }
 
-export const LOGIN_REQUEST = createAction('api/LOGIN_REQUEST');
-export const LOGIN_SUCCESS = createAction<any>('api/LOGIN_SUCCESS');
-export const LOGIN_FAILURE = createAction<string>('api/LOGIN_FAILURE');
+export const LOGIN_ACTION = "api/LOGIN";
+export const LOGIN_REQUEST_ACTION = createAction('api/LOGIN_REQUEST');
+export const LOGIN_SUCCESS_ACTION = createAction<MatrixClient>('api/LOGIN_SUCCESS');
+export const LOGIN_FAILURE_ACTION = createAction<string>('api/LOGIN_FAILURE');
+
+export interface LOGIN extends Action { type: typeof LOGIN_ACTION, baseUrl: string, username: string, password: string };
+
 
 const initialLoginState: ApiLoginStatus = { loginPending: false, error: undefined };
 
 
 export const apiLoginReducer = createReducer(initialLoginState, (builder) => {
     builder
-        .addCase(LOGIN_REQUEST, (state, _) => {
+        .addCase(LOGIN_REQUEST_ACTION, (state, _) => {
             state.loginPending = true;
             state.error = undefined;
         })
         // @ts-ignore: Somehow this state is causing issues here since its written but not read. TS6133
-        .addCase(LOGIN_SUCCESS, (state, _) => {
+        .addCase(LOGIN_SUCCESS_ACTION, (state, _) => {
             state = initialLoginState;
         })
-        .addCase(LOGIN_FAILURE, (state, action) => {
+        .addCase(LOGIN_FAILURE_ACTION, (state, action) => {
             state.loginPending = false;
             state.error = action.payload
         })
