@@ -16,7 +16,7 @@ export const LOGIN_FAILURE_ACTION = createAction<string>('api/LOGIN_FAILURE');
 export interface LOGIN extends Action { type: typeof LOGIN_ACTION, baseUrl: string, username: string, password: string };
 
 
-const initialLoginState: ApiLoginStatus = { loginPending: false, error: undefined, client: undefined };
+const initialLoginState: ApiLoginStatus = { loginPending: false };
 
 
 export const apiLoginReducer = createReducer(initialLoginState, (builder) => {

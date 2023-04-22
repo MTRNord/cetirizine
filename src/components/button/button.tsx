@@ -18,14 +18,19 @@ type ButtonProps = {
      * The button Label
      */
     children: string
+
+    /**
+     * If the button is readonly
+     */
+    readonly: boolean
 };
 
-export default memo(function Button({ type = "button", style = "primary", onClick, children }: ButtonProps) {
+export default memo(function Button({ type = "button", style = "primary", onClick, children, readonly }: ButtonProps) {
     if (style === "secondary") {
-        return <button onClick={onClick} className="button bg-orange-400 hover:bg-orange-500 ease-out duration-150" type={type}>{children}</button>;
+        return <button disabled={readonly} onClick={onClick} className="button bg-orange-400 hover:bg-orange-500 ease-out duration-150 disabled:bg-slate-200 disabled:cursor-not-allowed" type={type}>{children}</button>;
     } else if (style === "abort") {
-        return <button onClick={onClick} className="button bg-red-400 hover:bg-red-500 ease-out duration-150" type={type}>{children}</button>;
+        return <button disabled={readonly} onClick={onClick} className="button bg-red-400 hover:bg-red-500 ease-out duration-150 disabled:bg-slate-200 disabled:cursor-not-allowed" type={type}>{children}</button>;
     } else {
-        return <button onClick={onClick} className="button bg-green-400 hover:bg-green-500 ease-out duration-150" type={type}>{children}</button>;
+        return <button disabled={readonly} onClick={onClick} className="button bg-green-400 hover:bg-green-500 ease-out duration-150 disabled:bg-slate-200 disabled:cursor-not-allowed" type={type}>{children}</button>;
     }
 });

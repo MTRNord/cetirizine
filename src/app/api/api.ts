@@ -1,23 +1,38 @@
 import { all, call, fork, put, takeEvery } from "redux-saga/effects";
 import { LOGIN_REQUEST_ACTION, LOGIN_SUCCESS_ACTION, LOGIN, LOGIN_ACTION, LOGIN_FAILURE_ACTION } from "./reducers";
 import { IndexedDBCryptoStore, IndexedDBStore, MatrixClient, MemoryStore, createClient, setCryptoStoreFactory } from "matrix-js-sdk";
+import { AutoDiscovery } from 'matrix-js-sdk/lib/autodiscovery';
 
-function login(baseUrl: string, userId: string, password: string): Promise<MatrixClient> {
-    return initMatrixClient(baseUrl, userId, undefined, password);
+async function login(baseUrl: string, userId: string, password: string): Promise<MatrixClient> {
+    const client = await initMatrixClient(baseUrl, userId, undefined, password);
+
+    window.localStorage.setItem("accessToken", client.getAccessToken()!);
+    window.localStorage.setItem("baseUrl", client.baseUrl);
+    window.localStorage.setItem("userId", client.getUserId()!);
+
+    return client;
 }
 
 function* onLoginSaga(action: LOGIN): any {
+    yield put(LOGIN_REQUEST_ACTION());
+    if (!action.baseUrl.startsWith("https://")) {
+        yield put(LOGIN_FAILURE_ACTION("Homeserver url must start with https://"));
+        return;
+    }
+    if (!action.username) {
+        yield put(LOGIN_FAILURE_ACTION("Username must be a non empty string"));
+        return;
+    }
+    if (!action.password) {
+        yield put(LOGIN_FAILURE_ACTION("Password must be a non empty string"));
+        return;
+    }
     try {
-        yield put(LOGIN_REQUEST_ACTION());
-        if (!action.baseUrl.startsWith("https://")) {
-            yield put(LOGIN_FAILURE_ACTION("Homeserver url must start with https://"));
-            return;
-        }
-
-        const client = yield call(login, action.baseUrl, action.username, action.password);
+        const client: MatrixClient = yield call(login, action.baseUrl, action.username, action.password);
         yield put(LOGIN_SUCCESS_ACTION(client));
     } catch (e) {
         yield put(LOGIN_FAILURE_ACTION((e as any).toString()));
+        return;
     }
 }
 
@@ -29,7 +44,7 @@ export function* apiSagas() {
     yield all([fork(watchLoginSaga)]);
 }
 
-async function initMatrixClient(baseURL: string, userId: string, accessToken?: string, password?: string): Promise<MatrixClient> {
+export async function initMatrixClient(baseUrl: string, userId: string, accessToken?: string, password?: string): Promise<MatrixClient> {
     // just *accessing* indexedDB throws an exception in firefox with indexeddb disabled.
     let indexedDB: IDBFactory | undefined;
     try {
@@ -44,8 +59,19 @@ async function initMatrixClient(baseURL: string, userId: string, accessToken?: s
         await store.startup();
     }
 
+    const clientConfig = await AutoDiscovery.findClientConfig(baseUrl.replace("https://", ''));
+
+    if (clientConfig["m.homeserver"].state === AutoDiscovery.FAIL_PROMPT) {
+        throw Error(clientConfig["m.homeserver"].error?.toString())
+    }
+    if (clientConfig["m.homeserver"].state !== AutoDiscovery.FAIL_ERROR) {
+        if (clientConfig["m.homeserver"].base_url) {
+            baseUrl = clientConfig["m.homeserver"].base_url;
+        }
+    }
+
     const matrixClient = createClient({
-        baseUrl: baseURL,
+        baseUrl: baseUrl,
         accessToken: accessToken,
         userId: accessToken ? userId : undefined,
         useAuthorizationHeader: true,

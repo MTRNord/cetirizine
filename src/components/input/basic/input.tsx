@@ -18,15 +18,20 @@ type InputProps = {
      */
     value: string
     /**
+     * If the input is readonly
+     */
+    readonly: boolean
+    /**
      * Handler for the onChange event
      */
     onChange: (e: ChangeEvent<HTMLInputElement>) => void;
 };
 
-export default memo(function Input({ placeholder, password = false, autoFocus = false, value, onChange }: InputProps) {
+export default memo(function Input({ placeholder, password = false, autoFocus = false, value, readonly, onChange }: InputProps) {
     return (
         <input
-            className='form-input rounded-lg'
+            disabled={readonly}
+            className='form-input rounded-lg disabled:bg-slate-200 disabled:cursor-not-allowed transition-colors ease-in-out delay-150'
             value={value}
             type={password ? "password" : "text"}
             autoFocus={autoFocus}

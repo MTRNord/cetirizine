@@ -49,7 +49,5 @@ export const Default: Story = {
         placeholder: "Placeholder",
         password: false,
         autoFocus: false,
-        value: "",
-        onChange: (_) => { }
     }
 };
