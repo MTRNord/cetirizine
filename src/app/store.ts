@@ -1,14 +1,13 @@
 import { configureStore, ThunkAction, Action } from "@reduxjs/toolkit";
 import createSagaMiddleware from "redux-saga";
 import rootSaga from "./sagas/rootSaga";
-import { apiDataReducer, apiLoginReducer } from "./api/reducers";
+import { apiLoginReducer } from "./api/reducers";
 
 const sagaMiddleware = createSagaMiddleware();
 const middlewares = [sagaMiddleware];
 
 export const store = configureStore({
   reducer: {
-    api: apiDataReducer,
     login: apiLoginReducer,
   },
   middleware: (getDefaultMiddleware) => [
