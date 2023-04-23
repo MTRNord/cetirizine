@@ -1,0 +1,2 @@
+import{j as r}from"./jsx-runtime-ccada58e.js";const a=({children:e})=>r.jsx("h1",{className:"text-black font-bold text-xl",children:e});try{header.displayName="header",header.__docgenInfo={description:"",displayName:"header",props:{children:{defaultValue:null,description:"The HeaderText",name:"children",required:!0,type:{name:"string"}}}}}catch{}export{a as H};
+//# sourceMappingURL=header-248a39ca.js.map
