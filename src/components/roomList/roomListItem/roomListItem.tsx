@@ -1,4 +1,6 @@
+import { useInView } from "react-intersection-observer";
 import Avatar from "../../avatar/avatar";
+import { FC } from "react";
 
 type RoomListItemProps = {
     /**
@@ -21,22 +23,39 @@ type RoomListItemProps = {
      * Wether the current room is selected
      */
     active: boolean
+    /**
+     * The onClick handler
+     */
+    onClick: () => void;
+    /**
+     * If room is hidden
+     */
+    hidden: boolean
 };
 
-export default function RoomListItem({ avatarUrl, displayname, dm = false, online = false, active = false }: RoomListItemProps) {
-    if (!active) {
-        return (
-            <div className="flex flex-row gap-2 p-1 hover:bg-gray-300 hover:rounded duration-150 ease-in items-center">
-                <Avatar avatarUrl={avatarUrl} displayname={displayname} dm={dm} online={online} />
-                <span className='text-black font-normal text-xl capitalize'>{displayname}</span>
-            </div>
-        );
-    } else {
-        return (
-            <div className="flex flex-row gap-2 p-1 bg-gray-300 rounded duration-150 ease-in items-center">
-                <Avatar avatarUrl={avatarUrl} displayname={displayname} dm={dm} online={online} />
-                <span className='text-black font-normal text-xl capitalize'>{displayname}</span>
-            </div>
-        );
-    }
+const RoomListItem: FC<RoomListItemProps> = ({ avatarUrl, displayname, dm = false, online = false, active = false, onClick, hidden }: RoomListItemProps) => {
+    const { ref, inView } = useInView({
+        triggerOnce: true,
+        rootMargin: '200px 0px',
+        skip: hidden,
+    });
+    return (
+        <div ref={ref} onClick={onClick}>
+            {
+                inView && (active ? (
+                    <div className="flex flex-row gap-2 p-1 bg-gray-300 hover:bg-gray-400 rounded duration-200 ease-in-out items-center">
+                        <Avatar avatarUrl={avatarUrl} displayname={displayname} dm={dm} online={online} />
+                        <span className='text-black font-normal text-xl capitalize'>{displayname}</span>
+                    </div>
+                ) : (
+                    <div className="flex flex-row gap-2 p-1 hover:bg-gray-300 hover:rounded duration-200 ease-in-out items-center">
+                        <Avatar avatarUrl={avatarUrl} displayname={displayname} dm={dm} online={online} />
+                        <span className='text-black font-normal text-xl capitalize'>{displayname}</span>
+                    </div>
+                ))
+            }
+        </div>
+    );
 }
+
+export default RoomListItem

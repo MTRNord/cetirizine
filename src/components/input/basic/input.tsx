@@ -1,4 +1,4 @@
-import { ChangeEvent, memo } from 'react';
+import { ChangeEvent, FC, memo } from 'react';
 
 type InputProps = {
     /**
@@ -27,7 +27,7 @@ type InputProps = {
     onChange: (e: ChangeEvent<HTMLInputElement>) => void;
 };
 
-export default memo(function Input({ placeholder, password = false, autoFocus = false, value, readonly, onChange }: InputProps) {
+const Input: FC<InputProps> = ({ placeholder, password = false, autoFocus = false, value, readonly, onChange }: InputProps) => {
     return (
         <input
             disabled={readonly}
@@ -39,4 +39,5 @@ export default memo(function Input({ placeholder, password = false, autoFocus = 
             onChange={onChange}
         />
     );
-});
+}
+export default memo(Input);

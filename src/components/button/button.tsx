@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { FC, memo } from "react";
 import "./button.scss";
 
 type ButtonProps = {
@@ -25,7 +25,7 @@ type ButtonProps = {
     readonly: boolean
 };
 
-export default memo(function Button({ type = "button", style = "primary", onClick, children, readonly }: ButtonProps) {
+const Button: FC<ButtonProps> = ({ type = "button", style = "primary", onClick, children, readonly }: ButtonProps) => {
     if (style === "secondary") {
         return <button disabled={readonly} onClick={onClick} className="button bg-orange-400 hover:bg-orange-500 ease-out duration-150 disabled:bg-slate-200 disabled:cursor-not-allowed" type={type}>{children}</button>;
     } else if (style === "abort") {
@@ -33,4 +33,5 @@ export default memo(function Button({ type = "button", style = "primary", onClic
     } else {
         return <button disabled={readonly} onClick={onClick} className="button bg-green-400 hover:bg-green-500 ease-out duration-150 disabled:bg-slate-200 disabled:cursor-not-allowed" type={type}>{children}</button>;
     }
-});
+}
+export default memo(Button);

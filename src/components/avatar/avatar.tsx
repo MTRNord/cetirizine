@@ -1,3 +1,5 @@
+import { FC } from "react";
+
 type AvatarProps = {
     /**
      * The URL of the Avatar image
@@ -17,7 +19,7 @@ type AvatarProps = {
     online: boolean
 };
 
-export default function Avatar({ avatarUrl, displayname, dm = false, online = false }: AvatarProps) {
+const Avatar: FC<AvatarProps> = ({ avatarUrl, displayname, dm = false, online = false }: AvatarProps) => {
     if (avatarUrl) {
         return (
             <div className="flex relative w-8 h-8 justify-center items-center m-1 mr-2 text-xl rounded-full text-white">
@@ -49,3 +51,5 @@ export default function Avatar({ avatarUrl, displayname, dm = false, online = fa
         </div>
     );
 }
+
+export default Avatar;
