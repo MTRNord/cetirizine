@@ -136,7 +136,7 @@ const RoomList: FC<RoomListProps> = ({ sections, rooms }: RoomListProps) => {
     const [activeRoom, setActiveRoom] = useState<string | undefined>(undefined);
 
     return (
-        <div className="flex flex-col gap-1 flex-1 px-2 min-w-[33ch]">
+        <div className="flex flex-col gap-1 flex-1 p-2 min-w-[33ch] h-full overflow-y-auto overflow-x-hidden">
             {
                 sections.map(section => {
                     return (
