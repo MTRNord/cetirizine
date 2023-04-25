@@ -1,5 +1,6 @@
 import type { StorybookConfig } from '@storybook/react-vite';
 import { mergeConfig } from 'vite';
+
 const config: StorybookConfig = {
   stories: ["../src/**/*.stories.@(js|jsx|ts|tsx|mdx)"],
   addons: [
@@ -8,18 +9,7 @@ const config: StorybookConfig = {
     "@storybook/addon-interactions",
     '@storybook/addon-a11y',
     '@geometricpanda/storybook-addon-badges',
-    {
-      name: '@storybook/addon-styling',
-      options: {
-        // Check out https://github.com/storybookjs/addon-styling/blob/main/docs/api.md
-        // For more details on this addon's options.
-        postCss: true,
-        sass: {
-          // Require your preprocessor
-          implementation: require("sass"),
-        },
-      },
-    },
+    '@storybook/addon-styling',
   ],
   framework: {
     name: '@storybook/react-vite',
@@ -27,7 +17,6 @@ const config: StorybookConfig = {
   },
   core: {
     disableTelemetry: true,
-    builder: '@storybook/builder-vite',
   },
   async viteFinal(config) {
     // Merge custom configuration into the default config
@@ -35,13 +24,19 @@ const config: StorybookConfig = {
       // https://github.com/storybookjs/storybook/issues/22223
       build: {
         target: 'esnext'
-      },
+      }
     });
   },
   docs: {
     autodocs: true,
-    defaultName: 'Documentation',
+    defaultName: 'Documentation'
   },
-  staticDirs: ["../public"],
+  typescript: {
+    reactDocgen: 'react-docgen',
+
+    check: true,
+    skipBabel: true,
+  },
+  staticDirs: ["../public"]
 };
 export default config;

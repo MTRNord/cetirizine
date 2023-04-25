@@ -22,8 +22,8 @@ type AvatarProps = {
 const Avatar: FC<AvatarProps> = ({ avatarUrl, displayname, dm = false, online = false }: AvatarProps) => {
     if (avatarUrl) {
         return (
-            <div className="flex relative w-8 h-8 justify-center items-center m-1 mr-2 text-xl rounded-full text-white">
-                <img className="rounded-full" alt={displayname} src={avatarUrl} />
+            <div className="flex relative min-w-[2rem] min-h-[2rem] justify-center items-center m-0 mr-3 text-xl rounded-full text-white">
+                <img className="rounded-full w-8 h-8" alt={displayname} src={avatarUrl} />
                 {
                     dm ?
                         (
@@ -37,7 +37,7 @@ const Avatar: FC<AvatarProps> = ({ avatarUrl, displayname, dm = false, online = 
         );
     }
     return (
-        <div className="flex relative w-8 h-8 bg-orange-500 justify-center items-center m-1 mr-2 text-xl rounded-full text-white">
+        <div className="flex relative min-w-[2rem] min-h-[2rem] bg-orange-500 justify-center items-center m-0 mr-3 text-xl rounded-full text-white">
             {displayname[0].toUpperCase()}
             {
                 dm ?

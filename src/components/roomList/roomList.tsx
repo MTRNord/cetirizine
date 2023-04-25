@@ -2,6 +2,7 @@ import { FC, useState } from "react";
 import RoomListItem from "./roomListItem/roomListItem";
 import { ChevronDown, ChevronRight } from "lucide-react";
 
+
 type Room = {
     /**
      * The URL of the Avatar image
@@ -104,9 +105,9 @@ const RoomSection: FC<{ section: Section, onRoomClick: (roomID: string) => void,
     const [hidden, setHidden] = useState<boolean>(false);
     return (
         <div key={section.roomID} className="flex flex-col gap-1">
-            <div className="flex flex-row gap-2 p-1 px-2 bg-gray-300 items-center justify-between cursor-pointer" onClick={() => setHidden(prev => !prev)}>
-                <span className='text-black font-normal text-xl capitalize'>{section.sectionName}</span>
-                {hidden ? <ChevronRight size={20} /> : <ChevronDown size={20} />}
+            <div className="flex flex-row gap-2 py-1  items-center justify-start cursor-pointer h-8 text-slate-600" onClick={() => setHidden(prev => !prev)}>
+                {hidden ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
+                <span className='font-normal text-sm capitalize max-w-[32ch] overflow-hidden text-ellipsis w-full whitespace-nowrap'>{section.sectionName}</span>
             </div >
             {!hidden && (<RoomListRooms
                 hidden={hidden}
@@ -135,7 +136,7 @@ const RoomList: FC<RoomListProps> = ({ sections, rooms }: RoomListProps) => {
     const [activeRoom, setActiveRoom] = useState<string | undefined>(undefined);
 
     return (
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-1 flex-1 px-2 min-w-[33ch]">
             {
                 sections.map(section => {
                     return (

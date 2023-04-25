@@ -40,17 +40,17 @@ const RoomListItem: FC<RoomListItemProps> = ({ avatarUrl, displayname, dm = fals
         skip: hidden,
     });
     return (
-        <div ref={ref} onClick={onClick}>
+        <div ref={ref} onClick={onClick} className="w-full cursor-pointer">
             {
                 inView && (active ? (
-                    <div className="flex flex-row gap-2 p-1 bg-gray-300 hover:bg-gray-400 rounded duration-200 ease-in-out items-center">
+                    <div className="flex flex-row gap-2 p-1 bg-gray-300 hover:bg-gray-400 rounded-lg duration-200 ease-in-out items-center">
                         <Avatar avatarUrl={avatarUrl} displayname={displayname} dm={dm} online={online} />
-                        <span className='text-black font-normal text-xl capitalize'>{displayname}</span>
+                        <span title={displayname} className='text-slate-900 font-normal text-base capitalize max-w-[32ch] overflow-hidden text-ellipsis w-full whitespace-nowrap'>{displayname}</span>
                     </div>
                 ) : (
-                    <div className="flex flex-row gap-2 p-1 hover:bg-gray-300 hover:rounded duration-200 ease-in-out items-center">
+                    <div className="flex flex-row gap-2 p-1 hover:bg-gray-300 rounded-lg duration-200 ease-in-out items-center">
                         <Avatar avatarUrl={avatarUrl} displayname={displayname} dm={dm} online={online} />
-                        <span className='text-black font-normal text-xl capitalize'>{displayname}</span>
+                        <span title={displayname} className='text-slate-900 font-normal text-base capitalize max-w-[32ch] overflow-hidden text-ellipsis w-full whitespace-nowrap'>{displayname}</span>
                     </div>
                 ))
             }

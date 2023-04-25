@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useDeferredValue, useState } from 'react';
 import { getLoginError } from '../../app/api/reducers';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { RootState } from '../../app/store';
@@ -9,6 +9,7 @@ import { LOGIN_ACTION } from '../../app/api/reducers';
 
 export function Login() {
     const loginError = useAppSelector((state: RootState) => getLoginError(state));
+    const deferredLoginError = useDeferredValue(loginError);
     const loginPending = useAppSelector((state: RootState) => state.login.loginPending);
     const [homeserver, setHomeserver] = useState('');
     const [username, setUsername] = useState('');
@@ -21,7 +22,7 @@ export function Login() {
             dispatch({ type: LOGIN_ACTION, baseUrl: homeserver, username: username, password: password });
         }}>
             <Header>Login</Header>
-            {loginError ? <h2 className='text-red-500 font-normal text-sm'>{loginError}</h2> : <div className='min-h-[1.25rem]'></div>}
+            {deferredLoginError ? <h2 className='text-red-500 font-normal text-sm'>{deferredLoginError}</h2> : <div className='min-h-[1.25rem]'></div>}
             <Input
                 readonly={loginPending}
                 value={homeserver}

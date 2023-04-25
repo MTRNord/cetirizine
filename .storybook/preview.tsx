@@ -3,7 +3,8 @@ import React from "react";
 import { Provider } from "react-redux";
 import { store } from "../src/app/store";
 import { withThemeByDataAttribute } from '@storybook/addon-styling';
-import './tailwindcss.scss'
+import "../src/index.scss";
+import "./tailwindcss.scss";
 
 const preview: Preview = {
   parameters: {
