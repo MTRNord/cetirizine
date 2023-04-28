@@ -5,7 +5,6 @@ import Button from '../button/button';
 import Header from '../header/header';
 import Input from '../input/basic/input';
 import { Navigate } from 'react-router-dom';
-import { IRateLimitError } from '../../app/api/apiTypes';
 
 export function Login() {
     const [login, { isLoading: loginPending, isSuccess, error: loginErrorRaw }] = useDoLoginMutation();

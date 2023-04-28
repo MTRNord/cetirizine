@@ -1,6 +1,6 @@
-import { BaseQueryFn, FetchArgs, FetchBaseQueryError, createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react'
+import { BaseQueryFn, FetchArgs, FetchBaseQueryError, createApi, fetchBaseQuery, retry } from '@reduxjs/toolkit/query/react'
 import { RootState } from '../store';
-import { ILoginFlows, ILoginParams, ILoginResponse, IWellKnown } from './apiTypes';
+import { ILoginFlows, ILoginParams, ILoginResponse, IRateLimitError, IWellKnown } from './apiTypes';
 import { createAction, createReducer } from '@reduxjs/toolkit';
 // async function login(baseUrl: string, userId: string, password: string): Promise<MatrixClient> {
 //     //const client = await initMatrixClient(baseUrl, userId, undefined, undefined, password);
@@ -50,7 +50,17 @@ const baseQuery: BaseQueryFn<string | FetchArgs,
 
 export const matrixApi = createApi({
     reducerPath: 'matrixApi',
-    baseQuery: baseQuery,
+    baseQuery: retry(
+        async (args: string | FetchArgs, api, extraOptions) => {
+            const result = await baseQuery(args, api, extraOptions);
+            if (result.error?.status === 429) {
+                const retryAfterMs = (result.error.data as IRateLimitError).retry_after_ms;
+                if (retryAfterMs) {
+                    await new Promise((resolve) => setTimeout(resolve, retryAfterMs));
+                }
+            }
+            return result;
+        }, { maxRetries: 3 }),
     tagTypes: ['Login', 'Flows', "WellKnown"],
     endpoints: (builder) => ({
         getWellKnown: builder.query<IWellKnown, undefined>({
