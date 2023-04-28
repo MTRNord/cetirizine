@@ -22,8 +22,6 @@ interface IAuthState {
     logged_in: boolean;
 }
 const initialAuthState: IAuthState = {
-    host: undefined,
-    accessToken: undefined,
     logged_in: false,
 }
 export const auth = createReducer(initialAuthState, (builder) => builder
@@ -86,6 +84,7 @@ export const matrixApi = createApi({
                 try {
                     const { data, meta } = await queryFulfilled;
                     const response = (meta as { request: Request, response: Response }).response;
+
                     if (response.status === 200) {
                         dispatch(setLoggedIn(true))
                         dispatch(setAccessToken(data.access_token))
@@ -118,4 +117,4 @@ const rawBaseQuery = (baseUrl: string) => fetchBaseQuery({
 
 // Export hooks for usage in functional components, which are
 // auto-generated based on the defined endpoints
-export const { useGetLoginFlowsQuery, useDoLoginMutation, useLazyGetWellKnownQuery } = matrixApi
+export const { useLazyGetLoginFlowsQuery, useDoLoginMutation, useLazyGetWellKnownQuery } = matrixApi
