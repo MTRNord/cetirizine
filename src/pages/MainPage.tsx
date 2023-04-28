@@ -64,8 +64,8 @@ export default function MainPage() {
             online: false,
         },
     ];
-    return <div className='flex flex-row w-full gap-2 h-full'>
-        <div className='flex flex-col h-full bg-gradient-to-br from-slate-100 via-gray-200 to-orange-200 border-r-[1px] border-slate-300'>
+    return <div className='flex flex-row w-full gap-2 min-h-screen'>
+        <div className='flex flex-col bg-gradient-to-br from-slate-100 via-gray-200 to-orange-200 border-r-[1px] border-slate-300'>
             <div className='flex flex-row gap-2 m-2 p-1  items-center border-b-2'>
                 <Avatar displayname='Test' avatarUrl='https://randomuser.me/api/portraits/men/62.jpg' dm={false} online={false} />
                 <div className='flex flex-row justify-between items-center w-full'>

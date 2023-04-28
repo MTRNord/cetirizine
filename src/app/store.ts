@@ -1,23 +1,20 @@
 import { configureStore, ThunkAction, Action } from "@reduxjs/toolkit";
-import createSagaMiddleware from "redux-saga";
-import rootSaga from "./sagas/rootSaga";
-import { apiLoginReducer } from "./api/reducers";
-import { initMatrixClient } from "./api/api";
-
-const sagaMiddleware = createSagaMiddleware();
-const middlewares = [sagaMiddleware];
+import { matrixApi, auth } from "./api/api";
+import { setupListeners } from "@reduxjs/toolkit/dist/query/react";
 
 export const store = configureStore({
   reducer: {
-    login: apiLoginReducer,
+    auth: auth,
+    [matrixApi.reducerPath]: matrixApi.reducer,
   },
   middleware: (getDefaultMiddleware) => [
     ...getDefaultMiddleware(),
-    ...middlewares,
+    matrixApi.middleware,
   ],
-  preloadedState: await getInitialState()
+  //preloadedState: await getInitialState()
 });
-sagaMiddleware.run(rootSaga);
+
+setupListeners(store.dispatch)
 
 export type AppDispatch = typeof store.dispatch;
 export type RootState = ReturnType<typeof store.getState>;
@@ -33,11 +30,12 @@ async function getInitialState() {
   const accessToken = localStorage.getItem("accessToken");
   const baseUrl = localStorage.getItem("baseUrl");
   const userId = localStorage.getItem("userId");
+  const deviceId = localStorage.getItem("deviceId");
   if (accessToken && baseUrl && userId) {
-    const client = await initMatrixClient(baseUrl, userId, accessToken);
+    //const client = await initMatrixClient(baseUrl, userId, deviceId!, accessToken, undefined, true);
     return {
       login: {
-        client,
+        //client,
         loginPending: false
       }
     }

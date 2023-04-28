@@ -9,9 +9,8 @@
     />
     <title>Matrix</title>
     <script>
-      if (global === undefined) {
-        var global = window;
-      }
+        global = globalThis // fix for "global not defined" error
+        globalThis.OLM_OPTIONS = undefined; // Fix missing var for olm
     </script>
   </head>
   <body>

@@ -1,91 +1,121 @@
-import { all, call, fork, put, takeEvery } from "redux-saga/effects";
-import { LOGIN_REQUEST_ACTION, LOGIN_SUCCESS_ACTION, LOGIN, LOGIN_ACTION, LOGIN_FAILURE_ACTION } from "./reducers";
-import { IndexedDBCryptoStore, IndexedDBStore, MatrixClient, MemoryStore, createClient, setCryptoStoreFactory } from "matrix-js-sdk";
-import { AutoDiscovery } from 'matrix-js-sdk/lib/autodiscovery';
+import { BaseQueryFn, FetchArgs, FetchBaseQueryError, createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react'
+import { RootState } from '../store';
+import { ILoginFlows, ILoginParams, ILoginResponse, IWellKnown } from './apiTypes';
+import { createAction, createReducer } from '@reduxjs/toolkit';
+// async function login(baseUrl: string, userId: string, password: string): Promise<MatrixClient> {
+//     //const client = await initMatrixClient(baseUrl, userId, undefined, undefined, password);
 
-async function login(baseUrl: string, userId: string, password: string): Promise<MatrixClient> {
-    const client = await initMatrixClient(baseUrl, userId, undefined, password);
+//     window.localStorage.setItem("accessToken", client.getAccessToken()!);
+//     window.localStorage.setItem("baseUrl", client.baseUrl);
+//     window.localStorage.setItem("userId", client.getUserId()!);
+//     window.localStorage.setItem("deviceId", client.getDeviceId()!);
 
-    window.localStorage.setItem("accessToken", client.getAccessToken()!);
-    window.localStorage.setItem("baseUrl", client.baseUrl);
-    window.localStorage.setItem("userId", client.getUserId()!);
+//     return client;
+// }
 
-    return client;
+export const setHost = createAction<string, 'auth/host'>('auth/host');
+export const setAccessToken = createAction<string, 'auth/access_token'>('auth/access_token');
+export const setLoggedIn = createAction<boolean, 'auth/logged_in'>('auth/logged_in');
+interface IAuthState {
+    host?: string;
+    accessToken?: string;
+    logged_in: boolean;
 }
-
-function* onLoginSaga(action: LOGIN): any {
-    yield put(LOGIN_REQUEST_ACTION());
-    if (!action.baseUrl.startsWith("https://")) {
-        yield put(LOGIN_FAILURE_ACTION("Homeserver url must start with https://"));
-        return;
-    }
-    if (!action.username) {
-        yield put(LOGIN_FAILURE_ACTION("Username must be a non empty string"));
-        return;
-    }
-    if (!action.password) {
-        yield put(LOGIN_FAILURE_ACTION("Password must be a non empty string"));
-        return;
-    }
-    try {
-        const client: MatrixClient = yield call(login, action.baseUrl, action.username, action.password);
-        yield put(LOGIN_SUCCESS_ACTION(client));
-    } catch (e) {
-        yield put(LOGIN_FAILURE_ACTION((e as any).toString()));
-        return;
-    }
+const initialAuthState: IAuthState = {
+    host: undefined,
+    accessToken: undefined,
+    logged_in: false,
 }
+export const auth = createReducer(initialAuthState, (builder) => builder
+    .addCase(setHost, (state, action) => { state.host = action.payload })
+    .addCase(setAccessToken, (state, action) => { state.accessToken = action.payload })
+    .addCase(setLoggedIn, (state, action) => { state.logged_in = action.payload })
+);
 
-function* watchLoginSaga() {
-    yield takeEvery<LOGIN>(LOGIN_ACTION, onLoginSaga);
-}
-
-export function* apiSagas() {
-    yield all([fork(watchLoginSaga)]);
-}
-
-export async function initMatrixClient(baseUrl: string, userId: string, accessToken?: string, password?: string): Promise<MatrixClient> {
-    // just *accessing* indexedDB throws an exception in firefox with indexeddb disabled.
-    let indexedDB: IDBFactory | undefined;
-    try {
-        indexedDB = global.indexedDB;
-    } catch (e) { }
-
-    // if our browser (appears to) support indexeddb, use an indexeddb crypto store.
-    let store = new MemoryStore({ localStorage: window.localStorage });
-    if (indexedDB) {
-        setCryptoStoreFactory(() => new IndexedDBCryptoStore(indexedDB!, "matrix-js-sdk:crypto"));
-        store = new IndexedDBStore({ indexedDB: indexedDB, localStorage: window.localStorage });
-        await store.startup();
-    }
-
-    const clientConfig = await AutoDiscovery.findClientConfig(baseUrl.replace("https://", ''));
-
-    if (clientConfig["m.homeserver"].state === AutoDiscovery.FAIL_PROMPT) {
-        throw Error(clientConfig["m.homeserver"].error?.toString())
-    }
-    if (clientConfig["m.homeserver"].state !== AutoDiscovery.FAIL_ERROR) {
-        if (clientConfig["m.homeserver"].base_url) {
-            baseUrl = clientConfig["m.homeserver"].base_url;
+const baseQuery: BaseQueryFn<string | FetchArgs,
+    unknown,
+    FetchBaseQueryError> = async (args, api, extraOptions) => {
+        const baseUrl = (api.getState() as RootState).auth.host;
+        // gracefully handle scenarios where data to generate the URL is missing
+        if (!baseUrl) {
+            return {
+                error: {
+                    status: 400,
+                    statusText: 'Bad Request',
+                    data: 'Invalid Matrix Host',
+                },
+            };
         }
-    }
 
-    const matrixClient = createClient({
-        baseUrl: baseUrl,
-        accessToken: accessToken,
-        userId: accessToken ? userId : undefined,
-        useAuthorizationHeader: true,
-        store
-    });
+        return rawBaseQuery(baseUrl)(args, api, extraOptions);
+    };
 
-    if (!accessToken && !password) {
-        throw Error("Missing password and accessToken. Unable to proceed")
-    }
+export const matrixApi = createApi({
+    reducerPath: 'matrixApi',
+    baseQuery: baseQuery,
+    tagTypes: ['Login', 'Flows', "WellKnown"],
+    endpoints: (builder) => ({
+        getWellKnown: builder.query<IWellKnown, undefined>({
+            query: () => `/.well-known/matrix/client`,
+            providesTags: ['WellKnown'],
+            async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
+                try {
+                    const { data, meta } = await queryFulfilled;
+                    const response = (meta as { request: Request, response: Response }).response;
+                    if (response.status === 200) {
+                        if (data?.["m.homeserver"]?.base_url) {
+                            dispatch(setHost(data["m.homeserver"].base_url))
+                        }
+                    }
+                } catch (err) {
+                    // `onError` side-effect
+                }
+            },
+        }),
+        getLoginFlows: builder.query<ILoginFlows, undefined>({
+            query: () => `/_matrix/client/v3/login`,
+            providesTags: ['Flows'],
+        }),
+        doLogin: builder.mutation<ILoginResponse, ILoginParams>({
+            query: (data) => ({
+                url: `/_matrix/client/r0/login`,
+                method: 'POST',
+                body: data,
+            }),
+            async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
+                try {
+                    const { data, meta } = await queryFulfilled;
+                    const response = (meta as { request: Request, response: Response }).response;
+                    if (response.status === 200) {
+                        dispatch(setLoggedIn(true))
+                        dispatch(setAccessToken(data.access_token))
+                        if (data.well_known?.["m.homeserver"]?.base_url) {
+                            dispatch(setHost(data.well_known["m.homeserver"].base_url))
+                        }
+                    } else {
+                        dispatch(setLoggedIn(false))
+                    }
+                } catch (err) {
+                    // `onError` side-effect
+                    dispatch(setLoggedIn(false))
+                }
+            },
+            invalidatesTags: ['Login'],
+        }),
+    }),
+});
 
-    if (!accessToken) {
-        await matrixClient.loginWithPassword(userId, password!!);
-    }
+const rawBaseQuery = (baseUrl: string) => fetchBaseQuery({
+    baseUrl,
+    prepareHeaders: (headers, { getState }) => {
+        const token = (getState() as RootState).auth.accessToken;
+        !!token && headers.set('Authorization', `Bearer ${token}`);
 
-    await matrixClient.initCrypto();
-    return matrixClient
-}
+        return headers;
+    },
+});
+
+
+// Export hooks for usage in functional components, which are
+// auto-generated based on the defined endpoints
+export const { useGetLoginFlowsQuery, useDoLoginMutation, useLazyGetWellKnownQuery } = matrixApi
