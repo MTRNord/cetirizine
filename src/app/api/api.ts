@@ -48,19 +48,21 @@ const baseQuery: BaseQueryFn<string | FetchArgs,
         return rawBaseQuery(baseUrl)(args, api, extraOptions);
     };
 
+const baseQueryWithRetry = retry(
+    async (args: string | FetchArgs, api, extraOptions) => {
+        const result = await baseQuery(args, api, extraOptions);
+        if (result.error?.status === 429) {
+            const retryAfterMs = (result.error.data as IRateLimitError).retry_after_ms;
+            if (retryAfterMs) {
+                await new Promise((resolve) => setTimeout(resolve, retryAfterMs));
+            }
+        }
+        return result;
+    }, { maxRetries: 3 });
+
 export const matrixApi = createApi({
     reducerPath: 'matrixApi',
-    baseQuery: retry(
-        async (args: string | FetchArgs, api, extraOptions) => {
-            const result = await baseQuery(args, api, extraOptions);
-            if (result.error?.status === 429) {
-                const retryAfterMs = (result.error.data as IRateLimitError).retry_after_ms;
-                if (retryAfterMs) {
-                    await new Promise((resolve) => setTimeout(resolve, retryAfterMs));
-                }
-            }
-            return result;
-        }, { maxRetries: 3 }),
+    baseQuery: baseQueryWithRetry,
     tagTypes: ['Login', 'Flows', "WellKnown"],
     endpoints: (builder) => ({
         getWellKnown: builder.query<IWellKnown, undefined>({

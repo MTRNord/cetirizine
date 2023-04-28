@@ -5,12 +5,14 @@ import Button from '../button/button';
 import Header from '../header/header';
 import Input from '../input/basic/input';
 import { Navigate } from 'react-router-dom';
+import { SerializedError } from '@reduxjs/toolkit';
+import { FetchBaseQueryError } from '@reduxjs/toolkit/dist/query';
 
 export function Login() {
     const [login, { isLoading: loginPending, isSuccess, error: loginErrorRaw }] = useDoLoginMutation();
     const [triggerWellKnown] = useLazyGetWellKnownQuery();
     const [triggerLoginFlows] = useLazyGetLoginFlowsQuery();
-    const [loginError, setLoginError] = useState(loginErrorRaw);
+    const [loginError, setLoginError] = useState<FetchBaseQueryError | SerializedError | undefined>(loginErrorRaw);
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const dispatch = useAppDispatch();
@@ -52,7 +54,6 @@ export function Login() {
             setLoginError({ status: "CUSTOM_ERROR", error: 'No password login flow found' });
         }
     }
-    // TODO: We need to make sure that we do well-known before login
     return (
         <form className="flex flex-col rounded-md shadow p-4 bg-white gap-2 min-w-[30rem]" onSubmit={(e) => {
             e.preventDefault();
