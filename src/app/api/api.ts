@@ -1,5 +1,6 @@
-import { BaseQueryFn, FetchArgs, FetchBaseQueryError, createApi, fetchBaseQuery, retry } from '@reduxjs/toolkit/query/react'
+import { BaseQueryFn, FetchArgs, FetchBaseQueryError, createApi, fetchBaseQuery, retry, } from '@reduxjs/toolkit/query/react'
 import { RootState } from '../store';
+
 import { ILoginFlows, ILoginParams, ILoginResponse, IRateLimitError, IWellKnown } from './apiTypes';
 import { createAction, createReducer } from '@reduxjs/toolkit';
 // async function login(baseUrl: string, userId: string, password: string): Promise<MatrixClient> {
@@ -63,6 +64,7 @@ const baseQueryWithRetry = retry(
 export const matrixApi = createApi({
     reducerPath: 'matrixApi',
     baseQuery: baseQueryWithRetry,
+    refetchOnReconnect: true,
     tagTypes: ['Login', 'Flows', "WellKnown"],
     endpoints: (builder) => ({
         getWellKnown: builder.query<IWellKnown, undefined>({
@@ -113,6 +115,23 @@ export const matrixApi = createApi({
             },
             invalidatesTags: ['Login'],
         }),
+        sync: builder.query<any[], void>({
+            keepUnusedDataFor: 2147483647,
+            // The query is not relevant here as the data will be provided via streaming updates.
+            // A queryFn returning an empty array is used, with contents being populated via
+            // streaming updates below as they are received.
+            queryFn: () => ({ data: [] }),
+            async onCacheEntryAdded(_arg, { updateCachedData, cacheEntryRemoved, getState }) {
+                // TODO: /sync loop
+                /*
+                updateCachedData((draft) => {
+                    draft.push(JSON.parse(event.data))
+                })
+                */
+                await cacheEntryRemoved
+                // Cleanup?
+            },
+        }),
     }),
 });
 
@@ -129,4 +148,4 @@ const rawBaseQuery = (baseUrl: string) => fetchBaseQuery({
 
 // Export hooks for usage in functional components, which are
 // auto-generated based on the defined endpoints
-export const { useLazyGetLoginFlowsQuery, useDoLoginMutation, useLazyGetWellKnownQuery } = matrixApi
+export const { useLazyGetLoginFlowsQuery, useDoLoginMutation, useLazyGetWellKnownQuery, useSyncQuery } = matrixApi

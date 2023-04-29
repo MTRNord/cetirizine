@@ -3,8 +3,10 @@ import Avatar from '../components/avatar/avatar';
 import ChatInput from '../components/input/chat/input';
 import RoomList from '../components/roomList/roomList';
 import './MainPage.scss';
+import { useSyncQuery } from '../app/api/api';
 
 export default function MainPage() {
+    const { } = useSyncQuery();
     // TODO: Calculate rooms and sections within a RTK Query
     const sections = [
         {

@@ -292,17 +292,6 @@ function BlockOptionsDropdownList({
     const dropDownRef: MutableRefObject<HTMLDivElement | null> = useRef(null);
 
     useEffect(() => {
-        const toolbar = toolbarRef.current;
-        const dropDown = dropDownRef.current;
-
-        if (toolbar !== null && dropDown !== null) {
-            const { top, left } = toolbar.getBoundingClientRect();
-            dropDown.style.top = `${top + 40}px`;
-            dropDown.style.left = `${left}px`;
-        }
-    }, [dropDownRef, toolbarRef]);
-
-    useEffect(() => {
         const dropDown = dropDownRef.current;
         const toolbar = toolbarRef.current;
 
@@ -567,6 +556,17 @@ export default function ToolbarPlugin() {
         }
     }, [editor, isLink]);
 
+    const [portalContainer, setPortalContainer] = useState<HTMLDivElement | null>(null);
+    useEffect(() => {
+        const container = document.getElementsByClassName("editor-container")[0];
+        const portalContainer = document.createElement('div');
+        container.prepend(portalContainer)
+        setPortalContainer(portalContainer)
+        return () => {
+            container.removeChild(portalContainer)
+        }
+    }, [])
+
     return (
         <div className="toolbar" ref={toolbarRef}>
             <button
@@ -633,7 +633,7 @@ export default function ToolbarPlugin() {
                                 toolbarRef={toolbarRef}
                                 setShowBlockOptionsDropDown={setShowBlockOptionsDropDown}
                             />,
-                            document.body
+                            portalContainer!!
                         )}
                     <Divider />
                 </>
