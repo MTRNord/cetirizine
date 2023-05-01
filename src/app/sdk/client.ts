@@ -24,8 +24,10 @@ export class MatrixClient extends EventEmitter {
     // TODO: This needs to be stored
     private access_token?: string;
     // TODO: This needs to be stored
+    // @ts-ignore Not used currently but needed
     private device_id?: string;
     // TODO: This needs to be stored
+    // @ts-ignore Not used currently but needed
     private mxid?: string;
     // TODO: This needs to be stored
     // Hostname including "https://"
