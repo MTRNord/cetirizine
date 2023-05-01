@@ -19,7 +19,7 @@ export function Login() {
             setLoginPending(true);
             await matrixClient.passwordLogin(username, password);
         } catch (e: any) {
-            setLoginError(e);
+            setLoginError(e.toString());
         }
         setLoginPending(false);
     }

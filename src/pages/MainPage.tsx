@@ -3,8 +3,9 @@ import Avatar from '../components/avatar/avatar';
 import ChatInput from '../components/input/chat/input';
 import RoomList from '../components/roomList/roomList';
 import './MainPage.scss';
-import { useRooms } from '../app/sdk/client';
+import { useProfile, useRooms } from '../app/sdk/client';
 export default function MainPage() {
+    const profile = useProfile();
     const matrixRooms = useRooms();
     console.log(matrixRooms.length);
     const sections = [
@@ -68,9 +69,9 @@ export default function MainPage() {
     return <div className='flex flex-row w-full gap-2 min-h-screen'>
         <div className='flex flex-col bg-gradient-to-br from-slate-100 via-gray-200 to-orange-200 border-r-[1px] border-slate-300'>
             <div className='flex flex-row gap-2 m-2 p-1  items-center border-b-2'>
-                <Avatar displayname='Test' avatarUrl='https://randomuser.me/api/portraits/men/62.jpg' dm={false} online={false} />
+                {profile?.avatar_url && <Avatar displayname='Test' avatarUrl={profile?.avatar_url} dm={false} online={false} />}
                 <div className='flex flex-row justify-between items-center w-full'>
-                    <span className='text-base font-semibold'>Abcd</span>
+                    <span className='text-base font-semibold'>{profile?.displayname}</span>
                     <Settings size={28} stroke='unset' className='stroke-slate-600 rounded-full hover:bg-slate-300 p-1 cursor-pointer' />
                 </div>
             </div>

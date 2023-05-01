@@ -81,6 +81,11 @@ export interface ITimeline {
     prev_batch: string;
 }
 
+export interface IProfileInfo {
+    avatar_url?: string;
+    displayname?: string;
+}
+
 // Old sync
 export interface ISyncResponse {
     account_data?: IAccountData;
@@ -225,7 +230,7 @@ export interface SYNC_OP {
 export interface RoomJson {
     name: string,
     // List of events
-    timeline: IRoomEvent[],
+    timeline?: IRoomEvent[],
     required_state?: IRoomStateEvent[],
     notification_count: number,
     highlight_count: number,

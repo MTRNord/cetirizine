@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { IErrorResp, ILoginFlows, ILoginResponse, IRateLimitError, IRoomEvent, IRoomStateEvent, ISlidingSyncResp, IWellKnown, isDeleteOp, isInsertOp, isInvalidateOp, isSyncOp } from "./api/apiTypes";
+import { IErrorResp, ILoginFlows, ILoginResponse, IProfileInfo, IRateLimitError, IRoomEvent, IRoomStateEvent, ISlidingSyncResp, IWellKnown, isDeleteOp, isInsertOp, isInvalidateOp, isSyncOp } from "./api/apiTypes";
 import { Room } from "./room";
 import EventEmitter from "events";
 import { DBSchema, IDBPDatabase, openDB } from "idb";
@@ -50,6 +50,8 @@ interface MatrixDB extends DBSchema {
             hostname?: string;
             slidingSyncHostname?: string;
             access_token?: string;
+            displayName?: string;
+            avatarUrl?: string;
         };
         // User ID
         key: string;
@@ -60,6 +62,8 @@ interface MatrixDB extends DBSchema {
             userId: string;
             syncPos: string;
             initialSync: boolean;
+            lastRanges?: { [key: string]: number[][] }; // [start, end]
+            lastTxnID?: string;
         };
         // User ID
         key: string;
@@ -69,10 +73,8 @@ interface MatrixDB extends DBSchema {
 export class MatrixClient extends EventEmitter {
     private static _instance: MatrixClient;
     private access_token?: string;
-    // @ts-ignore Not used currently but needed
     private device_id?: string;
-    // @ts-ignore Not used currently but needed
-    private mxid?: string;
+    public mxid?: string;
     // Hostname including "https://"
     private hostname?: string;
     private slidingSyncHostname?: string;
@@ -82,76 +84,107 @@ export class MatrixClient extends EventEmitter {
     private syncPos?: string;
     private initialSync = true;
     private database?: IDBPDatabase<MatrixDB>;
+    private profileInfo?: IProfileInfo;
+    private lastRanges?: { [key: string]: number[][] };
+    private lastTxnID?: string;
 
     public get isLoggedIn(): boolean {
         return this.access_token !== undefined;
     }
 
     public static async Instance() {
-        const instance = this._instance || (this._instance = new this());
-        // Load from database
-        if (!instance.database) {
-            await instance.createDatabase();
-        }
-        const tx = instance.database?.transaction('loginInfo', 'readonly');
-        // We dont know the mxid so we just get all and use the first. In theory this allows for multiple accounts
-        const loginInfo = await tx?.store.getAll();
-        await tx?.done;
-        if (loginInfo && loginInfo.length > 0) {
-            instance.mxid = loginInfo[0].userId;
-            instance.hostname = loginInfo[0].hostname;
-            instance.slidingSyncHostname = loginInfo[0].slidingSyncHostname;
-            instance.access_token = loginInfo[0].access_token;
-            instance.device_id = loginInfo[0].device_id;
-
-            // Load sync info
-            const syncTx = instance.database?.transaction('syncInfo', 'readonly');
-            const syncInfo = await syncTx?.store.get(instance.mxid!);
-            await syncTx?.done;
-
-            if (syncInfo) {
-                instance.syncPos = syncInfo.syncPos;
-                instance.initialSync = syncInfo.initialSync;
+        let instance = this._instance;
+        // Load from database if not done
+        if (!instance) {
+            instance = (this._instance = new this());
+            if (!instance.database) {
+                await instance.createDatabase();
             }
+            const tx = instance.database?.transaction('loginInfo', 'readonly');
+            // We dont know the mxid so we just get all and use the first. In theory this allows for multiple accounts
+            const loginInfo = await tx?.store.getAll();
+            await tx?.done;
+            if (loginInfo && loginInfo.length > 0) {
+                instance.mxid = loginInfo[0].userId;
+                instance.hostname = loginInfo[0].hostname;
+                instance.slidingSyncHostname = loginInfo[0].slidingSyncHostname;
+                instance.access_token = loginInfo[0].access_token;
+                instance.device_id = loginInfo[0].device_id;
+                instance.profileInfo = {
+                    avatar_url: loginInfo[0].avatarUrl,
+                    displayname: loginInfo[0].displayName,
+                };
 
-            // Load rooms
-            const roomTx = instance.database?.transaction('rooms', 'readonly');
-            const rooms = await roomTx?.store.getAll();
-            await roomTx?.done;
+                // Load sync info
+                const syncTx = instance.database?.transaction('syncInfo', 'readonly');
+                const syncInfo = await syncTx?.store.get(instance.mxid!);
+                await syncTx?.done;
 
-            if (rooms) {
-                for (const room of rooms) {
-                    const roomObj = new Room(room.roomID, instance.hostname!);
-                    roomObj.setInvitedCount(room.invited_count);
-                    roomObj.setJoinedCount(room.joined_count);
-                    roomObj.setNotificationCount(room.notification_count);
-                    roomObj.setNotificationHighlightCount(room.highlight_count);
-                    roomObj.setName(room.name);
-                    if (room.events) {
-                        roomObj.addEvents(room.events);
-                    }
-                    if (room.stateEvents) {
-                        roomObj.addStateEvents(room.stateEvents);
-                    }
-
-                    instance.roomToRoom.set(room.windowID, roomObj);
+                if (syncInfo) {
+                    instance.syncPos = syncInfo.syncPos;
+                    instance.initialSync = syncInfo.initialSync;
+                    instance.lastRanges = syncInfo.lastRanges;
+                    instance.lastTxnID = syncInfo.lastTxnID;
                 }
-                instance.emit("rooms", [...instance.roomToRoom.values()]);
+
+                // Load rooms
+                const roomTx = instance.database?.transaction('rooms', 'readonly');
+                const rooms = await roomTx?.store.getAll();
+                await roomTx?.done;
+
+                if (rooms) {
+                    for (const room of rooms) {
+                        const roomObj = new Room(room.roomID, instance.hostname!);
+                        roomObj.setInvitedCount(room.invited_count);
+                        roomObj.setJoinedCount(room.joined_count);
+                        roomObj.setNotificationCount(room.notification_count);
+                        roomObj.setNotificationHighlightCount(room.highlight_count);
+                        roomObj.setName(room.name);
+                        if (room.events) {
+                            roomObj.addEvents(room.events);
+                        }
+                        if (room.stateEvents) {
+                            roomObj.addStateEvents(room.stateEvents);
+                        }
+
+                        instance.roomToRoom.set(room.windowID, roomObj);
+                    }
+                    instance.emit("rooms", [...instance.roomToRoom.values()]);
+                }
             }
         }
+
 
         return instance;
     }
 
     private async createDatabase() {
-        this.database = await openDB<MatrixDB>("matrix", 1, {
-            upgrade(db) {
-                const roomStore = db.createObjectStore('rooms', { keyPath: 'windowID' });
-                roomStore.createIndex('by-windowID', 'windowID');
-                db.createObjectStore('loginInfo', { keyPath: 'userId' });
-                db.createObjectStore('syncInfo', { keyPath: 'userId' });
+        this.database = await openDB<MatrixDB>("matrix", 2, {
+            upgrade(db, oldVersion) {
+                if (oldVersion < 1) {
+                    const roomStore = db.createObjectStore('rooms', { keyPath: 'windowID' });
+                    roomStore.createIndex('by-windowID', 'windowID');
+                    db.createObjectStore('loginInfo', { keyPath: 'userId' });
+                    db.createObjectStore('syncInfo', { keyPath: 'userId' });
+                }
             }
         });
+    }
+
+    private findNextFreeIndex(): number {
+        const keys = Array.from(this.roomToRoom.keys());
+        const max = Math.max(...keys); // Will find highest number
+        const min = 0;
+        // Basically "append"
+        let missing = max + 1;
+
+        for (let i = min; i <= max; i++) {
+            if (!keys.includes(i)) { // Checking whether i(current value) present in num(argument)
+                missing = i;
+                break
+            }
+        }
+        return missing;
     }
 
     private async setHostname(hostname: string) {
@@ -254,6 +287,18 @@ export class MatrixClient extends EventEmitter {
         }
 
 
+        if (this.lastRanges && Object.entries(lists_ranges).toString() !== Object.entries(this.lastRanges).toString()) {
+            console.log("Ranges changed, resetting sync txn_id")
+            this.lastRanges = lists_ranges;
+            this.lastTxnID = Date.now().toString();
+        }
+
+        if (!this.lastRanges) {
+            this.lastRanges = lists_ranges;
+            this.lastTxnID = Date.now().toString();
+        }
+
+
         let url = `${this.slidingSyncHostname}/_matrix/client/unstable/org.matrix.msc3575/sync?timeout=30000`;
         if (this.syncPos) {
             url = `${this.slidingSyncHostname}/_matrix/client/unstable/org.matrix.msc3575/sync?timeout=30000&pos=${this.syncPos}`
@@ -268,7 +313,7 @@ export class MatrixClient extends EventEmitter {
                 // allows clients to know what request params reached the server,
                 // functionally similar to txn IDs on /send for events.
                 // TODO: check resp
-                txn_id: Date.now().toString(),
+                txn_id: this.lastTxnID,
 
                 // a delta token to remember information between sessions.
                 // See "Bandwidth optimisations for persistent clients" for more information.
@@ -278,7 +323,7 @@ export class MatrixClient extends EventEmitter {
                 // Sliding Window API
                 lists: {
                     "overview": {
-                        ranges: lists_ranges["overview"],
+                        ranges: this.lastRanges["overview"],
                         sort: ["by_notification_level", "by_recency", "by_name"],
                         required_state: [
                             // needed to build sections
@@ -312,6 +357,8 @@ export class MatrixClient extends EventEmitter {
             userId: this.mxid!,
             syncPos: this.syncPos,
             initialSync: this.initialSync,
+            lastRanges: this.lastRanges,
+            lastTxnID: this.lastTxnID,
         });
         await syncInfoTX?.done;
 
@@ -332,7 +379,77 @@ export class MatrixClient extends EventEmitter {
                         await tx?.done;
                     } else if (isInsertOp(op)) {
                         console.log("Got INSERT OP", op);
-                        this.roomToRoom.set(op.index, new Room(op.room_id, this.hostname!));
+                        console.log("List", this.roomToRoom);
+                        const position = op.index;
+                        // If the position is not empty then clients MUST move entries to the left or the right depending on where the closest empty space is.
+                        const emptySpot = this.findNextFreeIndex();
+                        console.log("Empty spot", emptySpot);
+                        console.log("Position", position);
+                        // If there is no empty spot at the position we try to insert make sure that there will be one. (aka this.roomToRoom.get(position) === undefined)
+                        if (emptySpot !== position) {
+                            // We shift all rooms to the next free spot either left or right both in memory and database
+                            // First we chech if we need to shift left or right
+
+                            // Used to ensure we dont shift past the max or min since the empty spot may be above the max
+                            const max = Math.max(...this.roomToRoom.keys());
+                            const min = Math.min(...this.roomToRoom.keys());
+                            const tx = this.database?.transaction('rooms', 'readwrite');
+                            // If the empty spot is to the right of the position we shift right
+                            if (emptySpot > position) {
+                                console.log("Shifting right");
+                                // Make sure we never shift past 0
+                                for (let i = 0; i < emptySpot && i >= min && i <= max; i++) {
+                                    const room = this.roomToRoom.get(i);
+                                    if (room !== undefined) {
+                                        await tx?.store.put({
+                                            windowID: i + 1,
+                                            roomID: room.roomID,
+                                            name: room.getName(),
+                                            notification_count: room.getNotificationCount(),
+                                            highlight_count: room.getNotificationHighlightCount(),
+                                            joined_count: room.getJoinedCount(),
+                                            invited_count: room.getInvitedCount(),
+                                            avatarUrl: room.getAvatarURL(),
+                                            isSpace: room.isSpace(),
+                                        });
+                                        this.roomToRoom.delete(i);
+                                        this.roomToRoom.set(i + 1, room);
+                                    }
+                                }
+                            }
+                            // If the empty spot is to the left of the position we shift left
+                            else if (emptySpot < position) {
+                                console.log("Shifting left");
+                                // Make sure we never shift past 0
+                                for (let i = 0; i > emptySpot && i >= min && i <= max; i--) {
+                                    const room = this.roomToRoom.get(i);
+                                    if (room !== undefined) {
+                                        await tx?.store.put({
+                                            windowID: i - 1,
+                                            roomID: room.roomID,
+                                            name: room.getName(),
+                                            notification_count: room.getNotificationCount(),
+                                            highlight_count: room.getNotificationHighlightCount(),
+                                            joined_count: room.getJoinedCount(),
+                                            invited_count: room.getInvitedCount(),
+                                            avatarUrl: room.getAvatarURL(),
+                                            isSpace: room.isSpace(),
+                                        });
+                                        this.roomToRoom.delete(i);
+                                        this.roomToRoom.set(i - 1, room);
+                                    }
+                                }
+                            }
+                            console.log("Shifting done");
+                            console.log("Empty spot", this.findNextFreeIndex());
+                            console.log("Position", position);
+                            console.log("List", this.roomToRoom);
+                            await tx?.done;
+                        }
+                        if (this.roomToRoom.get(position) !== undefined) {
+                            console.error("Shifting failed");
+                        }
+                        this.roomToRoom.set(position, new Room(op.room_id, this.hostname!));
                     } else if (isDeleteOp(op)) {
                         console.log("Got DELETE OP", op);
                         const tx = this.database?.transaction('rooms', 'readwrite');
@@ -378,7 +495,9 @@ export class MatrixClient extends EventEmitter {
             roomObj.setNotificationHighlightCount(notification_highlight_count);
             roomObj.setJoinedCount(joined_count);
             roomObj.setInvitedCount(invited_count);
-            roomObj.addEvents(events);
+            if (events) {
+                roomObj.addEvents(events);
+            }
             if (required_state) {
                 roomObj.addStateEvents(required_state);
             }
@@ -456,6 +575,12 @@ export class MatrixClient extends EventEmitter {
     public async passwordLogin(username: string, password: string, triesLeft = 5) {
         if (!this.database) {
             await this.createDatabase();
+        }
+        if (!username) {
+            throw Error("Username must be set");
+        }
+        if (!password) {
+            throw Error("Password must be set");
         }
         this.mxid = username;
         await this.setHostname(`https://${username.split(':')[1]}`);
@@ -535,6 +660,49 @@ export class MatrixClient extends EventEmitter {
             this.mxid = json.user_id;
         }
     }
+
+    public async fetchProfileInfo(userId: string): Promise<IProfileInfo> {
+        if (this.profileInfo) {
+            return this.profileInfo;
+        }
+        if (!this.hostname) {
+            throw Error("Hostname must be set first");
+        }
+        if (!this.database) {
+            await this.createDatabase();
+        }
+        if (!this.access_token) {
+            throw Error("Access token must be set first");
+        }
+        const resp = await fetch(`${this.hostname}/_matrix/client/r0/profile/${userId}`, {
+            headers: {
+                "Authorization": `Bearer ${this.access_token}`
+            }
+        });
+        if (!resp.ok) {
+            if (resp.status === 404 || resp.status === 403) {
+                return {} as IProfileInfo;
+            }
+            console.error(resp);
+            throw Error("Error fetching profile info. See console for error.");
+        }
+        const json = await resp.json() as IProfileInfo;
+        json.avatar_url = json.avatar_url?.replace("mxc://", `${this.hostname}/_matrix/media/r0/download/`);
+        this.profileInfo = json;
+        const tx = this.database?.transaction('loginInfo', 'readwrite');
+        await tx?.store.put({
+            userId: this.mxid!,
+            device_id: this.device_id!,
+            hostname: this.hostname,
+            slidingSyncHostname: this.slidingSyncHostname,
+            access_token: this.access_token,
+            displayName: json.displayname,
+            avatarUrl: json.avatar_url,
+        });
+        await tx?.done
+
+        return json;
+    }
 }
 
 function isRateLimitError(arg: any): arg is IRateLimitError {
@@ -559,11 +727,32 @@ export function useRooms() {
 
     useEffect(() => {
         // Listen for room updates
-        client.on("rooms", (rooms: Room[]) => {
+        const listenForRooms = (rooms: Room[]) => {
             setRooms(rooms);
-        });
+        };
+        client.on("rooms", listenForRooms);
         // This is a no-op if there is already a sync
         client.startSync();
+        return () => {
+            client.removeListener("rooms", listenForRooms);
+        }
     }, [])
     return rooms;
+}
+
+export function useProfile() {
+    const client = useContext(MatrixContext);
+    const [profile, setProfile] = useState<IProfileInfo>({
+        displayname: client.mxid || "Unknown",
+    });
+
+    useEffect(() => {
+        client.fetchProfileInfo(client.mxid!).then((profile) => {
+            if (!profile.displayname) {
+                profile.displayname = client.mxid || "Unknown";
+            }
+            setProfile(profile);
+        })
+    }, [])
+    return profile;
 }

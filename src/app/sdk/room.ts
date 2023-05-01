@@ -13,8 +13,8 @@ export class Room {
 
     constructor(public roomID: string, private hostname: string) { }
 
-    public addEvents(event: IRoomEvent[]) {
-        this.events.push(...event);
+    public addEvents(events: IRoomEvent[]) {
+        this.events.push(...events);
     }
 
     public addStateEvents(state: IRoomStateEvent[]) {
