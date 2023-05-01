@@ -225,11 +225,82 @@ export interface SYNC_OP {
 export interface RoomJson {
     name: string,
     // List of events
-    timeline: any[],
+    timeline: IRoomEvent[],
+    required_state?: IRoomStateEvent[],
     notification_count: number,
     highlight_count: number,
     initial: boolean,
     joined_count: number,
     invited_count: number,
     prev_batch: string,
+}
+
+export interface IRoomEvent<Content = any> {
+    content: Content;
+    event_id: string;
+    origin_server_ts: number;
+    sender: string;
+    type: string;
+    unsigned?: any;
+}
+
+export interface IRoomStateEvent<Content = any> extends IRoomEvent<Content> {
+    state_key?: string;
+}
+
+export interface IRoomMemberContent {
+    avatar_url?: string;
+    displayname?: string;
+    membership: "invite" | "join" | "knock" | "leave" | "ban";
+    is_direct?: boolean;
+}
+
+export interface IRoomMemberEvent extends IRoomStateEvent<IRoomMemberContent> { }
+
+export function isRoomMemberEvent(event: IRoomEvent): event is IRoomMemberEvent {
+    return event.type === "m.room.member";
+}
+
+export interface IRoomCreateContent {
+    creator: string;
+    "m.federate"?: boolean;
+    predecessor?: {
+        room_id: string;
+        event_id: string;
+    };
+    room_version?: string;
+    type?: string;
+}
+
+export interface IRoomCreateEvent extends IRoomStateEvent<IRoomCreateContent> { }
+
+export function isRoomCreateEvent(event: IRoomEvent): event is IRoomCreateEvent {
+    return event.type === "m.room.create";
+}
+
+export interface IThumbnailInfo {
+    h: number;
+    mimetype: string;
+    size: number;
+    w: number;
+}
+
+export interface IImageInfo {
+    h: number;
+    mimetype: string;
+    size: number;
+    thumbnail_info?: IThumbnailInfo;
+    thumbnail_url?: string;
+    w: number;
+}
+
+export interface IRoomAvatarContent {
+    info: IImageInfo;
+    url?: string;
+}
+
+export interface IRoomAvatarEvent extends IRoomStateEvent<IRoomAvatarContent> { }
+
+export function isRoomAvatarEvent(event: IRoomEvent): event is IRoomAvatarEvent {
+    return event.type === "m.room.avatar";
 }

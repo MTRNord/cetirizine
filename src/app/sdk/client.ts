@@ -164,6 +164,7 @@ export class MatrixClient extends EventEmitter {
                             // needed to build sections
                             ["m.space.child", "*"],
                             ["m.space.parent", "*"],
+                            ["m.room.create", ""],
                             // Room Avatar
                             ["m.room.avatar", "*"],
                         ],
@@ -216,6 +217,8 @@ export class MatrixClient extends EventEmitter {
             const notification_highlight_count = room.highlight_count;
             const joined_count = room.joined_count;
             const invited_count = room.invited_count;
+            const events = room.timeline;
+            const required_state = room.required_state;
 
             // Add the room data to the Room from this.roomToRoomID
             // Note that the map key does not mean the roomID but the sync position
@@ -233,6 +236,10 @@ export class MatrixClient extends EventEmitter {
             roomObj.setNotificationHighlightCount(notification_highlight_count);
             roomObj.setJoinedCount(joined_count);
             roomObj.setInvitedCount(invited_count);
+            roomObj.addEvents(events);
+            if (required_state) {
+                roomObj.addRequiredState(required_state);
+            }
         }
         this.emit("rooms", [...this.roomToRoom.values()]);
     }

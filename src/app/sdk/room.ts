@@ -1,5 +1,8 @@
+import { IRoomEvent, IRoomStateEvent, isRoomAvatarEvent, isRoomCreateEvent } from "./api/apiTypes";
+
 export class Room {
-    private events: any[] = [];
+    private events: IRoomEvent[] = [];
+    private stateEvents: IRoomStateEvent[] = [];
     private name: string = "Unknown Room";
 
     private notification_count: number = 0;
@@ -10,8 +13,30 @@ export class Room {
 
     constructor(public roomID: string) { }
 
-    public addEvent(event: any) {
-        this.events.push(event);
+    public addEvents(event: IRoomEvent[]) {
+        this.events.push(...event);
+    }
+
+    public addRequiredState(state: IRoomStateEvent[]) {
+        this.stateEvents.push(...state);
+    }
+
+    public getAvatarURL(): string | undefined {
+        let avatarURL: string | undefined = undefined;
+        this.stateEvents.forEach((event) => {
+            if (isRoomAvatarEvent(event)) {
+                avatarURL = event.content.url;
+            }
+        });
+        return avatarURL;
+    }
+
+    public isSpace(): boolean {
+        let isSpace: boolean = false;
+        this.stateEvents.forEach((event) => {
+            isSpace = isRoomCreateEvent(event) && event.content.type === "m.space";
+        });
+        return isSpace;
     }
 
     public setName(name: string) {
