@@ -31,7 +31,7 @@ const Input: FC<InputProps> = ({ placeholder, password = false, autoFocus = fals
     return (
         <input
             disabled={readonly}
-            className='form-input rounded-lg disabled:bg-slate-200 disabled:cursor-not-allowed transition-colors ease-in-out delay-150'
+            className='text-base form-input rounded-lg disabled:bg-slate-200 disabled:cursor-not-allowed transition-colors ease-in-out delay-150'
             value={value}
             type={password ? "password" : "text"}
             autoFocus={autoFocus}

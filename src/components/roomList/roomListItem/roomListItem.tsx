@@ -1,8 +1,13 @@
 import { useInView } from "react-intersection-observer";
 import Avatar from "../../avatar/avatar";
-import { FC } from "react";
+import { FC, useContext, useEffect } from "react";
+import { MatrixContext } from "../../../app/sdk/client";
 
 type RoomListItemProps = {
+    /**
+     * Room id
+     */
+    roomId: string
     /**
      * The URL of the Avatar image
      */
@@ -33,12 +38,20 @@ type RoomListItemProps = {
     hidden: boolean
 };
 
-const RoomListItem: FC<RoomListItemProps> = ({ avatarUrl, displayname, dm = false, online = false, active = false, onClick, hidden }: RoomListItemProps) => {
+const RoomListItem: FC<RoomListItemProps> = ({ roomId, avatarUrl, displayname, dm = false, online = false, active = false, onClick, hidden }: RoomListItemProps) => {
     const { ref, inView } = useInView({
         triggerOnce: true,
         rootMargin: '200px 0px',
         skip: hidden,
     });
+    const matrixClient = useContext(MatrixContext);
+    useEffect(() => {
+        if (inView) {
+            matrixClient.addInViewRoom(roomId)
+        } else {
+            matrixClient.removeInViewRoom(roomId)
+        }
+    }, [inView])
     return (
         <div ref={ref} onClick={onClick} className="w-full cursor-pointer">
             {

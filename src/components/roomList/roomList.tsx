@@ -83,6 +83,7 @@ const RoomListRooms: FC<RoomListRoomsProps> = ({ sectionID, rooms, onClick, acti
     const roomsRendered = rooms.map(room => {
         return (
             <RoomListItem
+                roomId={room.roomID}
                 hidden={hidden}
                 key={room.roomID + sectionID}
                 avatarUrl={room.avatarUrl}

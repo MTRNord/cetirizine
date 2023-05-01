@@ -3,11 +3,10 @@ import Avatar from '../components/avatar/avatar';
 import ChatInput from '../components/input/chat/input';
 import RoomList from '../components/roomList/roomList';
 import './MainPage.scss';
-import { useSyncQuery } from '../app/api/api';
-
+import { useRooms } from '../app/sdk/client';
 export default function MainPage() {
-    const { } = useSyncQuery();
-    // TODO: Calculate rooms and sections within a RTK Query
+    const matrixRooms = useRooms();
+    console.log(matrixRooms.length);
     const sections = [
         {
             sectionName: "Test Section",
@@ -79,7 +78,6 @@ export default function MainPage() {
         </div>
         <div className='flex-1 flex flex-col'>
             <div className='flex-1'>
-                TODO: events and welcome page
             </div>
             <ChatInput namespace='Editor' onChange={() => { }} onError={(e) => console.error(e)} />
         </div>
