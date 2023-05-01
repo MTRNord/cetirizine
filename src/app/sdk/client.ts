@@ -1,13 +1,15 @@
-import { createContext, useEffect, useState } from "react";
-import { IErrorResp, ILoginFlows, ILoginResponse, IRateLimitError, ISlidingSyncResp, IWellKnown, isDeleteOp, isInsertOp, isInvalidateOp, isSyncOp } from "./api/apiTypes";
+import { createContext, useContext, useEffect, useState } from "react";
+import { IErrorResp, ILoginFlows, ILoginResponse, IRateLimitError, IRoomEvent, IRoomStateEvent, ISlidingSyncResp, IWellKnown, isDeleteOp, isInsertOp, isInvalidateOp, isSyncOp } from "./api/apiTypes";
 import { Room } from "./room";
 import EventEmitter from "events";
+import { DBSchema, IDBPDatabase, openDB } from "idb";
 
 export interface MatrixClientEvents {
     // Used to notify about changes to the room list
     'rooms': (rooms: Room[]) => void;
     //'delete': (changedCount: number) => void;
 }
+
 export declare interface MatrixClient {
     on<U extends keyof MatrixClientEvents>(
         event: U, listener: MatrixClientEvents[U]
@@ -18,50 +20,170 @@ export declare interface MatrixClient {
     ): boolean;
 }
 
+interface MatrixDB extends DBSchema {
+    rooms: {
+        // Same as roomToRoom map
+        key: number;
+        value: {
+            windowID: number;
+            roomID: string;
+            name: string;
+            notification_count: number;
+            highlight_count: number;
+            joined_count: number;
+            invited_count: number;
+            events?: IRoomEvent[];
+            stateEvents?: IRoomStateEvent[];
+            avatarUrl?: string;
+            isSpace: boolean;
+        };
+        indexes: {
+            // Get room in window order
+            'by-windowID': number;
+        };
+    };
+    loginInfo: {
+        // login info
+        value: {
+            userId: string;
+            device_id?: string;
+            hostname?: string;
+            slidingSyncHostname?: string;
+            access_token?: string;
+        };
+        // User ID
+        key: string;
+    };
+    syncInfo: {
+        // sync info
+        value: {
+            userId: string;
+            syncPos: string;
+            initialSync: boolean;
+        };
+        // User ID
+        key: string;
+    }
+}
 
 export class MatrixClient extends EventEmitter {
     private static _instance: MatrixClient;
-    // TODO: This needs to be stored
     private access_token?: string;
-    // TODO: This needs to be stored
     // @ts-ignore Not used currently but needed
     private device_id?: string;
-    // TODO: This needs to be stored
     // @ts-ignore Not used currently but needed
     private mxid?: string;
-    // TODO: This needs to be stored
     // Hostname including "https://"
     private hostname?: string;
-    // TODO: This needs to be stored
     private slidingSyncHostname?: string;
     private syncing = false;
     private roomsInView: string[] = [];
-    // TODO: This needs to be stored
     private roomToRoom: Map<number, Room> = new Map();
-    // TODO: This needs to be stored
     private syncPos?: string;
-    // TODO: This needs to be stored
     private initialSync = true;
+    private database?: IDBPDatabase<MatrixDB>;
 
     public get isLoggedIn(): boolean {
         return this.access_token !== undefined;
     }
 
-    public static get Instance() {
-        // Do you need arguments? Make it a regular static method instead.
-        return this._instance || (this._instance = new this());
+    public static async Instance() {
+        const instance = this._instance || (this._instance = new this());
+        // Load from database
+        if (!instance.database) {
+            await instance.createDatabase();
+        }
+        const tx = instance.database?.transaction('loginInfo', 'readonly');
+        // We dont know the mxid so we just get all and use the first. In theory this allows for multiple accounts
+        const loginInfo = await tx?.store.getAll();
+        await tx?.done;
+        if (loginInfo && loginInfo.length > 0) {
+            instance.mxid = loginInfo[0].userId;
+            instance.hostname = loginInfo[0].hostname;
+            instance.slidingSyncHostname = loginInfo[0].slidingSyncHostname;
+            instance.access_token = loginInfo[0].access_token;
+            instance.device_id = loginInfo[0].device_id;
+
+            // Load sync info
+            const syncTx = instance.database?.transaction('syncInfo', 'readonly');
+            const syncInfo = await syncTx?.store.get(instance.mxid!);
+            await syncTx?.done;
+
+            if (syncInfo) {
+                instance.syncPos = syncInfo.syncPos;
+                instance.initialSync = syncInfo.initialSync;
+            }
+
+            // Load rooms
+            const roomTx = instance.database?.transaction('rooms', 'readonly');
+            const rooms = await roomTx?.store.getAll();
+            await roomTx?.done;
+
+            if (rooms) {
+                for (const room of rooms) {
+                    const roomObj = new Room(room.roomID, instance.hostname!);
+                    roomObj.setInvitedCount(room.invited_count);
+                    roomObj.setJoinedCount(room.joined_count);
+                    roomObj.setNotificationCount(room.notification_count);
+                    roomObj.setNotificationHighlightCount(room.highlight_count);
+                    roomObj.setName(room.name);
+                    if (room.events) {
+                        roomObj.addEvents(room.events);
+                    }
+                    if (room.stateEvents) {
+                        roomObj.addStateEvents(room.stateEvents);
+                    }
+
+                    instance.roomToRoom.set(room.windowID, roomObj);
+                }
+                instance.emit("rooms", [...instance.roomToRoom.values()]);
+            }
+        }
+
+        return instance;
     }
 
-    private set setHostname(hostname: string) {
+    private async createDatabase() {
+        this.database = await openDB<MatrixDB>("matrix", 1, {
+            upgrade(db) {
+                const roomStore = db.createObjectStore('rooms', { keyPath: 'windowID' });
+                roomStore.createIndex('by-windowID', 'windowID');
+                db.createObjectStore('loginInfo', { keyPath: 'userId' });
+                db.createObjectStore('syncInfo', { keyPath: 'userId' });
+            }
+        });
+    }
+
+    private async setHostname(hostname: string) {
         if (!hostname.startsWith("https://")) {
             throw Error("Hostname must start with 'https://'");
         }
+        if (!this.database) {
+            await this.createDatabase();
+        }
+
+        // Write to database
+        const tx = this.database?.transaction('loginInfo', 'readwrite');
+        await tx?.store.put({
+            userId: this.mxid!,
+            hostname: hostname,
+            slidingSyncHostname: this.slidingSyncHostname,
+            access_token: this.access_token,
+            device_id: this.device_id,
+        });
+        await tx?.done
+
+        // Set in memory
         this.hostname = hostname;
+
     }
 
     public async startSync() {
         if (!this.isLoggedIn) {
             throw Error("Not logged in");
+        }
+        if (!this.database) {
+            await this.createDatabase();
         }
         if (this.syncing) {
             return;
@@ -137,8 +259,6 @@ export class MatrixClient extends EventEmitter {
             url = `${this.slidingSyncHostname}/_matrix/client/unstable/org.matrix.msc3575/sync?timeout=30000&pos=${this.syncPos}`
         }
 
-
-        console.log(url)
         const resp = await fetch(url, {
             method: "POST",
             headers: {
@@ -185,31 +305,53 @@ export class MatrixClient extends EventEmitter {
         }
         const json = await resp.json() as ISlidingSyncResp;
         this.syncPos = json.pos;
+
+
+        const syncInfoTX = this.database?.transaction('syncInfo', 'readwrite');
+        await syncInfoTX?.store.put({
+            userId: this.mxid!,
+            syncPos: this.syncPos,
+            initialSync: this.initialSync,
+        });
+        await syncInfoTX?.done;
+
         for (const listKey in json.lists) {
             const list = json.lists[listKey];
             if (list.ops) {
                 for (const op of list.ops) {
                     if (isSyncOp(op)) {
+                        const tx = this.database?.transaction('rooms', 'readwrite');
                         for (let i = op.range[0]; i <= op.range[1]; i++) {
                             // We shall first forget about these and "startover"
+                            await tx?.store.delete(i);
                             this.roomToRoom.delete(i);
 
                             // We start to remember the Room now.
-                            this.roomToRoom.set(i, new Room(op.room_ids[i]));
+                            this.roomToRoom.set(i, new Room(op.room_ids[i], this.hostname!));
                         }
+                        await tx?.done;
                     } else if (isInsertOp(op)) {
                         console.log("Got INSERT OP", op);
+                        this.roomToRoom.set(op.index, new Room(op.room_id, this.hostname!));
                     } else if (isDeleteOp(op)) {
+                        console.log("Got DELETE OP", op);
+                        const tx = this.database?.transaction('rooms', 'readwrite');
+                        await tx?.store.delete(op.index);
+                        await tx?.done;
                         this.roomToRoom.delete(op.index);
                     } else if (isInvalidateOp(op)) {
+                        const tx = this.database?.transaction('rooms', 'readwrite');
                         for (let i = op.range[0]; i <= op.range[1]; i++) {
                             // We shall first forget about these and "startover"
+                            await tx?.store.delete(i);
                             this.roomToRoom.delete(i);
                         }
+                        await tx?.done;
                     }
                 }
             }
         }
+        const tx = this.database?.transaction('rooms', 'readwrite');
         for (const roomID in json.rooms) {
             const room = json.rooms[roomID];
             const name = room.name;
@@ -238,10 +380,28 @@ export class MatrixClient extends EventEmitter {
             roomObj.setInvitedCount(invited_count);
             roomObj.addEvents(events);
             if (required_state) {
-                roomObj.addRequiredState(required_state);
+                roomObj.addStateEvents(required_state);
             }
+
+            // Write to database
+            await tx?.store.put({
+                windowID: [...this.roomToRoom.keys()].find(key => this.roomToRoom.get(key) === roomObj) as number,
+                roomID: roomObj.roomID,
+                name: roomObj.getName(),
+                notification_count: roomObj.getNotificationCount(),
+                highlight_count: roomObj.getNotificationHighlightCount(),
+                joined_count: roomObj.getJoinedCount(),
+                invited_count: roomObj.getInvitedCount(),
+                events: events,
+                stateEvents: required_state,
+                avatarUrl: roomObj.getAvatarURL(),
+                isSpace: roomObj.isSpace(),
+            });
         }
-        this.emit("rooms", [...this.roomToRoom.values()]);
+        await tx?.done
+        if (json.rooms && Object.keys(json.rooms).length > 0) {
+            this.emit("rooms", [...this.roomToRoom.values()]);
+        }
     }
 
     /**
@@ -260,6 +420,10 @@ export class MatrixClient extends EventEmitter {
      */
     public removeInViewRoom(roomID: string) {
         this.roomsInView = this.roomsInView.filter(room => room !== roomID);
+    }
+
+    public getRooms(): Room[] {
+        return [...this.roomToRoom.values()];
     }
 
 
@@ -290,14 +454,30 @@ export class MatrixClient extends EventEmitter {
     }
 
     public async passwordLogin(username: string, password: string, triesLeft = 5) {
-        this.setHostname = `https://${username.split(':')[1]}`;
+        if (!this.database) {
+            await this.createDatabase();
+        }
+        this.mxid = username;
+        await this.setHostname(`https://${username.split(':')[1]}`);
 
         try {
             const well_known = await this.getWellKnown();
             if (well_known["m.homeserver"]?.base_url) {
-                this.setHostname = well_known["m.homeserver"].base_url;
+                await this.setHostname(well_known["m.homeserver"].base_url);
             }
             if (well_known["org.matrix.msc3575.proxy"]?.url) {
+                // Write to database
+                const tx = this.database?.transaction('loginInfo', 'readwrite');
+                await tx?.store.put({
+                    userId: this.mxid!,
+                    hostname: this.hostname,
+                    slidingSyncHostname: well_known["org.matrix.msc3575.proxy"].url,
+                    access_token: this.access_token,
+                    device_id: this.device_id,
+                });
+                await tx?.done
+
+                // Set the sliding sync proxy
                 this.slidingSyncHostname = well_known["org.matrix.msc3575.proxy"].url;
             } else {
                 // TODO: we might want to check for synapse support somehow
@@ -340,6 +520,16 @@ export class MatrixClient extends EventEmitter {
             await this.passwordLogin(username, password, triesLeft - 1);
         }
         if (isLoginResponse(json)) {
+            // Write to database
+            const tx = this.database?.transaction('loginInfo', 'readwrite');
+            await tx?.store.put({
+                userId: json.user_id!,
+                hostname: this.hostname,
+                slidingSyncHostname: this.slidingSyncHostname,
+                access_token: json.access_token,
+                device_id: json.device_id,
+            });
+            await tx?.done
             this.access_token = json.access_token;
             this.device_id = json.device_id;
             this.mxid = json.user_id;
@@ -359,21 +549,21 @@ function isErrorResp(arg: any): arg is IErrorResp {
     return arg.errcode !== undefined;
 }
 
-export const defaultMatrixClient = MatrixClient.Instance;
-export const MatrixContext = createContext(defaultMatrixClient);
+export const defaultMatrixClient: MatrixClient = await MatrixClient.Instance();
+export const MatrixContext = createContext<MatrixClient>(defaultMatrixClient);
 
 // List of rooms
 export function useRooms() {
-    const client = MatrixClient.Instance;
-    const [rooms, setRooms] = useState<Room[]>([]);
+    const client = useContext(MatrixContext);
+    const [rooms, setRooms] = useState<Room[]>(client.getRooms());
 
     useEffect(() => {
-        // This is a no-op if there is already a sync
-        client.startSync();
         // Listen for room updates
         client.on("rooms", (rooms: Room[]) => {
             setRooms(rooms);
         });
+        // This is a no-op if there is already a sync
+        client.startSync();
     }, [])
     return rooms;
 }

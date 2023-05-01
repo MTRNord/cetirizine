@@ -11,13 +11,13 @@ export class Room {
     private invited_count: number = 0;
 
 
-    constructor(public roomID: string) { }
+    constructor(public roomID: string, private hostname: string) { }
 
     public addEvents(event: IRoomEvent[]) {
         this.events.push(...event);
     }
 
-    public addRequiredState(state: IRoomStateEvent[]) {
+    public addStateEvents(state: IRoomStateEvent[]) {
         this.stateEvents.push(...state);
     }
 
@@ -25,7 +25,10 @@ export class Room {
         let avatarURL: string | undefined = undefined;
         this.stateEvents.forEach((event) => {
             if (isRoomAvatarEvent(event)) {
-                avatarURL = event.content.url;
+                const rawAvatarURL = event.content.url;
+                if (rawAvatarURL?.startsWith("mxc://")) {
+                    avatarURL = `https://${this.hostname}/_matrix/media/r0/download/${rawAvatarURL.substring(6)}`;
+                }
             }
         });
         return avatarURL;
