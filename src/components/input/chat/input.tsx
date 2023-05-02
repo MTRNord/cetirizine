@@ -67,7 +67,7 @@ const ChatInput: FC<ChatInputProps> = ({ namespace, onChange, onError }: ChatInp
                 <ToolbarPlugin />
                 <div className="editor-inner">
                     <RichTextPlugin
-                        contentEditable={<ContentEditable className="editor-input" aria-labelledby='editor-placeholder' />}
+                        contentEditable={<ContentEditable className="editor-input" ariaLabelledBy='editor-placeholder' />}
                         placeholder={<Placeholder />}
                         ErrorBoundary={LexicalErrorBoundary}
                     />
