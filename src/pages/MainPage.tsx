@@ -5,12 +5,14 @@ import RoomList, { Section } from '../components/roomList/roomList';
 import './MainPage.scss';
 import { useProfile, useRooms, useSpaces } from '../app/sdk/client';
 import { Room } from '../app/sdk/room';
-import { memo } from 'react';
+import { memo, useContext } from 'react';
+import { MatrixContext } from '../app/sdk/client';
 
 const MainPage = memo(() => {
     const profile = useProfile();
     const spacesWithRooms = useSpaces();
     const rooms = useRooms();
+    const client = useContext(MatrixContext);
 
     // Filter toplevel spaces.
     // A toplevel space is a space that is not a child of another space.
@@ -113,8 +115,8 @@ const MainPage = memo(() => {
 
     return <div className='flex flex-row w-full gap-2 min-h-screen h-screen'>
         < div className='flex flex-col bg-gradient-to-br from-slate-100 via-gray-200 to-orange-200 border-r-[1px] border-slate-300' >
-            <div className='flex flex-row gap-2 m-2 p-1  items-center border-b-2'>
-                {profile?.avatar_url && <Avatar displayname='Test' avatarUrl={profile?.avatar_url} dm={false} online={false} />}
+            <div className='flex flex-row gap-2 m-2 p-1 items-center border-b-2'>
+                <Avatar displayname={profile.displayname || client.mxid!} avatarUrl={profile?.avatar_url} dm={false} online={false} />
                 <div className='flex flex-row justify-between items-center w-full'>
                     <span className='text-base font-semibold'>{profile?.displayname}</span>
                     <Settings size={28} stroke='unset' className='stroke-slate-600 rounded-full hover:bg-slate-300 p-1 cursor-pointer' />
