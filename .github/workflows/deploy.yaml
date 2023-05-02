@@ -19,6 +19,8 @@ jobs:
           npm install
           npm run build -- --base /cetirizine/
           npm run build-storybook -- --disable-telemetry -o dist/storybook
+          
+          cp dist/index.html dist/404.html
       - name: Deploy 🚀
         uses: JamesIves/github-pages-deploy-action@v4.4.1
         with:
