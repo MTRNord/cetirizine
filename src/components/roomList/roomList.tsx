@@ -2,6 +2,7 @@ import { FC, memo, useState } from "react";
 import RoomListItem from "./roomListItem/roomListItem";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import './roomList.scss';
+import { useNavigate } from "react-router-dom";
 
 type Room = {
     /**
@@ -136,6 +137,7 @@ const RoomSection: FC<{ section: Section, onRoomClick: (roomID: string) => void,
 
 const RoomList: FC<RoomListProps> = memo(({ sections, rooms }: RoomListProps) => {
     const [activeRoom, setActiveRoom] = useState<string | undefined>(undefined);
+    const navigate = useNavigate();
 
     return (
         <div className="flex flex-col gap-1 flex-1 p-2 min-w-[33ch] h-full overflow-y-auto overflow-x-hidden scrollbarSmall">
@@ -145,7 +147,10 @@ const RoomList: FC<RoomListProps> = memo(({ sections, rooms }: RoomListProps) =>
                         <RoomSection
                             key={section.roomID}
                             section={section}
-                            onRoomClick={(roomID: string) => { setActiveRoom(roomID) }}
+                            onRoomClick={(roomID: string) => {
+                                setActiveRoom(roomID);
+                                navigate(`/${encodeURI(roomID)}`);
+                            }}
                             activeRoom={activeRoom}
                         />
                     );
@@ -158,7 +163,10 @@ const RoomList: FC<RoomListProps> = memo(({ sections, rooms }: RoomListProps) =>
                     subsections: [],
                     rooms: rooms
                 }}
-                onRoomClick={(roomID: string) => { setActiveRoom(roomID) }}
+                onRoomClick={(roomID: string) => {
+                    setActiveRoom(roomID);
+                    navigate(`/${encodeURI(roomID)}`);
+                }}
                 activeRoom={activeRoom}
             />
 

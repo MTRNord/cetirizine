@@ -11,6 +11,7 @@ import Olm from "olm";
 import LoginPage from './pages/LoginPage';
 import MainPage from './pages/MainPage';
 import { ProtectedRoute } from './app/protectedRoute';
+import { memo } from "react";
 
 Olm
     .init({
@@ -44,10 +45,10 @@ Olm
 function App() {
     return <BrowserRouter basename={import.meta.env.BASE_URL}>
         <Routes>
-            <Route path="/" element={<ProtectedRoute><MainPage /></ProtectedRoute>} />
+            <Route path="/:roomIdOrAlias?" element={<ProtectedRoute><MainPage /></ProtectedRoute>} />
             <Route path="/login" element={<LoginPage />} />
         </Routes>
     </BrowserRouter>;
 }
 
-export default App;
+export default memo(App);
