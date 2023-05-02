@@ -103,9 +103,9 @@ const RoomListRooms: FC<RoomListRoomsProps> = ({ sectionID, rooms, onClick, acti
 }
 
 const RoomSection: FC<{ section: Section, onRoomClick: (roomID: string) => void, activeRoom: string | undefined }> = ({ section, onRoomClick, activeRoom }: { section: Section, onRoomClick: (roomID: string) => void, activeRoom: string | undefined }) => {
-    const [hidden, setHidden] = useState<boolean>(false);
+    const [hidden, setHidden] = useState<boolean>(true);
     return (
-        <div key={section.roomID} className="flex flex-col gap-1">
+        <div key={section.roomID} className="flex flex-col gap-1 pl-4">
             <div className="flex flex-row gap-2 py-1  items-center justify-start cursor-pointer h-8 text-slate-600" onClick={() => setHidden(prev => !prev)}>
                 {hidden ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
                 <span className='font-normal text-sm capitalize max-w-[32ch] overflow-hidden text-ellipsis w-full whitespace-nowrap'>{section.sectionName}</span>

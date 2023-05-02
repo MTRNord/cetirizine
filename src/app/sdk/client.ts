@@ -1,8 +1,31 @@
-import { createContext, useContext, useEffect, useState } from "react";
-import { IErrorResp, ILoginFlows, ILoginResponse, IProfileInfo, IRateLimitError, IRoomEvent, IRoomStateEvent, ISlidingSyncResp, IWellKnown, isDeleteOp, isInsertOp, isInvalidateOp, isSyncOp } from "./api/apiTypes";
+import {
+    createContext,
+    useContext,
+    useEffect,
+    useState
+} from "react";
+import {
+    IErrorResp,
+    ILoginFlows,
+    ILoginResponse,
+    IProfileInfo,
+    IRateLimitError,
+    IRoomEvent,
+    IRoomStateEvent,
+    ISlidingSyncResp,
+    IWellKnown,
+    isDeleteOp,
+    isInsertOp,
+    isInvalidateOp,
+    isSyncOp
+} from "./api/apiTypes";
 import { Room } from "./room";
 import EventEmitter from "events";
-import { DBSchema, IDBPDatabase, openDB } from "idb";
+import {
+    DBSchema,
+    IDBPDatabase,
+    openDB
+} from "idb";
 
 export interface MatrixClientEvents {
     // Used to notify about changes to the room list
@@ -175,26 +198,6 @@ export class MatrixClient extends EventEmitter {
         });
     }
 
-    private findNextFreeIndex(list: string): number {
-        const keys = [...this.rooms].map(room => room.windowPos[list]);
-        const max = Math.max(...keys); // Will find highest number
-        const min = 0;
-        // Basically "append"
-        let missing = max + 1;
-
-        console.log("Max:", max)
-        console.log("Min:", min)
-        console.log("Keys:", keys)
-        for (let i = min; i <= max; i++) {
-            if (!keys.includes(i)) {
-                console.log("Missing:", i)
-                missing = i;
-                break
-            }
-        }
-        return missing;
-    }
-
     private async setHostname(hostname: string) {
         if (!hostname.startsWith("https://")) {
             throw Error("Hostname must start with 'https://'");
@@ -244,6 +247,76 @@ export class MatrixClient extends EventEmitter {
         this.syncing = false;
     }
 
+    private isIndexInRange(index: number, ranges: number[][]): boolean {
+        for (const r of ranges) {
+            if (r[0] < index && index <= r[1]) {
+                return true
+            }
+        }
+        return false
+    }
+
+    private shiftRight(listKey: string, ranges: number[][], hi: number, low: number) {
+        //     l   h
+        // 0,1,2,3,4 <- before
+        // 0,1,2,2,3 <- after, hi is deleted and low is duplicated
+        for (let i = hi - 1; i > low - 1; i--) {
+            if (this.isIndexInRange(i, ranges)) {
+                const roomObj = [...this.rooms].find(room => room.windowPos[listKey] === i + 1);
+                if (roomObj) {
+                    roomObj.windowPos[listKey] = (i);
+                }
+            }
+        }
+    }
+
+    private shiftLeft(listKey: string, ranges: number[][], hi: number, low: number) {
+        //     l   h
+        // 0,1,2,3,4 <- before
+        // 0,1,3,4,4 <- after, low is deleted and hi is duplicated
+        for (let i = low + 1; i < hi + 1; i++) {
+            if (this.isIndexInRange(i, ranges)) {
+                const roomObj = [...this.rooms].find(room => room.windowPos[listKey] === i - 1);
+                if (roomObj) {
+                    roomObj.windowPos[listKey] = (i);
+                }
+            }
+        }
+
+    }
+
+    private removeEntry(listKey: string, ranges: number[][], index: number) {
+        // work out the max index
+        let max = -1;
+        const indexes = [...this.rooms].map(room => room.windowPos[listKey]);
+        for (const n in indexes) {
+            if (Number(n) > max) {
+                max = Number(n);
+            }
+        }
+        if (max < 0 || index > max) {
+            return;
+        }
+        // Everything higher than the gap needs to be shifted left.
+        this.shiftLeft(listKey, ranges, max, index);
+    }
+
+    private addEntry(listKey: string, ranges: number[][], index: number): void {
+        // work out the max index
+        let max = -1;
+        const indexes = [...this.rooms].map(room => room.windowPos[listKey]);
+        for (const n in indexes) {
+            if (Number(n) > max) {
+                max = Number(n);
+            }
+        }
+        if (max < 0 || index > max) {
+            return;
+        }
+        // Everything higher than the gap needs to be shifted right, +1 so we don't delete the highest element
+        this.shiftRight(listKey, ranges, max + 1, index);
+    }
+
     private async sync() {
         if (!this.isLoggedIn) {
             throw Error("Not logged in");
@@ -257,7 +330,9 @@ export class MatrixClient extends EventEmitter {
             "overview": number[][];
             [key: string]: number[][];
         } = {
-            "overview": [[0, 10]]
+            "overview": [[0, 10]],
+            // Needed for calcs
+            "spaces": [[0, Number.MAX_SAFE_INTEGER]]
         };
         let timeline_limit = 1;
         if (!this.initialSync) {
@@ -404,6 +479,7 @@ export class MatrixClient extends EventEmitter {
         });
         await syncInfoTX?.done;
 
+        let gapIndex = -1;
         for (const listKey in json.lists) {
             const list = json.lists[listKey];
             if (list.ops) {
@@ -437,9 +513,49 @@ export class MatrixClient extends EventEmitter {
                         await tx?.done;
                     } else if (isInsertOp(op)) {
                         console.log("Got INSERT OP", op);
-                        console.warn("INSERT not implemented")
+                        const roomObj = [...this.rooms].find(room => room.windowPos[listKey] === op.index);
+                        if (roomObj) {
+                            if (gapIndex < 0) {
+                                // we haven't been told where to shift from, so make way for a new room entry.
+                                this.addEntry(listKey, this.lastRanges[listKey], op.index);
+                            } else if (gapIndex > op.index) {
+                                // the gap is further down the list, shift every element to the right
+                                // starting at the gap so we can just shift each element in turn:
+                                // [A,B,C,_] gapIndex=3, op.index=0
+                                // [A,B,C,C] i=3
+                                // [A,B,B,C] i=2
+                                // [A,A,B,C] i=1
+                                // Terminate. We'll assign into op.index next.
+                                this.shiftRight(listKey, this.lastRanges[listKey], gapIndex, op.index);
+                            } else if (gapIndex < op.index) {
+                                // the gap is further up the list, shift every element to the left
+                                // starting at the gap so we can just shift each element in turn
+                                this.shiftLeft(listKey, this.lastRanges[listKey], op.index, gapIndex);
+                            }
+                        }
+                        // TODO:
+                        gapIndex = -1;
+                        const tx = this.database?.transaction('rooms', 'readwrite');
+                        // We start to remember the Room now.
+                        const newRoom = new Room(op.room_id, this.hostname!);
+                        newRoom.setName("Unknown Room");
+                        newRoom.windowPos[listKey] = op.index;
+                        this.rooms.add(newRoom);
+                        await tx?.store.put({
+                            windowPos: newRoom.windowPos,
+                            roomID: newRoom.roomID,
+                            name: newRoom.getName(),
+                            notification_count: newRoom.getNotificationCount(),
+                            highlight_count: newRoom.getNotificationHighlightCount(),
+                            joined_count: newRoom.getJoinedCount(),
+                            invited_count: newRoom.getInvitedCount(),
+                            avatarUrl: newRoom.getAvatarURL(),
+                            isSpace: newRoom.isSpace(),
+                        });
+                        await tx?.done;
                     } else if (isDeleteOp(op)) {
                         console.log("Got DELETE OP", op);
+
                         const roomObj = [...this.rooms].find(room => room.windowPos[listKey] === op.index);
                         if (roomObj) {
                             const tx = this.database?.transaction('rooms', 'readwrite');
@@ -447,6 +563,11 @@ export class MatrixClient extends EventEmitter {
                             await tx?.done;
                             this.rooms.delete(roomObj)
                         }
+                        if (gapIndex !== -1) {
+                            // we already have a DELETE operation to process, so process it.
+                            this.removeEntry(listKey, this.lastRanges[listKey], gapIndex);
+                        }
+                        gapIndex = op.index;
                     } else if (isInvalidateOp(op)) {
                         const tx = this.database?.transaction('rooms', 'readwrite');
                         for (let i = op.range[0]; i <= op.range[1]; i++) {
@@ -459,6 +580,11 @@ export class MatrixClient extends EventEmitter {
                         }
                         await tx?.done;
                     }
+                }
+                if (gapIndex !== -1) {
+                    // we already have a DELETE operation to process, so process it
+                    // Everything higher than the gap needs to be shifted left.
+                    this.removeEntry(listKey, this.lastRanges[listKey], gapIndex);
                 }
             }
         }
@@ -538,7 +664,15 @@ export class MatrixClient extends EventEmitter {
     }
 
     private getSpaces(): Room[] {
-        return [...this.rooms].filter(room => room.isSpace());
+        return [...this.rooms].filter(room => room.isSpace()).sort((a: Room, b: Room) => {
+            if (a.getName() < b.getName()) {
+                return -1;
+            }
+            if (a.getName() > b.getName()) {
+                return 1;
+            }
+            return 0;
+        });
     }
 
     public getSpacesWithRooms(): Set<{
