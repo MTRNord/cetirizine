@@ -1,7 +1,7 @@
 import { FC, useState } from "react";
 import RoomListItem from "./roomListItem/roomListItem";
 import { ChevronDown, ChevronRight } from "lucide-react";
-
+import './roomList.scss';
 
 type Room = {
     /**
@@ -137,7 +137,7 @@ const RoomList: FC<RoomListProps> = ({ sections, rooms }: RoomListProps) => {
     const [activeRoom, setActiveRoom] = useState<string | undefined>(undefined);
 
     return (
-        <div className="flex flex-col gap-1 flex-1 p-2 min-w-[33ch] h-full overflow-y-auto overflow-x-hidden">
+        <div className="flex flex-col gap-1 flex-1 p-2 min-w-[33ch] h-full overflow-y-auto overflow-x-hidden scrollbarSmall">
             {
                 sections.map(section => {
                     return (
