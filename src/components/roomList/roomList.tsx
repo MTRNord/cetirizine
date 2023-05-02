@@ -26,7 +26,7 @@ type Room = {
     roomID: string
 };
 
-type Section = {
+export type Section = {
     /**
      * Section Name. Can be a Space or a Tag
      */

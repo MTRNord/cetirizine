@@ -6,7 +6,7 @@ import { DBSchema, IDBPDatabase, openDB } from "idb";
 
 export interface MatrixClientEvents {
     // Used to notify about changes to the room list
-    'rooms': (rooms: Room[]) => void;
+    'rooms': (rooms: Set<Room>) => void;
     //'delete': (changedCount: number) => void;
 }
 
@@ -149,7 +149,7 @@ export class MatrixClient extends EventEmitter {
 
                         instance.roomToRoom.set(room.windowID, roomObj);
                     }
-                    instance.emit("rooms", [...instance.roomToRoom.values()]);
+                    instance.emit("rooms", new Set(instance.roomToRoom.values()));
                 }
             }
         }
@@ -178,8 +178,12 @@ export class MatrixClient extends EventEmitter {
         // Basically "append"
         let missing = max + 1;
 
+        console.log("Max:", max)
+        console.log("Min:", min)
+        console.log("Keys:", keys)
         for (let i = min; i <= max; i++) {
-            if (!keys.includes(i)) { // Checking whether i(current value) present in num(argument)
+            if (!keys.includes(i)) {
+                console.log("Missing:", i)
                 missing = i;
                 break
             }
@@ -322,6 +326,23 @@ export class MatrixClient extends EventEmitter {
 
                 // Sliding Window API
                 lists: {
+                    // TODO: We need a list that fetches all spaces
+                    "spaces": {
+                        slow_get_all_rooms: true,
+                        sort: ["by_name"],
+                        required_state: [
+                            // needed to build sections
+                            ["m.space.child", "*"],
+                            ["m.space.parent", "*"],
+                            ["m.room.create", ""],
+                            // Room Avatar
+                            ["m.room.avatar", "*"],
+                        ],
+                        timeline_limit: timeline_limit,
+                        filters: {
+                            room_types: ["m.space"]
+                        }
+                    },
                     "overview": {
                         ranges: this.lastRanges["overview"],
                         sort: ["by_notification_level", "by_recency", "by_name"],
@@ -340,8 +361,8 @@ export class MatrixClient extends EventEmitter {
                 bump_event_types: ["m.room.message", "m.room.encrypted"],
 
                 // Room Subscriptions API
-                room_subscriptions: {},
-                unsubscribe_rooms: []
+                //room_subscriptions: {},
+                //unsubscribe_rooms: []
             })
         });
         if (!resp.ok) {
@@ -374,7 +395,20 @@ export class MatrixClient extends EventEmitter {
                             this.roomToRoom.delete(i);
 
                             // We start to remember the Room now.
-                            this.roomToRoom.set(i, new Room(op.room_ids[i], this.hostname!));
+                            const newRoom = new Room(op.room_ids[i], this.hostname!);
+                            newRoom.setName("Unknown Room");
+                            this.roomToRoom.set(i, newRoom);
+                            await tx?.store.put({
+                                windowID: i,
+                                roomID: newRoom.roomID,
+                                name: newRoom.getName(),
+                                notification_count: newRoom.getNotificationCount(),
+                                highlight_count: newRoom.getNotificationHighlightCount(),
+                                joined_count: newRoom.getJoinedCount(),
+                                invited_count: newRoom.getInvitedCount(),
+                                avatarUrl: newRoom.getAvatarURL(),
+                                isSpace: newRoom.isSpace(),
+                            });
                         }
                         await tx?.done;
                     } else if (isInsertOp(op)) {
@@ -395,10 +429,12 @@ export class MatrixClient extends EventEmitter {
                             const min = Math.min(...this.roomToRoom.keys());
                             const tx = this.database?.transaction('rooms', 'readwrite');
                             // If the empty spot is to the right of the position we shift right
-                            if (emptySpot > position) {
+                            if (emptySpot > position && emptySpot <= max) {
                                 console.log("Shifting right");
                                 // Make sure we never shift past 0
                                 for (let i = 0; i < emptySpot && i >= min && i <= max; i++) {
+                                    console.log(i);
+                                    // TODO: This fails since we write to the new position but that still isn't moved. meaning we end up with overriding instead of shifting
                                     const room = this.roomToRoom.get(i);
                                     if (room !== undefined) {
                                         await tx?.store.put({
@@ -416,9 +452,10 @@ export class MatrixClient extends EventEmitter {
                                         this.roomToRoom.set(i + 1, room);
                                     }
                                 }
+                                console.log("List", this.roomToRoom);
                             }
                             // If the empty spot is to the left of the position we shift left
-                            else if (emptySpot < position) {
+                            else if (emptySpot < position && emptySpot <= max) {
                                 console.log("Shifting left");
                                 // Make sure we never shift past 0
                                 for (let i = 0; i > emptySpot && i >= min && i <= max; i--) {
@@ -439,6 +476,7 @@ export class MatrixClient extends EventEmitter {
                                         this.roomToRoom.set(i - 1, room);
                                     }
                                 }
+                                console.log("List", this.roomToRoom);
                             }
                             console.log("Shifting done");
                             console.log("Empty spot", this.findNextFreeIndex());
@@ -449,7 +487,23 @@ export class MatrixClient extends EventEmitter {
                         if (this.roomToRoom.get(position) !== undefined) {
                             console.error("Shifting failed");
                         }
-                        this.roomToRoom.set(position, new Room(op.room_id, this.hostname!));
+                        const newRoom = new Room(op.room_id, this.hostname!);
+                        console.log(newRoom);
+                        newRoom.setName("Unknown Room");
+                        this.roomToRoom.set(position, newRoom);
+                        const tx = this.database?.transaction('rooms', 'readwrite');
+                        await tx?.store.put({
+                            windowID: position,
+                            roomID: op.room_id,
+                            name: newRoom.getName(),
+                            notification_count: newRoom.getNotificationCount(),
+                            highlight_count: newRoom.getNotificationHighlightCount(),
+                            joined_count: newRoom.getJoinedCount(),
+                            invited_count: newRoom.getInvitedCount(),
+                            avatarUrl: newRoom.getAvatarURL(),
+                            isSpace: newRoom.isSpace(),
+                        });
+                        await tx?.done;
                     } else if (isDeleteOp(op)) {
                         console.log("Got DELETE OP", op);
                         const tx = this.database?.transaction('rooms', 'readwrite');
@@ -490,7 +544,9 @@ export class MatrixClient extends EventEmitter {
                 continue;
             }
 
-            roomObj.setName(name);
+            if (name) {
+                roomObj.setName(name);
+            }
             roomObj.setNotificationCount(notification_count);
             roomObj.setNotificationHighlightCount(notification_highlight_count);
             roomObj.setJoinedCount(joined_count);
@@ -519,7 +575,7 @@ export class MatrixClient extends EventEmitter {
         }
         await tx?.done
         if (json.rooms && Object.keys(json.rooms).length > 0) {
-            this.emit("rooms", [...this.roomToRoom.values()]);
+            this.emit("rooms", new Set(this.roomToRoom.values()));
         }
     }
 
@@ -541,10 +597,59 @@ export class MatrixClient extends EventEmitter {
         this.roomsInView = this.roomsInView.filter(room => room !== roomID);
     }
 
-    public getRooms(): Room[] {
-        return [...this.roomToRoom.values()];
+    public getRooms(): Set<Room> {
+        return new Set(this.roomToRoom.values());
     }
 
+    private getSpaces(): Room[] {
+        return [...this.roomToRoom.values()].filter(room => room.isSpace());
+    }
+
+    public getSpacesWithRooms(): Set<{
+        spaceRoom: Room, children: Set<Room>
+    }> {
+        const spaces = this.getSpaces();
+        const result: Set<{
+            spaceRoom: Room, children: Set<Room>
+        }> = new Set();
+        // Find children of spaces
+        for (const space of spaces) {
+            const childrenIDs = space.getSpaceChildrenIDs();
+
+            const children = new Set([...this.getRooms()].filter(room => childrenIDs.includes(room.roomID)));
+
+            result.add({
+                spaceRoom: space,
+                children: children,
+            });
+        }
+        // Find spaces of parents
+        // Check parents of each room and if we have a parent make sure to add it to the result unless already added
+        for (const room of this.getRooms()) {
+            const parents = room.getSpaceParentIDs();
+            for (const parent of parents) {
+                const parentObj = [...this.getRooms()].find(room => room.roomID === parent.roomID);
+                if (!parentObj) {
+                    continue;
+                }
+                const alreadyAddedSpace = [...result].find(space => space.spaceRoom.roomID === parentObj.roomID);
+                if (alreadyAddedSpace) {
+                    // Check if room in children
+                    if (![...alreadyAddedSpace.children].find(child => child.roomID === room.roomID)) {
+                        alreadyAddedSpace.children.add(room);
+                    }
+                    continue;
+                }
+                // If space not added yet, add it
+                result.add({
+                    spaceRoom: parentObj,
+                    children: new Set([room]),
+                });
+            }
+        }
+
+        return result;
+    }
 
     private async getLoginFlows(): Promise<ILoginFlows> {
         if (!this.hostname) {
@@ -723,11 +828,11 @@ export const MatrixContext = createContext<MatrixClient>(defaultMatrixClient);
 // List of rooms
 export function useRooms() {
     const client = useContext(MatrixContext);
-    const [rooms, setRooms] = useState<Room[]>(client.getRooms());
+    const [rooms, setRooms] = useState<Set<Room>>(client.getRooms());
 
     useEffect(() => {
         // Listen for room updates
-        const listenForRooms = (rooms: Room[]) => {
+        const listenForRooms = (rooms: Set<Room>) => {
             setRooms(rooms);
         };
         client.on("rooms", listenForRooms);
@@ -739,6 +844,28 @@ export function useRooms() {
     }, [])
     return rooms;
 }
+
+export function useSpaces() {
+    const client = useContext(MatrixContext);
+    const [spacesWithRooms, setSpacesWithRooms] = useState<Set<{
+        spaceRoom: Room, children: Set<Room>
+    }>>(client.getSpacesWithRooms());
+
+    useEffect(() => {
+        // Listen for room updates
+        const listenForRooms = (_rooms: Set<Room>) => {
+            setSpacesWithRooms(client.getSpacesWithRooms());
+        };
+        client.on("rooms", listenForRooms);
+        // This is a no-op if there is already a sync
+        client.startSync();
+        return () => {
+            client.removeListener("rooms", listenForRooms);
+        }
+    }, [])
+    return spacesWithRooms;
+}
+
 
 export function useProfile() {
     const client = useContext(MatrixContext);

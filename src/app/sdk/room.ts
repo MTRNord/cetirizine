@@ -1,4 +1,4 @@
-import { IRoomEvent, IRoomStateEvent, isRoomAvatarEvent, isRoomCreateEvent } from "./api/apiTypes";
+import { IRoomEvent, IRoomStateEvent, isRoomAvatarEvent, isRoomCreateEvent, isSpaceChildEvent, isSpaceParentEvent } from "./api/apiTypes";
 
 export class Room {
     private events: IRoomEvent[] = [];
@@ -27,7 +27,7 @@ export class Room {
             if (isRoomAvatarEvent(event)) {
                 const rawAvatarURL = event.content.url;
                 if (rawAvatarURL?.startsWith("mxc://")) {
-                    avatarURL = `https://${this.hostname}/_matrix/media/r0/download/${rawAvatarURL.substring(6)}`;
+                    avatarURL = `${this.hostname}/_matrix/media/r0/download/${rawAvatarURL.substring(6)}`;
                 }
             }
         });
@@ -80,5 +80,35 @@ export class Room {
 
     public getInvitedCount(): number {
         return this.invited_count;
+    }
+
+    public getSpaceChildrenIDs(): string[] {
+        const children: string[] = [];
+        this.stateEvents.forEach((event) => {
+            if (isSpaceChildEvent(event)) {
+                children.push(event.state_key);
+            }
+        });
+        return children;
+    }
+
+    public getSpaceParentIDs(): { roomID: string, canonical: boolean }[] {
+        const parents: { roomID: string, canonical: boolean }[] = [];
+        this.stateEvents.forEach((event) => {
+            if (isSpaceParentEvent(event)) {
+                parents.push({ roomID: event.state_key, canonical: event.content.canonical || false });
+            }
+        });
+        return parents;
+    }
+
+    public isDM(): boolean {
+        // TODO: Implement this
+        return false;
+    }
+
+    public isOnline(): boolean {
+        // TODO: Implement this
+        return false;
     }
 }

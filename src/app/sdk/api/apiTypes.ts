@@ -228,7 +228,7 @@ export interface SYNC_OP {
 }
 
 export interface RoomJson {
-    name: string,
+    name?: string,
     // List of events
     timeline?: IRoomEvent[],
     required_state?: IRoomStateEvent[],
@@ -250,7 +250,7 @@ export interface IRoomEvent<Content = any> {
 }
 
 export interface IRoomStateEvent<Content = any> extends IRoomEvent<Content> {
-    state_key?: string;
+    state_key: string;
 }
 
 export interface IRoomMemberContent {
@@ -308,4 +308,27 @@ export interface IRoomAvatarEvent extends IRoomStateEvent<IRoomAvatarContent> { 
 
 export function isRoomAvatarEvent(event: IRoomEvent): event is IRoomAvatarEvent {
     return event.type === "m.room.avatar";
+}
+
+export interface ISpaceChildContent {
+    via: string[];
+    order?: string;
+    suggested?: boolean;
+}
+
+export interface ISpaceChildEvent extends IRoomStateEvent<ISpaceChildContent> { }
+
+export function isSpaceChildEvent(event: IRoomEvent): event is ISpaceChildEvent {
+    return event.type === "m.space.child";
+}
+
+export interface ISpaceParentContent {
+    via: string[];
+    canonical?: boolean;
+}
+
+export interface ISpaceParentEvent extends IRoomStateEvent<ISpaceParentContent> { }
+
+export function isSpaceParentEvent(event: IRoomEvent): event is ISpaceParentEvent {
+    return event.type === "m.space.parent";
 }
