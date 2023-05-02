@@ -10,6 +10,18 @@ export default function MainPage() {
     const spacesWithRooms = useSpaces();
     const rooms = useRooms();
 
+    // Filter toplevel spaces.
+    // A toplevel space is a space that is not a child of another space.
+    // We can not rely only on the parent. We need to check in both directions.
+    const toplevelSpaces = [...spacesWithRooms].filter(({ spaceRoom }) => {
+        const not_a_child = ![...spacesWithRooms].some(({ children: otherChildren }) => {
+            return [...otherChildren].some(room => room.roomID === spaceRoom.roomID);
+        });
+        // Also check if there are no parents set
+        const no_parents = spaceRoom.getSpaceParentIDs().length === 0;
+        return not_a_child && no_parents;
+    });
+
     // Generate a list of sections.
     // Each section apart from special toplevel ones is a space.
     // Each space has a list of rooms and subsections.
@@ -20,7 +32,7 @@ export default function MainPage() {
     // If a room is not within a space it is in the toplevel section "Other" which is at the end of the list.
     // The toplevel section "Other" is always present.
     // The toplevel section "Other" is always the last section.
-    const sections = [...spacesWithRooms].map(space => {
+    const sections = toplevelSpaces.map(space => {
         const rooms = [...space.children].filter(room => !room.isSpace()).map(room => {
             return {
                 roomID: room.roomID,
