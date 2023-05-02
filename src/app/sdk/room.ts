@@ -3,7 +3,7 @@ import { IRoomEvent, IRoomStateEvent, isRoomAvatarEvent, isRoomCreateEvent, isSp
 export class Room {
     private events: IRoomEvent[] = [];
     private stateEvents: IRoomStateEvent[] = [];
-    private name: string = "Unknown Room";
+    private name?: string;
 
     private notification_count: number = 0;
     private notification_highlight_count: number = 0;
@@ -53,6 +53,9 @@ export class Room {
     }
 
     public getName(): string {
+        if (!this.name) {
+            return this.roomID;
+        }
         return this.name;
     }
 

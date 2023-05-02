@@ -487,16 +487,24 @@ export class MatrixClient extends EventEmitter {
                     if (isSyncOp(op)) {
                         const tx = this.database?.transaction('rooms', 'readwrite');
                         for (let i = op.range[0]; i <= op.range[1]; i++) {
-                            // We shall first forget about these and "startover"
-                            await tx?.store.delete(op.room_ids[i]);
-                            const roomObj = [...this.rooms].find(room => room.windowPos[listKey] === i);
-                            if (roomObj) {
-                                this.rooms.delete(roomObj)
+                            const roomID = op.room_ids[i - op.range[0]];
+                            if (!roomID) {
+                                break; // we are at the end of list
                             }
+
+                            // Check if we already know this room and skip if we do. This is needed since we have 2 lists.
+                            // The db would already do this but the obj list doesn't (even though its a Set. Thats a mystery yet to solve)
+                            const roomObj = [...this.rooms].find(room => room.roomID === roomID);
+                            if (roomObj) {
+                                roomObj.windowPos[listKey] = i;
+                                continue;
+                            }
+
                             // We start to remember the Room now.
-                            const newRoom = new Room(op.room_ids[i], this.hostname!);
-                            newRoom.setName("Unknown Room");
+                            const newRoom = new Room(roomID, this.hostname!);
+                            newRoom.setName(roomID);
                             newRoom.windowPos[listKey] = i;
+
                             this.rooms.add(newRoom);
                             await tx?.store.put({
                                 windowPos: newRoom.windowPos,
@@ -533,25 +541,47 @@ export class MatrixClient extends EventEmitter {
                                 this.shiftLeft(listKey, this.lastRanges[listKey], op.index, gapIndex);
                             }
                         }
-                        // TODO:
                         gapIndex = -1;
                         const tx = this.database?.transaction('rooms', 'readwrite');
                         // We start to remember the Room now.
-                        const newRoom = new Room(op.room_id, this.hostname!);
-                        newRoom.setName("Unknown Room");
-                        newRoom.windowPos[listKey] = op.index;
-                        this.rooms.add(newRoom);
-                        await tx?.store.put({
-                            windowPos: newRoom.windowPos,
-                            roomID: newRoom.roomID,
-                            name: newRoom.getName(),
-                            notification_count: newRoom.getNotificationCount(),
-                            highlight_count: newRoom.getNotificationHighlightCount(),
-                            joined_count: newRoom.getJoinedCount(),
-                            invited_count: newRoom.getInvitedCount(),
-                            avatarUrl: newRoom.getAvatarURL(),
-                            isSpace: newRoom.isSpace(),
-                        });
+                        const foundRoom = [...this.rooms].find(room => room.roomID === op.room_id);
+                        if (foundRoom) {
+                            foundRoom.windowPos[listKey] = op.index;
+                            await tx?.store.put({
+                                windowPos: foundRoom.windowPos,
+                                roomID: foundRoom.roomID,
+                                name: foundRoom.getName(),
+                                notification_count: foundRoom.getNotificationCount(),
+                                highlight_count: foundRoom.getNotificationHighlightCount(),
+                                joined_count: foundRoom.getJoinedCount(),
+                                invited_count: foundRoom.getInvitedCount(),
+                                avatarUrl: foundRoom.getAvatarURL(),
+                                isSpace: foundRoom.isSpace(),
+                            });
+                        } else {
+                            const newRoom = new Room(op.room_id, this.hostname!);
+                            newRoom.setName(op.room_id);
+                            newRoom.windowPos[listKey] = op.index;
+                            this.rooms.add(newRoom);
+                            await tx?.store.put({
+                                windowPos: newRoom.windowPos,
+                                roomID: newRoom.roomID,
+                                name: newRoom.getName(),
+                                notification_count: newRoom.getNotificationCount(),
+                                highlight_count: newRoom.getNotificationHighlightCount(),
+                                joined_count: newRoom.getJoinedCount(),
+                                invited_count: newRoom.getInvitedCount(),
+                                avatarUrl: newRoom.getAvatarURL(),
+                                isSpace: newRoom.isSpace(),
+                            });
+                        }
+
+                        const roomIDs2 = [...this.rooms].map(room => room.roomID);
+                        // Check if we generated any duplicates and log them.
+                        const duplicates = roomIDs2.filter((item, index) => roomIDs2.indexOf(item) != index);
+                        if (duplicates.length > 0) {
+                            console.error("Duplicates found", duplicates);
+                        }
                         await tx?.done;
                     } else if (isDeleteOp(op)) {
                         console.log("Got DELETE OP", op);
