@@ -1,7 +1,5 @@
 import type { Preview } from "@storybook/react";
 import React from "react";
-import { Provider } from "react-redux";
-import { store } from "../src/app/store";
 import { withThemeByDataAttribute } from '@storybook/addon-styling';
 import "../src/index.scss";
 import "./tailwindcss.scss";
@@ -31,9 +29,7 @@ const preview: Preview = {
       attributeName: 'data-mode',
     }),
     (Story) => (
-      <Provider store={store} >
-        <Story />
-      </Provider>
+      <Story />
     ),
   ]
 };
