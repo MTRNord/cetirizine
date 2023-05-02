@@ -42,7 +42,7 @@ Olm
     });
 
 function App() {
-    return <BrowserRouter>
+    return <BrowserRouter basename={import.meta.env.BASE_URL}>
         <Routes>
             <Route path="/" element={<ProtectedRoute><MainPage /></ProtectedRoute>} />
             <Route path="/login" element={<LoginPage />} />

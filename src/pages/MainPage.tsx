@@ -78,7 +78,7 @@ export default function MainPage() {
         }
     });
 
-    return <div className='flex flex-row w-full gap-2 min-h-screen'>
+    return <div className='flex flex-row w-full gap-2 min-h-screen h-screen'>
         < div className='flex flex-col bg-gradient-to-br from-slate-100 via-gray-200 to-orange-200 border-r-[1px] border-slate-300' >
             <div className='flex flex-row gap-2 m-2 p-1  items-center border-b-2'>
                 {profile?.avatar_url && <Avatar displayname='Test' avatarUrl={profile?.avatar_url} dm={false} online={false} />}

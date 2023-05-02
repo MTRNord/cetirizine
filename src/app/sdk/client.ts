@@ -60,7 +60,7 @@ interface MatrixDB extends DBSchema {
         // sync info
         value: {
             userId: string;
-            syncPos: string;
+            syncPos?: string;
             initialSync: boolean;
             lastRanges?: { [key: string]: number[][] }; // [start, end]
             lastTxnID?: string;
@@ -366,6 +366,20 @@ export class MatrixClient extends EventEmitter {
             })
         });
         if (!resp.ok) {
+            if (resp.status === 400) {
+                if ((await resp.json()).errcode === "M_UNKNOWN_POS") {
+                    this.syncPos = undefined;
+                    const syncInfoTX = this.database?.transaction('syncInfo', 'readwrite');
+                    await syncInfoTX?.store.put({
+                        userId: this.mxid!,
+                        syncPos: this.syncPos,
+                        initialSync: this.initialSync,
+                        lastRanges: this.lastRanges,
+                        lastTxnID: this.lastTxnID,
+                    });
+                    await syncInfoTX?.done;
+                }
+            }
             console.error(resp);
             throw Error("Error syncing. See console for error.");
         }
