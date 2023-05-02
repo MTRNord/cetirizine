@@ -10,6 +10,10 @@ export class Room {
     private joined_count: number = 0;
     private invited_count: number = 0;
 
+    public windowPos: {
+        [list: string]: number
+    } = {}
+
 
     constructor(public roomID: string, private hostname: string) { }
 
@@ -37,7 +41,9 @@ export class Room {
     public isSpace(): boolean {
         let isSpace: boolean = false;
         this.stateEvents.forEach((event) => {
-            isSpace = isRoomCreateEvent(event) && event.content.type === "m.space";
+            if (isRoomCreateEvent(event)) {
+                isSpace = event.content.type === "m.space";
+            }
         });
         return isSpace;
     }

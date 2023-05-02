@@ -23,9 +23,11 @@ export declare interface MatrixClient {
 interface MatrixDB extends DBSchema {
     rooms: {
         // Same as roomToRoom map
-        key: number;
+        key: string;
         value: {
-            windowID: number;
+            windowPos: {
+                [list: string]: number;
+            };
             roomID: string;
             name: string;
             notification_count: number;
@@ -36,10 +38,6 @@ interface MatrixDB extends DBSchema {
             stateEvents?: IRoomStateEvent[];
             avatarUrl?: string;
             isSpace: boolean;
-        };
-        indexes: {
-            // Get room in window order
-            'by-windowID': number;
         };
     };
     loginInfo: {
@@ -80,7 +78,7 @@ export class MatrixClient extends EventEmitter {
     private slidingSyncHostname?: string;
     private syncing = false;
     private roomsInView: string[] = [];
-    private roomToRoom: Map<number, Room> = new Map();
+    private rooms: Set<Room> = new Set();
     private syncPos?: string;
     private initialSync = true;
     private database?: IDBPDatabase<MatrixDB>;
@@ -133,8 +131,9 @@ export class MatrixClient extends EventEmitter {
                 await roomTx?.done;
 
                 if (rooms) {
-                    for (const room of rooms) {
+                    instance.rooms = new Set(rooms.map(room => {
                         const roomObj = new Room(room.roomID, instance.hostname!);
+                        roomObj.windowPos = room.windowPos;
                         roomObj.setInvitedCount(room.invited_count);
                         roomObj.setJoinedCount(room.joined_count);
                         roomObj.setNotificationCount(room.notification_count);
@@ -146,10 +145,9 @@ export class MatrixClient extends EventEmitter {
                         if (room.stateEvents) {
                             roomObj.addStateEvents(room.stateEvents);
                         }
-
-                        instance.roomToRoom.set(room.windowID, roomObj);
-                    }
-                    instance.emit("rooms", new Set(instance.roomToRoom.values()));
+                        return roomObj;
+                    }))
+                    instance.emit("rooms", instance.rooms);
                 }
             }
         }
@@ -159,20 +157,26 @@ export class MatrixClient extends EventEmitter {
     }
 
     private async createDatabase() {
-        this.database = await openDB<MatrixDB>("matrix", 2, {
-            upgrade(db, oldVersion) {
-                if (oldVersion < 1) {
-                    const roomStore = db.createObjectStore('rooms', { keyPath: 'windowID' });
-                    roomStore.createIndex('by-windowID', 'windowID');
-                    db.createObjectStore('loginInfo', { keyPath: 'userId' });
-                    db.createObjectStore('syncInfo', { keyPath: 'userId' });
+        this.database = await openDB<MatrixDB>("matrix", 3, {
+            upgrade(db) {
+                if (db.objectStoreNames.contains("rooms")) {
+                    db.deleteObjectStore("rooms");
                 }
+                //if (db.objectStoreNames.contains("loginInfo")) {
+                //    db.deleteObjectStore("loginInfo");
+                //}
+                if (db.objectStoreNames.contains("syncInfo")) {
+                    db.deleteObjectStore("syncInfo");
+                }
+                db.createObjectStore('rooms', { keyPath: 'roomID' });
+                db.createObjectStore('loginInfo', { keyPath: 'userId' });
+                db.createObjectStore('syncInfo', { keyPath: 'userId' });
             }
         });
     }
 
-    private findNextFreeIndex(): number {
-        const keys = Array.from(this.roomToRoom.keys());
+    private findNextFreeIndex(list: string): number {
+        const keys = [...this.rooms].map(room => room.windowPos[list]);
         const max = Math.max(...keys); // Will find highest number
         const min = 0;
         // Basically "append"
@@ -249,45 +253,48 @@ export class MatrixClient extends EventEmitter {
         }
 
         // This is the initial sync case for each list
-        let lists_ranges = {
+        let lists_ranges: {
+            "overview": number[][];
+            [key: string]: number[][];
+        } = {
             "overview": [[0, 10]]
         };
         let timeline_limit = 1;
         if (!this.initialSync) {
-            // Set higher timeline limit for subsequent syncs
-            timeline_limit = 10;
-            // Calculate overlap between this.roomsInView and this.roomToRoomID and then
-            // calculate the ranges for each list
-            const rawRangeInView = [...this.roomToRoom.entries()]
-                .filter(([_, room]) => this.roomsInView.includes(room.roomID))
-                .map(([rangeID]) => rangeID)
-                .sort();
+            for (const list in lists_ranges) {
+                // Set higher timeline limit for subsequent syncs
+                timeline_limit = 10;
+                // Calculate overlap between this.roomsInView and this.roomToRoomID and then
+                // calculate the ranges for each list
+                const rawRangeInView = [...this.rooms]
+                    .filter(room => this.roomsInView.includes(room.roomID))
+                    .map(room => room.windowPos[list])
+                    .sort();
 
-            // Increment range by 1 to make sure we always get a little more than we need
-            // [1,2,3,4,7,8,9,10,11] -> [2,3,4,5,8,9,10,11,12]
-            rawRangeInView.push(rawRangeInView[rawRangeInView.length - 1] + 1);
+                // Increment range by 1 to make sure we always get a little more than we need
+                // [1,2,3,4,7,8,9,10,11] -> [2,3,4,5,8,9,10,11,12]
+                rawRangeInView.push(rawRangeInView[rawRangeInView.length - 1] + 1);
 
-            // Turn an input like [1,2,3,4,7,8,9,10,11] to [[1,4], [7,11]]
-            const rangesInView = rawRangeInView.reduce((acc, cur, i, arr) => {
-                if (i === 0) {
-                    // [1,2,3,4] -> [[1,1]]
+                // Turn an input like [1,2,3,4,7,8,9,10,11] to [[1,4], [7,11]]
+                const rangesInView = rawRangeInView.reduce((acc, cur, i, arr) => {
+                    if (i === 0) {
+                        // [1,2,3,4] -> [[1,1]]
+                        acc.push([cur, cur]);
+                        return acc;
+                    }
+                    // Cur = 2, arr = [1,2,3,4], arr[i - 1] + 1 = 2 then
+                    if (cur === arr[i - 1] + 1) {
+                        // [1,2,3,4,7] -> [[1,2]]
+                        acc[acc.length - 1][1] = cur;
+                        return acc;
+                    }
+                    // Else [1,2,3,4,7] -> [[1,2], [7,7]]
                     acc.push([cur, cur]);
                     return acc;
-                }
-                // Cur = 2, arr = [1,2,3,4], arr[i - 1] + 1 = 2 then
-                if (cur === arr[i - 1] + 1) {
-                    // [1,2,3,4,7] -> [[1,2]]
-                    acc[acc.length - 1][1] = cur;
-                    return acc;
-                }
-                // Else [1,2,3,4,7] -> [[1,2], [7,7]]
-                acc.push([cur, cur]);
-                return acc;
-            }, [] as [number, number][]);
+                }, [] as [number, number][]);
 
-            lists_ranges = {
-                "overview": rangesInView
-            };
+                lists_ranges[list] = rangesInView;
+            }
         }
 
 
@@ -405,15 +412,18 @@ export class MatrixClient extends EventEmitter {
                         const tx = this.database?.transaction('rooms', 'readwrite');
                         for (let i = op.range[0]; i <= op.range[1]; i++) {
                             // We shall first forget about these and "startover"
-                            await tx?.store.delete(i);
-                            this.roomToRoom.delete(i);
-
+                            await tx?.store.delete(op.room_ids[i]);
+                            const roomObj = [...this.rooms].find(room => room.windowPos[listKey] === i);
+                            if (roomObj) {
+                                this.rooms.delete(roomObj)
+                            }
                             // We start to remember the Room now.
                             const newRoom = new Room(op.room_ids[i], this.hostname!);
                             newRoom.setName("Unknown Room");
-                            this.roomToRoom.set(i, newRoom);
+                            newRoom.windowPos[listKey] = i;
+                            this.rooms.add(newRoom);
                             await tx?.store.put({
-                                windowID: i,
+                                windowPos: newRoom.windowPos,
                                 roomID: newRoom.roomID,
                                 name: newRoom.getName(),
                                 notification_count: newRoom.getNotificationCount(),
@@ -427,109 +437,25 @@ export class MatrixClient extends EventEmitter {
                         await tx?.done;
                     } else if (isInsertOp(op)) {
                         console.log("Got INSERT OP", op);
-                        console.log("List", this.roomToRoom);
-                        const position = op.index;
-                        // If the position is not empty then clients MUST move entries to the left or the right depending on where the closest empty space is.
-                        const emptySpot = this.findNextFreeIndex();
-                        console.log("Empty spot", emptySpot);
-                        console.log("Position", position);
-                        // If there is no empty spot at the position we try to insert make sure that there will be one. (aka this.roomToRoom.get(position) === undefined)
-                        if (emptySpot !== position) {
-                            // We shift all rooms to the next free spot either left or right both in memory and database
-                            // First we chech if we need to shift left or right
-
-                            // Used to ensure we dont shift past the max or min since the empty spot may be above the max
-                            const max = Math.max(...this.roomToRoom.keys());
-                            const min = Math.min(...this.roomToRoom.keys());
-                            const tx = this.database?.transaction('rooms', 'readwrite');
-                            // If the empty spot is to the right of the position we shift right
-                            if (emptySpot > position && emptySpot <= max) {
-                                console.log("Shifting right");
-                                // Make sure we never shift past 0
-                                for (let i = 0; i < emptySpot && i >= min && i <= max; i++) {
-                                    console.log(i);
-                                    // TODO: This fails since we write to the new position but that still isn't moved. meaning we end up with overriding instead of shifting
-                                    const room = this.roomToRoom.get(i);
-                                    if (room !== undefined) {
-                                        await tx?.store.put({
-                                            windowID: i + 1,
-                                            roomID: room.roomID,
-                                            name: room.getName(),
-                                            notification_count: room.getNotificationCount(),
-                                            highlight_count: room.getNotificationHighlightCount(),
-                                            joined_count: room.getJoinedCount(),
-                                            invited_count: room.getInvitedCount(),
-                                            avatarUrl: room.getAvatarURL(),
-                                            isSpace: room.isSpace(),
-                                        });
-                                        this.roomToRoom.delete(i);
-                                        this.roomToRoom.set(i + 1, room);
-                                    }
-                                }
-                                console.log("List", this.roomToRoom);
-                            }
-                            // If the empty spot is to the left of the position we shift left
-                            else if (emptySpot < position && emptySpot <= max) {
-                                console.log("Shifting left");
-                                // Make sure we never shift past 0
-                                for (let i = 0; i > emptySpot && i >= min && i <= max; i--) {
-                                    const room = this.roomToRoom.get(i);
-                                    if (room !== undefined) {
-                                        await tx?.store.put({
-                                            windowID: i - 1,
-                                            roomID: room.roomID,
-                                            name: room.getName(),
-                                            notification_count: room.getNotificationCount(),
-                                            highlight_count: room.getNotificationHighlightCount(),
-                                            joined_count: room.getJoinedCount(),
-                                            invited_count: room.getInvitedCount(),
-                                            avatarUrl: room.getAvatarURL(),
-                                            isSpace: room.isSpace(),
-                                        });
-                                        this.roomToRoom.delete(i);
-                                        this.roomToRoom.set(i - 1, room);
-                                    }
-                                }
-                                console.log("List", this.roomToRoom);
-                            }
-                            console.log("Shifting done");
-                            console.log("Empty spot", this.findNextFreeIndex());
-                            console.log("Position", position);
-                            console.log("List", this.roomToRoom);
-                            await tx?.done;
-                        }
-                        if (this.roomToRoom.get(position) !== undefined) {
-                            console.error("Shifting failed");
-                        }
-                        const newRoom = new Room(op.room_id, this.hostname!);
-                        console.log(newRoom);
-                        newRoom.setName("Unknown Room");
-                        this.roomToRoom.set(position, newRoom);
-                        const tx = this.database?.transaction('rooms', 'readwrite');
-                        await tx?.store.put({
-                            windowID: position,
-                            roomID: op.room_id,
-                            name: newRoom.getName(),
-                            notification_count: newRoom.getNotificationCount(),
-                            highlight_count: newRoom.getNotificationHighlightCount(),
-                            joined_count: newRoom.getJoinedCount(),
-                            invited_count: newRoom.getInvitedCount(),
-                            avatarUrl: newRoom.getAvatarURL(),
-                            isSpace: newRoom.isSpace(),
-                        });
-                        await tx?.done;
+                        console.warn("INSERT not implemented")
                     } else if (isDeleteOp(op)) {
                         console.log("Got DELETE OP", op);
-                        const tx = this.database?.transaction('rooms', 'readwrite');
-                        await tx?.store.delete(op.index);
-                        await tx?.done;
-                        this.roomToRoom.delete(op.index);
+                        const roomObj = [...this.rooms].find(room => room.windowPos[listKey] === op.index);
+                        if (roomObj) {
+                            const tx = this.database?.transaction('rooms', 'readwrite');
+                            await tx?.store.delete(roomObj.roomID);
+                            await tx?.done;
+                            this.rooms.delete(roomObj)
+                        }
                     } else if (isInvalidateOp(op)) {
                         const tx = this.database?.transaction('rooms', 'readwrite');
                         for (let i = op.range[0]; i <= op.range[1]; i++) {
                             // We shall first forget about these and "startover"
-                            await tx?.store.delete(i);
-                            this.roomToRoom.delete(i);
+                            const roomObj = [...this.rooms].find(room => room.windowPos[listKey] === i);
+                            if (roomObj) {
+                                await tx?.store.delete(roomObj.roomID);
+                                this.rooms.delete(roomObj)
+                            }
                         }
                         await tx?.done;
                     }
@@ -547,13 +473,9 @@ export class MatrixClient extends EventEmitter {
             const events = room.timeline;
             const required_state = room.required_state;
 
-            // Add the room data to the Room from this.roomToRoomID
-            // Note that the map key does not mean the roomID but the sync position
-            // RoomID is part of the value object of the map
-            // value.roomID is the roomID
-            const roomObj = [...this.roomToRoom.values()].find(room => room.roomID === roomID);
-
+            const roomObj = [...this.rooms].find(room => room.roomID === roomID);
             if (!roomObj) {
+                // TODO: Warn but create missing room instead of failing on it
                 console.error("Could not find roomObj for roomID", roomID);
                 continue;
             }
@@ -574,7 +496,7 @@ export class MatrixClient extends EventEmitter {
 
             // Write to database
             await tx?.store.put({
-                windowID: [...this.roomToRoom.keys()].find(key => this.roomToRoom.get(key) === roomObj) as number,
+                windowPos: roomObj.windowPos,
                 roomID: roomObj.roomID,
                 name: roomObj.getName(),
                 notification_count: roomObj.getNotificationCount(),
@@ -589,7 +511,7 @@ export class MatrixClient extends EventEmitter {
         }
         await tx?.done
         if (json.rooms && Object.keys(json.rooms).length > 0) {
-            this.emit("rooms", new Set(this.roomToRoom.values()));
+            this.emit("rooms", this.rooms);
         }
     }
 
@@ -612,11 +534,11 @@ export class MatrixClient extends EventEmitter {
     }
 
     public getRooms(): Set<Room> {
-        return new Set(this.roomToRoom.values());
+        return this.rooms;
     }
 
     private getSpaces(): Room[] {
-        return [...this.roomToRoom.values()].filter(room => room.isSpace());
+        return [...this.rooms].filter(room => room.isSpace());
     }
 
     public getSpacesWithRooms(): Set<{
@@ -724,7 +646,6 @@ export class MatrixClient extends EventEmitter {
                 // Set the sliding sync proxy
                 this.slidingSyncHostname = well_known["org.matrix.msc3575.proxy"].url;
             } else {
-                // TODO: we might want to check for synapse support somehow
                 throw Error("No sliding sync proxy found");
             }
         } catch (e: any) {
