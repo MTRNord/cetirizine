@@ -1,4 +1,4 @@
-import { FC } from "react";
+import { FC, memo } from "react";
 
 type HeaderProps = {
     /**
@@ -7,8 +7,8 @@ type HeaderProps = {
     children: string
 };
 
-const Header: FC<HeaderProps> = ({ children }: HeaderProps) => {
+const Header: FC<HeaderProps> = memo(({ children }: HeaderProps) => {
     return <h1 className='text-black font-bold text-xl'>{children}</h1>;
-}
+})
 
 export default Header

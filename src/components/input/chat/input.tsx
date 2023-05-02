@@ -21,7 +21,7 @@ import CodeHighlightPlugin from './plugins/CodeHighlightPlugin';
 import EditorTheme from './theme';
 
 import './input.scss';
-import { FC } from 'react';
+import { FC, memo } from 'react';
 
 type ChatInputProps = {
     /**
@@ -42,7 +42,7 @@ function Placeholder() {
     return <div className="editor-placeholder" id="editor-placeholder">Enter message...</div>;
 }
 
-const ChatInput: FC<ChatInputProps> = ({ namespace, onChange, onError }: ChatInputProps) => {
+const ChatInput: FC<ChatInputProps> = memo(({ namespace, onChange, onError }: ChatInputProps) => {
     const initialConfig: InitialConfigType = {
         namespace: namespace,
         theme: EditorTheme,
@@ -81,6 +81,6 @@ const ChatInput: FC<ChatInputProps> = ({ namespace, onChange, onError }: ChatInp
             </div>
         </LexicalComposer>
     );
-}
+})
 
 export default ChatInput;

@@ -1,6 +1,6 @@
 import { useInView } from "react-intersection-observer";
 import Avatar from "../../avatar/avatar";
-import { FC, useContext, useEffect } from "react";
+import { FC, memo, useContext, useEffect } from "react";
 import { MatrixContext } from "../../../app/sdk/client";
 
 type RoomListItemProps = {
@@ -38,7 +38,7 @@ type RoomListItemProps = {
     hidden: boolean
 };
 
-const RoomListItem: FC<RoomListItemProps> = ({ roomId, avatarUrl, displayname, dm = false, online = false, active = false, onClick, hidden }: RoomListItemProps) => {
+const RoomListItem: FC<RoomListItemProps> = memo(({ roomId, avatarUrl, displayname, dm = false, online = false, active = false, onClick, hidden }: RoomListItemProps) => {
     const { ref, inView } = useInView({
         triggerOnce: true,
         rootMargin: '200px 0px',
@@ -69,6 +69,6 @@ const RoomListItem: FC<RoomListItemProps> = ({ roomId, avatarUrl, displayname, d
             }
         </div>
     );
-}
+})
 
 export default RoomListItem

@@ -5,7 +5,9 @@ import RoomList, { Section } from '../components/roomList/roomList';
 import './MainPage.scss';
 import { useProfile, useRooms, useSpaces } from '../app/sdk/client';
 import { Room } from '../app/sdk/room';
-export default function MainPage() {
+import { memo } from 'react';
+
+const MainPage = memo(() => {
     const profile = useProfile();
     const spacesWithRooms = useSpaces();
     const rooms = useRooms();
@@ -20,6 +22,18 @@ export default function MainPage() {
         // Also check if there are no parents set
         const no_parents = spaceRoom.getSpaceParentIDs().length === 0;
         return not_a_child && no_parents;
+    });
+
+    // Filter rooms which are not part of any space and are not a space.
+    // A room is not part of any space if it is not a child of any space.
+    // A room is not a space if it has not any space as parent.
+    const leftOverRooms = [...rooms].filter(room => {
+        const not_a_child = ![...spacesWithRooms].some(({ children }) => {
+            return [...children].some(otherRoom => otherRoom.roomID === room.roomID);
+        });
+        const no_parents = room.getSpaceParentIDs().length === 0;
+        const not_a_space = !room.isSpace();
+        return not_a_child && no_parents && not_a_space;
     });
 
     // Generate a list of sections.
@@ -80,7 +94,7 @@ export default function MainPage() {
     });
 
     // Add the toplevel section "Other" to the end of the list.
-    const otherRooms = [...rooms].filter(room => !room.isSpace()).map(room => {
+    const otherRooms = leftOverRooms.filter(room => !room.isSpace()).map(room => {
         return {
             roomID: room.roomID,
             displayname: room.getName(),
@@ -89,6 +103,13 @@ export default function MainPage() {
             online: room.isOnline(),
         }
     });
+
+    // Check and print if otherRooms has duplicates.
+    const otherRoomsIDs = otherRooms.map(room => room.roomID);
+    const otherRoomsDuplicates = otherRoomsIDs.filter((id, index) => otherRoomsIDs.indexOf(id) !== index);
+    if (otherRoomsDuplicates.length > 0) {
+        console.error('otherRooms has duplicates', otherRoomsDuplicates);
+    }
 
     return <div className='flex flex-row w-full gap-2 min-h-screen h-screen'>
         < div className='flex flex-col bg-gradient-to-br from-slate-100 via-gray-200 to-orange-200 border-r-[1px] border-slate-300' >
@@ -107,4 +128,6 @@ export default function MainPage() {
             <ChatInput namespace='Editor' onChange={() => { }} onError={(e) => console.error(e)} />
         </div>
     </div >
-}
+})
+
+export default MainPage;

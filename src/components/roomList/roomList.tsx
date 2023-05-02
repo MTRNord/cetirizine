@@ -1,4 +1,4 @@
-import { FC, useState } from "react";
+import { FC, memo, useState } from "react";
 import RoomListItem from "./roomListItem/roomListItem";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import './roomList.scss';
@@ -79,13 +79,14 @@ type RoomListRoomsProps = {
     hidden: boolean
 };
 
-const RoomListRooms: FC<RoomListRoomsProps> = ({ sectionID, rooms, onClick, activeRoom, hidden }: RoomListRoomsProps) => {
+const RoomListRooms: FC<RoomListRoomsProps> = memo(({ sectionID, rooms, onClick, activeRoom, hidden }: RoomListRoomsProps) => {
+    // Get room ids of rooms
     const roomsRendered = rooms.map(room => {
         return (
             <RoomListItem
                 roomId={room.roomID}
                 hidden={hidden}
-                key={room.roomID + sectionID}
+                key={`${room.roomID}+${sectionID}`}
                 avatarUrl={room.avatarUrl}
                 displayname={room.displayname}
                 dm={room.dm}
@@ -100,9 +101,9 @@ const RoomListRooms: FC<RoomListRoomsProps> = ({ sectionID, rooms, onClick, acti
             {roomsRendered}
         </>
     );
-}
+})
 
-const RoomSection: FC<{ section: Section, onRoomClick: (roomID: string) => void, activeRoom: string | undefined }> = ({ section, onRoomClick, activeRoom }: { section: Section, onRoomClick: (roomID: string) => void, activeRoom: string | undefined }) => {
+const RoomSection: FC<{ section: Section, onRoomClick: (roomID: string) => void, activeRoom: string | undefined }> = memo(({ section, onRoomClick, activeRoom }: { section: Section, onRoomClick: (roomID: string) => void, activeRoom: string | undefined }) => {
     const [hidden, setHidden] = useState<boolean>(true);
     return (
         <div key={section.roomID} className="flex flex-col gap-1 pl-4">
@@ -131,9 +132,9 @@ const RoomSection: FC<{ section: Section, onRoomClick: (roomID: string) => void,
             )}
         </div>
     );
-}
+})
 
-const RoomList: FC<RoomListProps> = ({ sections, rooms }: RoomListProps) => {
+const RoomList: FC<RoomListProps> = memo(({ sections, rooms }: RoomListProps) => {
     const [activeRoom, setActiveRoom] = useState<string | undefined>(undefined);
 
     return (
@@ -163,6 +164,6 @@ const RoomList: FC<RoomListProps> = ({ sections, rooms }: RoomListProps) => {
 
         </div>
     );
-}
+})
 
 export default RoomList

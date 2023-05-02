@@ -10,7 +10,8 @@ import {
     MutableRefObject,
     Dispatch,
     SetStateAction,
-    createElement
+    createElement,
+    memo
 } from "react";
 import {
     CAN_REDO_COMMAND,
@@ -97,9 +98,9 @@ const blockTypeToBlockName: BlockTypes = {
 
 type BlockType = keyof typeof blockTypeToBlockName;
 
-function Divider() {
+const Divider = memo(() => {
     return <div className="divider" />;
-}
+})
 
 function positionEditorElement(editor: HTMLDivElement, rect: DOMRect | undefined) {
     if (!rect) {
@@ -114,7 +115,7 @@ function positionEditorElement(editor: HTMLDivElement, rect: DOMRect | undefined
     }
 }
 
-function FloatingLinkEditor({ editor }: { editor: LexicalEditor }) {
+const FloatingLinkEditor = memo(({ editor }: { editor: LexicalEditor }) => {
     const editorRef: MutableRefObject<HTMLDivElement | null> = useRef(null);
     const inputRef: MutableRefObject<HTMLInputElement | null> = useRef(null);
     const mouseDownRef = useRef(false);
@@ -252,9 +253,9 @@ function FloatingLinkEditor({ editor }: { editor: LexicalEditor }) {
             )}
         </div>
     );
-}
+})
 
-function Select({ onChange, className, options, value }: { onChange: ChangeEventHandler<HTMLSelectElement>, className: string, options: string[], value: string | ReadonlyArray<string> | number }) {
+const Select = memo(({ onChange, className, options, value }: { onChange: ChangeEventHandler<HTMLSelectElement>, className: string, options: string[], value: string | ReadonlyArray<string> | number }) => {
     return (
         <select className={className} onChange={onChange} value={value}>
             <option hidden={true} value="" />
@@ -265,7 +266,7 @@ function Select({ onChange, className, options, value }: { onChange: ChangeEvent
             ))}
         </select>
     );
-}
+})
 
 function getSelectedNode(selection: RangeSelection | GridSelection) {
     const anchor = selection.anchor;
@@ -283,12 +284,12 @@ function getSelectedNode(selection: RangeSelection | GridSelection) {
     }
 }
 
-function BlockOptionsDropdownList({
+const BlockOptionsDropdownList = memo(({
     editor,
     blockType,
     toolbarRef,
     setShowBlockOptionsDropDown
-}: { editor: LexicalEditor, blockType: BlockType, toolbarRef: MutableRefObject<HTMLDivElement | null>, setShowBlockOptionsDropDown: Dispatch<SetStateAction<boolean>> }) {
+}: { editor: LexicalEditor, blockType: BlockType, toolbarRef: MutableRefObject<HTMLDivElement | null>, setShowBlockOptionsDropDown: Dispatch<SetStateAction<boolean>> }) => {
     const dropDownRef: MutableRefObject<HTMLDivElement | null> = useRef(null);
 
     useEffect(() => {
@@ -433,9 +434,9 @@ function BlockOptionsDropdownList({
             </button>
         </div>
     );
-}
+})
 
-export default function ToolbarPlugin() {
+const ToolbarPlugin = memo(() => {
     const [editor] = useLexicalComposerContext();
     const toolbarRef = useRef(null);
     const [canUndo, setCanUndo] = useState(false);
@@ -711,4 +712,6 @@ export default function ToolbarPlugin() {
             )}
         </div>
     );
-}
+})
+
+export default ToolbarPlugin;

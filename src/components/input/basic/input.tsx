@@ -27,7 +27,7 @@ type InputProps = {
     onChange: (e: ChangeEvent<HTMLInputElement>) => void;
 };
 
-const Input: FC<InputProps> = ({ placeholder, password = false, autoFocus = false, value, readonly, onChange }: InputProps) => {
+const Input: FC<InputProps> = memo(({ placeholder, password = false, autoFocus = false, value, readonly, onChange }: InputProps) => {
     return (
         <input
             disabled={readonly}
@@ -39,5 +39,5 @@ const Input: FC<InputProps> = ({ placeholder, password = false, autoFocus = fals
             onChange={onChange}
         />
     );
-}
-export default memo(Input);
+})
+export default Input;

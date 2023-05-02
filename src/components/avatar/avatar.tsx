@@ -1,4 +1,4 @@
-import { FC } from "react";
+import { FC, memo } from "react";
 
 type AvatarProps = {
     /**
@@ -19,7 +19,7 @@ type AvatarProps = {
     online: boolean
 };
 
-const Avatar: FC<AvatarProps> = ({ avatarUrl, displayname, dm = false, online = false }: AvatarProps) => {
+const Avatar: FC<AvatarProps> = memo(({ avatarUrl, displayname, dm = false, online = false }: AvatarProps) => {
     if (avatarUrl) {
         return (
             <div className="flex relative min-w-[2rem] min-h-[2rem] justify-center items-center m-0 mr-3 text-xl rounded-full text-white">
@@ -50,6 +50,6 @@ const Avatar: FC<AvatarProps> = ({ avatarUrl, displayname, dm = false, online = 
             }
         </div>
     );
-}
+})
 
 export default Avatar;

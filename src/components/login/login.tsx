@@ -1,11 +1,11 @@
-import { useContext, useState } from 'react';
+import { memo, useContext, useState } from 'react';
 import Button from '../button/button';
 import Header from '../header/header';
 import Input from '../input/basic/input';
 import { Navigate } from 'react-router-dom';
 import { MatrixContext } from '../../app/sdk/client';
 
-export function Login() {
+const Login = memo(() => {
     const matrixClient = useContext(MatrixContext);
     const [loginPending, setLoginPending] = useState(false);
     const [loginError, setLoginError] = useState('');
@@ -52,4 +52,6 @@ export function Login() {
             </Button>
         </form>
     );
-}
+})
+
+export default Login;
