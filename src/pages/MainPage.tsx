@@ -5,15 +5,15 @@ import RoomList, { Section } from '../components/roomList/roomList';
 import './MainPage.scss';
 import { useProfile, useRoom, useRooms, useSpaces } from '../app/sdk/client';
 import { Room } from '../app/sdk/room';
-import { FC, memo, useContext, useState } from 'react';
+import { FC, memo, useContext, useEffect, useRef, useState } from 'react';
 import { MatrixContext } from '../app/sdk/client';
-import { useParams } from 'react-router-dom';
+import { useLocation, useParams } from 'react-router-dom';
 import { $generateHtmlFromNodes } from '@lexical/html';
 import { $convertToMarkdownString, TRANSFORMERS } from '@lexical/markdown';
 import MessageEvent from '../components/events/messageEvent';
 import UnknownEvent from '../components/events/unknownEvent';
 import MemberEvent from '../components/events/memberEvent';
-import { IRoomEvent } from '../app/sdk/api/apiTypes';
+import { IRoomEvent, IRoomMemberEvent } from '../app/sdk/api/apiTypes';
 
 type ChatViewProps = {
     /**
@@ -25,11 +25,19 @@ type ChatViewProps = {
      * If the roomID is valid, but the room is not loaded, the ChatView will display a placeholder
      */
     roomID?: string
+    /**
+     * Ref of the Scroll Container
+     */
+    scrollRef: React.RefObject<HTMLDivElement>
 };
 
-const ChatView: FC<ChatViewProps> = memo(({ roomID }) => {
+const ChatView: FC<ChatViewProps> = memo(({ roomID, scrollRef }) => {
     const room = useRoom(decodeURIComponent(roomID || ""));
     const events = room?.getEvents();
+    const { pathname } = useLocation();
+    useEffect(() => {
+        scrollRef.current?.scrollTo(0, scrollRef.current?.scrollHeight);
+    }, [pathname]);
 
     // Render events based on the event type and content
     const renderEvent = (event: IRoomEvent, previousEventIsFromSameSender: boolean, previousEventType: string) => {
@@ -37,7 +45,7 @@ const ChatView: FC<ChatViewProps> = memo(({ roomID }) => {
             case "m.room.message":
                 return <MessageEvent event={event} roomID={roomID} key={event.event_id} hasPreviousEvent={previousEventIsFromSameSender && previousEventType === "m.room.message"} />
             case "m.room.member":
-                return <MemberEvent event={event} key={event.event_id} />
+                return <MemberEvent event={event as IRoomMemberEvent} key={event.event_id} />
             case "m.room.redaction":
                 return <></>;
             default:
@@ -70,6 +78,7 @@ const MainPage = memo(() => {
 
     const [htmlMessage, setHtmlMessage] = useState<string>("");
     const [plainMessage, setPlainMessage] = useState<string>("");
+    const scrollRef = useRef<HTMLDivElement>(null);
 
     // Filter toplevel spaces.
     // A toplevel space is a space that is not a child of another space.
@@ -189,8 +198,8 @@ const MainPage = memo(() => {
                     <p className='ml-4 text-slate-700 font-normal text-base'>{room.getTopic()}</p>
                 </div>
             </div>
-            <div className='overflow-y-auto overflow-x-hidden scrollbarSmall mr-2 my-1 flex-1 w-full flex flex-col-reverse'>
-                <ChatView roomID={params.roomIdOrAlias} />
+            <div ref={scrollRef} className='overflow-y-auto overflow-x-hidden scrollbarSmall mr-2 my-1 flex-1 w-full flex flex-col-reverse'>
+                <ChatView roomID={params.roomIdOrAlias} scrollRef={scrollRef} />
             </div>
             <ChatInput namespace='Editor' onChange={(editorState, editor) => {
                 // Convert editor state to both html and markdown.
