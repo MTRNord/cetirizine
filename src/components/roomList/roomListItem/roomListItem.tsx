@@ -1,6 +1,6 @@
 import { useInView } from "react-intersection-observer";
 import Avatar from "../../avatar/avatar";
-import { FC, memo, useContext, useEffect } from "react";
+import { FC, memo, useContext } from "react";
 import { MatrixContext } from "../../../app/sdk/client";
 
 type RoomListItemProps = {
@@ -39,31 +39,31 @@ type RoomListItemProps = {
 };
 
 const RoomListItem: FC<RoomListItemProps> = memo(({ roomId, avatarUrl, displayname, dm = false, online = false, active = false, onClick, hidden }: RoomListItemProps) => {
+    const matrixClient = useContext(MatrixContext);
     const { ref, inView } = useInView({
         triggerOnce: true,
         rootMargin: '200px 0px',
         skip: hidden,
+        onChange(inView) {
+            if (inView) {
+                matrixClient.addInViewRoom(roomId)
+            } else {
+                matrixClient.removeInViewRoom(roomId)
+            }
+        },
     });
-    const matrixClient = useContext(MatrixContext);
-    useEffect(() => {
-        if (inView) {
-            matrixClient.addInViewRoom(roomId)
-        } else {
-            matrixClient.removeInViewRoom(roomId)
-        }
-    }, [inView])
     return (
         <div ref={ref} onClick={onClick} className="w-full cursor-pointer">
             {
                 inView && (active ? (
                     <div className="flex flex-row gap-2 p-1 bg-gray-300 hover:bg-gray-400 rounded-lg duration-200 ease-in-out items-center">
                         <Avatar avatarUrl={avatarUrl} displayname={displayname} dm={dm} online={online} />
-                        <span title={displayname} className='text-slate-900 font-normal text-base capitalize max-w-[32ch] overflow-hidden text-ellipsis w-full whitespace-nowrap'>{displayname}</span>
+                        <span title={displayname} className='text-slate-900 font-normal text-base max-w-[32ch] overflow-hidden text-ellipsis w-full whitespace-nowrap'>{displayname}</span>
                     </div>
                 ) : (
                     <div className="flex flex-row gap-2 p-1 hover:bg-gray-300 rounded-lg duration-200 ease-in-out items-center">
                         <Avatar avatarUrl={avatarUrl} displayname={displayname} dm={dm} online={online} />
-                        <span title={displayname} className='text-slate-900 font-normal text-base capitalize max-w-[32ch] overflow-hidden text-ellipsis w-full whitespace-nowrap'>{displayname}</span>
+                        <span title={displayname} className='text-slate-900 font-normal text-base max-w-[32ch] overflow-hidden text-ellipsis w-full whitespace-nowrap'>{displayname}</span>
                     </div>
                 ))
             }

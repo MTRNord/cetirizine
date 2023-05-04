@@ -17,6 +17,7 @@ import {
     isDeleteOp,
     isInsertOp,
     isInvalidateOp,
+    isRoomStateEvent,
     isSyncOp
 } from "./api/apiTypes";
 import { Room } from "./room";
@@ -61,6 +62,7 @@ interface MatrixDB extends DBSchema {
             stateEvents?: IRoomStateEvent[];
             avatarUrl?: string;
             isSpace: boolean;
+            isDM?: boolean;
         };
     };
     loginInfo: {
@@ -101,6 +103,8 @@ export class MatrixClient extends EventEmitter {
     private slidingSyncHostname?: string;
     private syncing = false;
     private roomsInView: string[] = [];
+    // TODO: Use to filter rooms by spaces visible. Eventually even make lists per space dynamically and use that to filter
+    private spaceOpen: string[] = [];
     private rooms: Set<Room> = new Set();
     private syncPos?: string;
     private initialSync = true;
@@ -167,6 +171,9 @@ export class MatrixClient extends EventEmitter {
                         }
                         if (room.stateEvents) {
                             roomObj.addStateEvents(room.stateEvents);
+                        }
+                        if (room.isDM) {
+                            roomObj.setDM(room.isDM);
                         }
                         return roomObj;
                     }))
@@ -285,7 +292,7 @@ export class MatrixClient extends EventEmitter {
 
     }
 
-    private removeEntry(listKey: string, ranges: number[][], index: number) {
+    private async removeEntry(listKey: string, ranges: number[][], index: number) {
         // work out the max index
         let max = -1;
         const indexes = [...this.rooms].map(room => room.windowPos[listKey]);
@@ -293,6 +300,13 @@ export class MatrixClient extends EventEmitter {
             if (Number(n) > max) {
                 max = Number(n);
             }
+        }
+        const roomObj = [...this.rooms].find(room => room.windowPos[listKey] === index);
+        if (roomObj) {
+            const tx = this.database?.transaction('rooms', 'readwrite');
+            await tx?.store.delete(roomObj.roomID);
+            await tx?.done;
+            this.rooms.delete(roomObj)
         }
         if (max < 0 || index > max) {
             return;
@@ -341,17 +355,23 @@ export class MatrixClient extends EventEmitter {
                 timeline_limit = 10;
                 // Calculate overlap between this.roomsInView and this.roomToRoomID and then
                 // calculate the ranges for each list
-                const rawRangeInView = [...this.rooms]
+                const rawRangeInView = new Set([...this.rooms]
                     .filter(room => this.roomsInView.includes(room.roomID))
-                    .map(room => room.windowPos[list])
-                    .sort();
+                    .map(room => room.windowPos[list]).sort())
+
+
+                if (rawRangeInView.size === 0) {
+                    // If there are no rooms in view, we can skip this list
+                    continue;
+                }
 
                 // Increment range by 1 to make sure we always get a little more than we need
                 // [1,2,3,4,7,8,9,10,11] -> [2,3,4,5,8,9,10,11,12]
-                rawRangeInView.push(rawRangeInView[rawRangeInView.length - 1] + 1);
+                rawRangeInView.add([...rawRangeInView][rawRangeInView.size - 1] + 1);
+
 
                 // Turn an input like [1,2,3,4,7,8,9,10,11] to [[1,4], [7,11]]
-                const rangesInView = rawRangeInView.reduce((acc, cur, i, arr) => {
+                const rangesInView = [...rawRangeInView].reduce((acc, cur, i, arr) => {
                     if (i === 0) {
                         // [1,2,3,4] -> [[1,1]]
                         acc.push([cur, cur]);
@@ -368,18 +388,35 @@ export class MatrixClient extends EventEmitter {
                     return acc;
                 }, [] as [number, number][]);
 
-                lists_ranges[list] = rangesInView;
+                // Sort by the first element of each range and add to the object
+                const sorted = rangesInView.sort((a, b) => a[0] - b[0]);
+
+                // Deduplicate ranges
+                const deduped = sorted.reduce((acc, cur, i, arr) => {
+                    if (i === 0) {
+                        acc.push(cur);
+                        return acc;
+                    }
+                    if (cur[0] === arr[i - 1][0] && cur[1] === arr[i - 1][1]) {
+                        return acc;
+                    }
+                    acc.push(cur);
+                    return acc;
+                }, [] as [number, number][]);
+
+                lists_ranges[list] = deduped;
             }
         }
 
 
         if (this.lastRanges && Object.entries(lists_ranges).toString() !== Object.entries(this.lastRanges).toString()) {
-            console.log("Ranges changed, resetting sync txn_id")
+            console.log("Ranges changed, resetting sync txn_id", lists_ranges)
             this.lastRanges = lists_ranges;
             this.lastTxnID = Date.now().toString();
         }
 
         if (!this.lastRanges) {
+            console.log(lists_ranges)
             this.lastRanges = lists_ranges;
             this.lastTxnID = Date.now().toString();
         }
@@ -419,6 +456,12 @@ export class MatrixClient extends EventEmitter {
                             ["m.room.create", ""],
                             // Room Avatar
                             ["m.room.avatar", "*"],
+                            // Room Topic
+                            ["m.room.topic", "*"],
+                            // Request only the m.room.member events required to render events in the timeline.
+                            // The "$LAZY" value is a special sentinel value meaning "lazy loading" and is only valid for
+                            // the "m.room.member" event type. For more information on the semantics, see "Lazy-Loading Room Members".
+                            ["m.room.member", "$LAZY"],
                         ],
                         timeline_limit: timeline_limit,
                         filters: {
@@ -435,6 +478,12 @@ export class MatrixClient extends EventEmitter {
                             ["m.room.create", ""],
                             // Room Avatar
                             ["m.room.avatar", "*"],
+                            // Room Topic
+                            ["m.room.topic", "*"],
+                            // Request only the m.room.member events required to render events in the timeline.
+                            // The "$LAZY" value is a special sentinel value meaning "lazy loading" and is only valid for
+                            // the "m.room.member" event type. For more information on the semantics, see "Lazy-Loading Room Members".
+                            ["m.room.member", "$LAZY"],
                         ],
                         timeline_limit: timeline_limit,
                         filters: {}
@@ -463,7 +512,7 @@ export class MatrixClient extends EventEmitter {
                 }
             }
             console.error(resp);
-            throw Error("Error syncing. See console for error.");
+            console.error("Error syncing. See console for error.");
         }
         const json = await resp.json() as ISlidingSyncResp;
         this.syncPos = json.pos;
@@ -500,8 +549,8 @@ export class MatrixClient extends EventEmitter {
                                 continue;
                             }
 
-                            // We start to remember the Room now.
                             const newRoom = new Room(roomID, this.hostname!);
+                            // We start to remember the Room now.
                             newRoom.setName(roomID);
                             newRoom.windowPos[listKey] = i;
 
@@ -516,6 +565,9 @@ export class MatrixClient extends EventEmitter {
                                 invited_count: newRoom.getInvitedCount(),
                                 avatarUrl: newRoom.getAvatarURL(),
                                 isSpace: newRoom.isSpace(),
+                                isDM: newRoom.isDM(),
+                                stateEvents: newRoom.getStateEvents(),
+                                events: newRoom.getEvents(),
                             });
                         }
                         await tx?.done;
@@ -557,11 +609,25 @@ export class MatrixClient extends EventEmitter {
                                 invited_count: foundRoom.getInvitedCount(),
                                 avatarUrl: foundRoom.getAvatarURL(),
                                 isSpace: foundRoom.isSpace(),
+                                isDM: foundRoom.isDM(),
+                                stateEvents: foundRoom.getStateEvents(),
+                                events: foundRoom.getEvents(),
                             });
                         } else {
-                            const newRoom = new Room(op.room_id, this.hostname!);
+                            const roomFromDB = await tx?.store.get(op.room_id);
+                            let newRoom = new Room(op.room_id, this.hostname!);
                             newRoom.setName(op.room_id);
                             newRoom.windowPos[listKey] = op.index;
+                            if (roomFromDB) {
+                                console.warn("Room in db but not in obj list.", op.room_id, "Updating obj list.");
+                                newRoom = new Room(op.room_id, this.hostname!)
+                                newRoom.setName(roomFromDB.name);
+                                newRoom.setNotificationCount(roomFromDB.notification_count);
+                                newRoom.setNotificationHighlightCount(roomFromDB.highlight_count);
+                                newRoom.setJoinedCount(roomFromDB.joined_count);
+                                newRoom.setInvitedCount(roomFromDB.invited_count);
+                                newRoom.setDM(roomFromDB.isDM || false);
+                            }
                             this.rooms.add(newRoom);
                             await tx?.store.put({
                                 windowPos: newRoom.windowPos,
@@ -573,6 +639,9 @@ export class MatrixClient extends EventEmitter {
                                 invited_count: newRoom.getInvitedCount(),
                                 avatarUrl: newRoom.getAvatarURL(),
                                 isSpace: newRoom.isSpace(),
+                                isDM: newRoom.isDM(),
+                                stateEvents: newRoom.getStateEvents(),
+                                events: newRoom.getEvents(),
                             });
                         }
 
@@ -586,16 +655,9 @@ export class MatrixClient extends EventEmitter {
                     } else if (isDeleteOp(op)) {
                         console.log("Got DELETE OP", op);
 
-                        const roomObj = [...this.rooms].find(room => room.windowPos[listKey] === op.index);
-                        if (roomObj) {
-                            const tx = this.database?.transaction('rooms', 'readwrite');
-                            await tx?.store.delete(roomObj.roomID);
-                            await tx?.done;
-                            this.rooms.delete(roomObj)
-                        }
                         if (gapIndex !== -1) {
                             // we already have a DELETE operation to process, so process it.
-                            this.removeEntry(listKey, this.lastRanges[listKey], gapIndex);
+                            await this.removeEntry(listKey, this.lastRanges[listKey], gapIndex);
                         }
                         gapIndex = op.index;
                     } else if (isInvalidateOp(op)) {
@@ -614,7 +676,7 @@ export class MatrixClient extends EventEmitter {
                 if (gapIndex !== -1) {
                     // we already have a DELETE operation to process, so process it
                     // Everything higher than the gap needs to be shifted left.
-                    this.removeEntry(listKey, this.lastRanges[listKey], gapIndex);
+                    await this.removeEntry(listKey, this.lastRanges[listKey], gapIndex);
                 }
             }
         }
@@ -627,7 +689,10 @@ export class MatrixClient extends EventEmitter {
             const joined_count = room.joined_count;
             const invited_count = room.invited_count;
             const events = room.timeline;
+            const state_events = events?.filter(event => isRoomStateEvent(event)).map(event => event as IRoomStateEvent);
+            const normal_events = events?.filter(event => !isRoomStateEvent(event)).map(event => event as IRoomEvent);
             const required_state = room.required_state;
+            const is_dm = room.is_dm;
 
             const roomObj = [...this.rooms].find(room => room.roomID === roomID);
             if (!roomObj) {
@@ -643,11 +708,17 @@ export class MatrixClient extends EventEmitter {
             roomObj.setNotificationHighlightCount(notification_highlight_count);
             roomObj.setJoinedCount(joined_count);
             roomObj.setInvitedCount(invited_count);
-            if (events) {
-                roomObj.addEvents(events);
+            if (normal_events) {
+                roomObj.addEvents(normal_events);
             }
             if (required_state) {
                 roomObj.addStateEvents(required_state);
+            }
+            if (state_events) {
+                roomObj.addStateEvents(state_events);
+            }
+            if (is_dm) {
+                roomObj.setDM(is_dm);
             }
 
             // Write to database
@@ -659,13 +730,19 @@ export class MatrixClient extends EventEmitter {
                 highlight_count: roomObj.getNotificationHighlightCount(),
                 joined_count: roomObj.getJoinedCount(),
                 invited_count: roomObj.getInvitedCount(),
-                events: events,
-                stateEvents: required_state,
+                events: roomObj.getEvents(),
+                stateEvents: roomObj.getStateEvents(),
                 avatarUrl: roomObj.getAvatarURL(),
                 isSpace: roomObj.isSpace(),
+                isDM: roomObj.isDM(),
             });
         }
         await tx?.done
+
+        if (this.initialSync) {
+            this.initialSync = false;
+            console.log("initialSyncComplete");
+        }
         if (json.rooms && Object.keys(json.rooms).length > 0) {
             this.emit("rooms", this.rooms);
         }
@@ -687,6 +764,14 @@ export class MatrixClient extends EventEmitter {
      */
     public removeInViewRoom(roomID: string) {
         this.roomsInView = this.roomsInView.filter(room => room !== roomID);
+    }
+
+    public addSpaceOpen(roomID: string) {
+        this.spaceOpen.push(roomID);
+    }
+
+    public removeSpaceOpen(roomID: string) {
+        this.spaceOpen = this.spaceOpen.filter(room => room !== roomID);
     }
 
     public getRooms(): Set<Room> {
@@ -942,6 +1027,11 @@ export function useRooms() {
         }
     }, [])
     return rooms;
+}
+
+export function useRoom(roomID?: string): Room | undefined {
+    const client = useContext(MatrixContext);
+    return [...client.getRooms()].find(room => room.roomID === roomID);
 }
 
 export function useSpaces() {

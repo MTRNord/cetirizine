@@ -1,4 +1,4 @@
-import { IRoomEvent, IRoomStateEvent, isRoomAvatarEvent, isRoomCreateEvent, isSpaceChildEvent, isSpaceParentEvent } from "./api/apiTypes";
+import { IRoomEvent, IRoomStateEvent, isRoomAvatarEvent, isRoomCreateEvent, isRoomTopicEvent, isSpaceChildEvent, isSpaceParentEvent } from "./api/apiTypes";
 
 export class Room {
     private events: IRoomEvent[] = [];
@@ -9,6 +9,7 @@ export class Room {
     private notification_highlight_count: number = 0;
     private joined_count: number = 0;
     private invited_count: number = 0;
+    private is_dm: boolean = false;
 
     public windowPos: {
         [list: string]: number
@@ -18,11 +19,31 @@ export class Room {
     constructor(public roomID: string, private hostname: string) { }
 
     public addEvents(events: IRoomEvent[]) {
-        this.events.push(...events);
+        // if the event id is already known then we update the event instead of pushing it on to the Array
+        events.forEach((newEvent) => {
+            const index = this.events.findIndex((oldEvent) => oldEvent.event_id === newEvent.event_id);
+            if (index !== -1) {
+                this.events[index] = newEvent;
+            } else {
+                this.events.push(newEvent);
+            }
+        });
     }
 
     public addStateEvents(state: IRoomStateEvent[]) {
-        this.stateEvents.push(...state);
+        // if the state event id is already known then we update the event instead of pushing it on to the Array
+        state.forEach((newEvent) => {
+            const index = this.stateEvents.findIndex((oldEvent) => oldEvent.event_id === newEvent.event_id);
+            if (index !== -1) {
+                this.stateEvents[index] = newEvent;
+            } else {
+                this.stateEvents.push(newEvent);
+            }
+        });
+    }
+
+    public getStateEvents(): IRoomStateEvent[] {
+        return this.stateEvents;
     }
 
     public getAvatarURL(): string | undefined {
@@ -57,6 +78,16 @@ export class Room {
             return this.roomID;
         }
         return this.name;
+    }
+
+    public getTopic(): string | undefined {
+        let topic: string | undefined = undefined;
+        this.stateEvents.forEach((event) => {
+            if (isRoomTopicEvent(event)) {
+                topic = event.content.topic;
+            }
+        });
+        return topic;
     }
 
     public setNotificationCount(count: number) {
@@ -111,13 +142,47 @@ export class Room {
         return parents;
     }
 
+    public setDM(isDM: boolean) {
+        this.is_dm = isDM;
+    }
+
     public isDM(): boolean {
-        // TODO: Implement this
-        return false;
+        return this.is_dm;
     }
 
     public isOnline(): boolean {
         // TODO: Implement this
         return false;
+    }
+
+    public getEvents(): IRoomEvent[] {
+        return this.events;
+    }
+
+    public getMemberName(userID: string): string {
+        let name: string = userID;
+        this.stateEvents.forEach((event) => {
+            if (event.type === "m.room.member") {
+                if (event.state_key === userID && event.content.membership == "join") {
+                    name = event.content.displayname;
+                }
+            }
+        });
+        return name;
+    }
+
+    public getMemberAvatar(userID: string): string | undefined {
+        let avatarURL: string | undefined = undefined;
+        this.stateEvents.forEach((event) => {
+            if (event.type === "m.room.member") {
+                if (event.state_key === userID && event.content.membership == "join") {
+                    const rawAvatarURL = event.content.avatar_url;
+                    if (rawAvatarURL?.startsWith("mxc://")) {
+                        avatarURL = `${this.hostname}/_matrix/media/r0/download/${rawAvatarURL.substring(6)}`;
+                    }
+                }
+            }
+        });
+        return avatarURL;
     }
 }

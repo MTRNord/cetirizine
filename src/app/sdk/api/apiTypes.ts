@@ -238,6 +238,7 @@ export interface RoomJson {
     joined_count: number,
     invited_count: number,
     prev_batch: string,
+    is_dm?: boolean,
 }
 
 export interface IRoomEvent<Content = any> {
@@ -247,10 +248,37 @@ export interface IRoomEvent<Content = any> {
     sender: string;
     type: string;
     unsigned?: any;
+    [key: string]: any;
+}
+
+export interface IRoomMessageContent<MsgType = any> {
+    body: string;
+    msgtype: MsgType;
+}
+
+export interface IRoomMessageTextContent extends IRoomMessageContent<"m.text"> {
+    format?: string;
+    formatted_body?: string;
+}
+
+export interface IRoomMessageEvent<Content = any> extends IRoomEvent<Content> { }
+
+export interface IRoomMessageTextEvent extends IRoomMessageEvent<IRoomMessageTextContent> { }
+
+export function isRoomMessageTextEvent(event: IRoomEvent): event is IRoomMessageTextEvent {
+    return event.type === "m.room.message" && event.content.msgtype === "m.text";
+}
+
+export function isRoomMessageEvent(event: IRoomEvent): event is IRoomMessageEvent {
+    return event.type === "m.room.message";
 }
 
 export interface IRoomStateEvent<Content = any> extends IRoomEvent<Content> {
     state_key: string;
+}
+
+export function isRoomStateEvent(event: IRoomEvent): event is IRoomStateEvent {
+    return event.state_key !== undefined;
 }
 
 export interface IRoomMemberContent {
@@ -331,4 +359,14 @@ export interface ISpaceParentEvent extends IRoomStateEvent<ISpaceParentContent> 
 
 export function isSpaceParentEvent(event: IRoomEvent): event is ISpaceParentEvent {
     return event.type === "m.space.parent";
+}
+
+export interface IRoomTopicContent {
+    topic: string;
+}
+
+export interface IRoomTopicEvent extends IRoomStateEvent<IRoomTopicContent> { }
+
+export function isRoomTopicEvent(event: IRoomEvent): event is IRoomTopicEvent {
+    return event.type === "m.room.topic";
 }

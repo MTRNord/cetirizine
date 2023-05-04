@@ -37,8 +37,8 @@ const Avatar: FC<AvatarProps> = memo(({ avatarUrl, displayname, dm = false, onli
         );
     }
     return (
-        <div className="flex relative min-w-[2rem] min-h-[2rem] bg-orange-500 justify-center items-center m-0 mr-3 text-xl rounded-full text-white">
-            {displayname[0].toUpperCase()}
+        <div className="flex relative min-w-[2rem] min-h-[2rem] w-[2rem] h-[2rem] bg-orange-500 justify-center items-center m-0 mr-3 text-xl rounded-full text-white">
+            {displayname.replace('@', '')[0].toUpperCase()}
             {
                 dm ?
                     (

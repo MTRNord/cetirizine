@@ -1,8 +1,9 @@
-import { FC, memo, useState } from "react";
+import { FC, memo, useContext, useState } from "react";
 import RoomListItem from "./roomListItem/roomListItem";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import './roomList.scss';
 import { useNavigate } from "react-router-dom";
+import { MatrixContext } from "../../app/sdk/client";
 
 type Room = {
     /**
@@ -106,11 +107,17 @@ const RoomListRooms: FC<RoomListRoomsProps> = memo(({ sectionID, rooms, onClick,
 
 const RoomSection: FC<{ section: Section, onRoomClick: (roomID: string) => void, activeRoom: string | undefined }> = memo(({ section, onRoomClick, activeRoom }: { section: Section, onRoomClick: (roomID: string) => void, activeRoom: string | undefined }) => {
     const [hidden, setHidden] = useState<boolean>(true);
+    const matrixClient = useContext(MatrixContext);
+    if (hidden) {
+        matrixClient.removeSpaceOpen(section.roomID);
+    } else {
+        matrixClient.addSpaceOpen(section.roomID);
+    }
     return (
-        <div key={section.roomID} className="flex flex-col gap-1 pl-4">
-            <div className="flex flex-row gap-2 py-1  items-center justify-start cursor-pointer h-8 text-slate-600" onClick={() => setHidden(prev => !prev)}>
+        <div key={section.roomID} className="flex flex-col gap-1 pl-4 select-none">
+            <div className="flex flex-row gap-2 py-1 items-center justify-start cursor-pointer h-8 text-slate-600" onClick={() => setHidden(prev => !prev)}>
                 {hidden ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
-                <span className='font-normal text-sm capitalize max-w-[32ch] overflow-hidden text-ellipsis w-full whitespace-nowrap'>{section.sectionName}</span>
+                <span className='font-normal text-base capitalize max-w-[32ch] overflow-hidden text-ellipsis w-full whitespace-nowrap'>{section.sectionName}</span>
             </div >
             {!hidden && (<RoomListRooms
                 hidden={hidden}
@@ -140,7 +147,7 @@ const RoomList: FC<RoomListProps> = memo(({ sections, rooms }: RoomListProps) =>
     const navigate = useNavigate();
 
     return (
-        <div className="flex flex-col gap-1 flex-1 p-2 min-w-[33ch] h-full overflow-y-auto overflow-x-hidden scrollbarSmall">
+        <div className="flex flex-col gap-1 flex-1 p-2 min-w-[30ch] overflow-y-auto overflow-x-hidden scrollbarSmall max-w-[33ch]">
             {
                 sections.map(section => {
                     return (
@@ -149,7 +156,7 @@ const RoomList: FC<RoomListProps> = memo(({ sections, rooms }: RoomListProps) =>
                             section={section}
                             onRoomClick={(roomID: string) => {
                                 setActiveRoom(roomID);
-                                navigate(`/${encodeURI(roomID)}`);
+                                navigate(`/${encodeURIComponent(roomID)}`);
                             }}
                             activeRoom={activeRoom}
                         />
@@ -165,7 +172,7 @@ const RoomList: FC<RoomListProps> = memo(({ sections, rooms }: RoomListProps) =>
                 }}
                 onRoomClick={(roomID: string) => {
                     setActiveRoom(roomID);
-                    navigate(`/${encodeURI(roomID)}`);
+                    navigate(`/${encodeURIComponent(roomID)}`);
                 }}
                 activeRoom={activeRoom}
             />
