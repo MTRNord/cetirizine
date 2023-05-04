@@ -4,6 +4,7 @@ import { FC } from "react";
 import Avatar from "../avatar/avatar";
 import { useRoom } from "../../app/sdk/client";
 import Linkify from "linkify-react";
+import DOMPurify from "dompurify";
 
 type MessageEventProps = {
     /**
@@ -32,9 +33,52 @@ const MessageEvent: FC<MessageEventProps> = memo(({ event, roomID, hasPreviousEv
     const renderCorrectMessage = (event: IRoomEvent) => {
         if (isRoomMessageTextEvent(event)) {
             if (event.content.format === "org.matrix.custom.html") {
-                // TODO: Sanitize HTML
+                const sanitized = DOMPurify.sanitize(event.content.formatted_body!, {
+                    ADD_TAGS: [
+                        "font",
+                        "del",
+                        "h1",
+                        "h2",
+                        "h3",
+                        "h4",
+                        "h5",
+                        "h6",
+                        "blockquote",
+                        "p",
+                        "a",
+                        "ul",
+                        "ol",
+                        "sup",
+                        "sub",
+                        "li",
+                        "b",
+                        "i",
+                        "u",
+                        "strong",
+                        "em",
+                        "strike",
+                        "code",
+                        "hr",
+                        "br",
+                        "div",
+                        "table",
+                        "thead",
+                        "tbody",
+                        "tr",
+                        "th",
+                        "td",
+                        "caption",
+                        "pre",
+                        "span",
+                        "img",
+                        "details",
+                        "summary"
+                    ]
+                })
+                // TODO: sanitize the attributes allowed by matrix spec
+
                 return (
-                    <div className={!hasPreviousEvent ? "flex flex-row gap-4 p-2 pb-1 hover:bg-gray-200 rounded-md duration-200 ease-in-out" : "flex flex-row p-2 pt-0 hover:bg-gray-200 rounded-md duration-200 ease-in-out"}>
+                    <div className={!hasPreviousEvent ? "flex flex-row gap-4 p-2 pb-1 hover:bg-gray-200 rounded-md duration-200 ease-in-out items-start" : "flex flex-row p-2 pt-0 hover:bg-gray-200 rounded-md duration-200 ease-in-out"}>
                         {!hasPreviousEvent && <Avatar
                             displayname={room?.getMemberName(event.sender) || ""}
                             avatarUrl={room?.getMemberAvatar(event.sender)}
@@ -44,13 +88,13 @@ const MessageEvent: FC<MessageEventProps> = memo(({ event, roomID, hasPreviousEv
                         <div className={!hasPreviousEvent ? "flex flex-col gap-1" : "ml-[3.7rem]"}>
                             {!hasPreviousEvent && <h2 className="text-sm font-medium text-red-500 whitespace-normal">{room?.getMemberName(event.sender)}</h2>}
                             {/* TODO: Fixme */}
-                            <p className="whitespace-normal" dangerouslySetInnerHTML={{ __html: event.content.formatted_body! }}></p>
+                            <p className="whitespace-normal text-black text-base font-normal" dangerouslySetInnerHTML={{ __html: sanitized }}></p>
                         </div>
                     </div>
                 )
             } else {
                 return (
-                    <div className="flex flex-row gap-4 p-2 hover:bg-gray-200 rounded-md duration-200 ease-in-out">
+                    <div className="flex flex-row gap-4 p-2 hover:bg-gray-200 rounded-md duration-200 ease-in-out items-start">
                         <Avatar
                             displayname={room?.getMemberName(event.sender) || ""}
                             avatarUrl={room?.getMemberAvatar(event.sender)}
@@ -59,7 +103,7 @@ const MessageEvent: FC<MessageEventProps> = memo(({ event, roomID, hasPreviousEv
                         />
                         <div className="flex flex-col gap-2">
                             <h2 className="text-sm font-medium text-red-500 whitespace-normal">{room?.getMemberName(event.sender)}</h2>
-                            <Linkify options={linkifyOptions} as='p' className="whitespace-normal">{event.content.body}</Linkify>
+                            <Linkify options={linkifyOptions} as='p' className="whitespace-normal text-black text-base font-normal">{event.content.body}</Linkify>
                         </div>
                     </div>
                 )
