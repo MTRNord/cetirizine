@@ -7,11 +7,6 @@ import LoginPage from './pages/LoginPage';
 import MainPage from './pages/MainPage';
 import { ProtectedRoute } from './app/protectedRoute';
 import { memo } from "react";
-import { initAsync, start } from "@matrix-org/matrix-sdk-crypto-js";
-
-initAsync().then(() => {
-    start();
-})
 
 function App() {
     return <BrowserRouter basename={import.meta.env.BASE_URL}>

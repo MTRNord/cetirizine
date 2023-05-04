@@ -63,7 +63,7 @@ const ChatInput: FC<ChatInputProps> = memo(({ namespace, onChange, onError }: Ch
     }
     return (
         <LexicalComposer initialConfig={initialConfig}>
-            <div className="editor-container">
+            <div className="editor-container flex-1">
                 <ToolbarPlugin />
                 <div className="editor-inner">
                     <RichTextPlugin

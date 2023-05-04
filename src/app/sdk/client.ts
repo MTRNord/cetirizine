@@ -27,6 +27,10 @@ import {
     IDBPDatabase,
     openDB
 } from "idb";
+import { DeviceId, KeysBackupRequest, KeysUploadRequest, OlmMachine, RequestType, RoomMessageRequest, SignatureUploadRequest, UserId } from "@matrix-org/matrix-sdk-crypto-js";
+import { KeysQueryRequest } from "@matrix-org/matrix-sdk-crypto-js";
+import { KeysClaimRequest } from "@matrix-org/matrix-sdk-crypto-js";
+import { ToDeviceRequest } from "@matrix-org/matrix-sdk-crypto-js";
 
 export interface MatrixClientEvents {
     // Used to notify about changes to the room list
@@ -112,6 +116,7 @@ export class MatrixClient extends EventEmitter {
     private profileInfo?: IProfileInfo;
     private lastRanges?: { [key: string]: number[][] };
     private lastTxnID?: string;
+    private olmMachine?: OlmMachine;
 
     public get isLoggedIn(): boolean {
         return this.access_token !== undefined;
@@ -139,6 +144,7 @@ export class MatrixClient extends EventEmitter {
                     avatar_url: loginInfo[0].avatarUrl,
                     displayname: loginInfo[0].displayName,
                 };
+                instance.olmMachine = await OlmMachine.initialize(new UserId(instance.mxid), new DeviceId(instance.device_id!), "cetirizine-crypto");
 
                 // Load sync info
                 const syncTx = instance.database?.transaction('syncInfo', 'readonly');
@@ -331,6 +337,145 @@ export class MatrixClient extends EventEmitter {
         this.shiftRight(listKey, ranges, max + 1, index);
     }
 
+    private async sendIdentifyAndOneTimeKeys() {
+        if (!this.isLoggedIn) {
+            throw Error("Not logged in");
+        }
+        if (!this.slidingSyncHostname) {
+            throw Error("Hostname must be set first");
+        }
+        if (!this.olmMachine) {
+            throw Error("Olm machine must be set first");
+        }
+
+        const outgoing_requests = await this.olmMachine.outgoingRequests();
+
+        for (const request of outgoing_requests) {
+            // Check which type the request is
+            if (request.type === RequestType.KeysUpload) {
+                // Send the key
+                const request_typed = request as KeysUploadRequest;
+                const response = await fetch(
+                    `${this.hostname}/_matrix/client/v3/keys/upload`,
+                    {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Authorization": `Bearer ${this.access_token}`
+                        },
+                        body: request_typed.body
+                    }
+                )
+                if (!response.ok) {
+                    console.error("Failed to upload keys", response);
+                }
+                this.olmMachine.markRequestAsSent(request_typed.id!, request_typed.type, await response.text());
+            } else if (request.type === RequestType.KeysQuery) {
+                const request_typed = request as KeysQueryRequest;
+                const response = await fetch(
+                    `${this.hostname}/_matrix/client/v3/keys/query`,
+                    {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Authorization": `Bearer ${this.access_token}`
+                        },
+                        body: request_typed.body
+                    }
+                )
+                if (!response.ok) {
+                    console.error("Failed to query keys", response);
+                }
+                this.olmMachine.markRequestAsSent(request_typed.id!, request_typed.type, await response.text());
+            } else if (request.type === RequestType.KeysClaim) {
+                const request_typed = request as KeysClaimRequest;
+                const response = await fetch(
+                    `${this.hostname}/_matrix/client/v3/keys/claim`,
+                    {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Authorization": `Bearer ${this.access_token}`
+                        },
+                        body: request_typed.body
+                    }
+                )
+                if (!response.ok) {
+                    console.error("Failed to claim keys", response);
+                }
+                this.olmMachine.markRequestAsSent(request_typed.id!, request_typed.type, await response.text());
+            } else if (request.type === RequestType.ToDevice) {
+                const request_typed = request as ToDeviceRequest;
+                const response = await fetch(
+                    `${this.hostname}/_matrix/client/v3/sendToDevice/${request_typed.event_type}/${request_typed.txn_id}`,
+                    {
+                        method: "PUT",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Authorization": `Bearer ${this.access_token}`
+                        },
+                        body: request_typed.body
+                    }
+                )
+                if (!response.ok) {
+                    console.error("Failed to send to device", response);
+                }
+                this.olmMachine.markRequestAsSent(request_typed.id!, request_typed.type, await response.text());
+            } else if (request.type === RequestType.SignatureUpload) {
+                const request_typed = request as SignatureUploadRequest;
+                const response = await fetch(
+                    `${this.hostname}/_matrix/client/v3/keys/signatures/upload`,
+                    {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Authorization": `Bearer ${this.access_token}`
+                        },
+                        body: request_typed.body
+                    }
+                )
+                if (!response.ok) {
+                    console.error("Failed to upload signatures", response);
+                }
+                this.olmMachine.markRequestAsSent(request_typed.id!, request_typed.type, await response.text());
+            } else if (request.type === RequestType.RoomMessage) {
+                const request_typed = request as RoomMessageRequest;
+                const response = await fetch(
+                    `${this.hostname}/_matrix/client/v3/rooms/${request_typed.room_id}/send/${request_typed.event_type}/${request_typed.txn_id}`,
+                    {
+                        method: "PUT",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Authorization": `Bearer ${this.access_token}`
+                        },
+                        body: request_typed.body
+                    }
+                )
+                if (!response.ok) {
+                    console.error("Failed to send message", response);
+                }
+                this.olmMachine.markRequestAsSent(request_typed.id!, request_typed.type, await response.text());
+            } else if (request.type === RequestType.KeysBackup) {
+                const request_typed = request as KeysBackupRequest;
+                const response = await fetch(
+                    `${this.hostname}/_matrix/client/v3/room_keys/keys`,
+                    {
+                        method: "PUT",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Authorization": `Bearer ${this.access_token}`
+                        },
+                        body: request_typed.body
+                    }
+                )
+                if (!response.ok) {
+                    console.error("Failed to backup keys", response);
+                }
+                this.olmMachine.markRequestAsSent(request_typed.id!, request_typed.type, await response.text());
+            }
+        }
+    }
+
     private async sync() {
         if (!this.isLoggedIn) {
             throw Error("Not logged in");
@@ -338,6 +483,8 @@ export class MatrixClient extends EventEmitter {
         if (!this.slidingSyncHostname) {
             throw Error("Hostname must be set first");
         }
+
+        await this.sendIdentifyAndOneTimeKeys();
 
         // This is the initial sync case for each list
         let lists_ranges: {
@@ -491,9 +638,11 @@ export class MatrixClient extends EventEmitter {
                 },
                 bump_event_types: ["m.room.message", "m.room.encrypted"],
 
-                // Room Subscriptions API
-                //room_subscriptions: {},
-                //unsubscribe_rooms: []
+                extensions: {
+                    e2ee: {
+                        enabled: true,
+                    }
+                }
             })
         });
         if (!resp.ok) {
@@ -969,6 +1118,8 @@ export class MatrixClient extends EventEmitter {
             this.access_token = json.access_token;
             this.device_id = json.device_id;
             this.mxid = json.user_id;
+
+            this.olmMachine = await OlmMachine.initialize(new UserId(this.mxid), new DeviceId(this.device_id!), "cetirizine-crypto");
         }
     }
 

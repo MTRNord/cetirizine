@@ -1,4 +1,4 @@
-import { Settings } from 'lucide-react';
+import { Send, Settings } from 'lucide-react';
 import Avatar from '../components/avatar/avatar';
 import ChatInput from '../components/input/chat/input';
 import RoomList, { Section } from '../components/roomList/roomList';
@@ -196,32 +196,40 @@ const MainPage = memo(() => {
             </div>
             <RoomList sections={sections} rooms={otherRooms} />
         </div>
-        {room && <div className='flex-1 flex flex-col'>
-            <div className='pb-2 flex flex-row items-center border-b-2 mt-4 ml-2'>
-                <Avatar displayname={room.getName()} avatarUrl={room.getAvatarURL()} dm={room.isDM()} online={room.isOnline()} />
-                <div className='flex flex-row items-center'>
-                    <h1 className='text-black font-semibold text-lg flex-shrink-0'>{room.getName()}</h1>
-                    <p className='ml-4 text-slate-700 font-normal text-base'>{room.getTopic()}</p>
+        {
+            room && <div className='flex-1 flex flex-col'>
+                <div className='pb-2 flex flex-row items-center border-b-2 mt-4 ml-2'>
+                    <Avatar displayname={room.getName()} avatarUrl={room.getAvatarURL()} dm={room.isDM()} online={room.isOnline()} />
+                    <div className='flex flex-row items-center'>
+                        <h1 className='text-black font-semibold text-lg flex-shrink-0'>{room.getName()}</h1>
+                        <p className='ml-4 text-slate-700 font-normal text-base'>{room.getTopic()}</p>
+                    </div>
+                </div>
+                <div ref={scrollRef} className='overflow-y-auto overflow-x-hidden scrollbarSmall mr-2 my-1 flex-1 w-full flex flex-col-reverse'>
+                    <ChatView roomID={params.roomIdOrAlias} scrollRef={scrollRef} />
+                </div>
+                <div className='flex flex-row items-end'>
+                    <ChatInput namespace='Editor' onChange={(editorState, editor) => {
+                        // Convert editor state to both html and markdown.
+                        // If there is no formatting then just use the plain text.
+                        editorState.read(() => {
+                            const html = $generateHtmlFromNodes(editor);
+                            // TODO: Make sure that we strip any non matrix stuff
+                            setHtmlMessage(html);
+                            console.log(html);
+                            const markdown = $convertToMarkdownString(TRANSFORMERS);
+                            setPlainMessage(markdown);
+                            console.log(markdown);
+                        });
+                        // TODO: we need some send button
+                    }} onError={(e) => console.error(e)} />
+                    <Send size={45} stroke='unset' className='stroke-slate-600 rounded m-4 hover:bg-slate-300 hover:stroke-slate-500 p-2 cursor-pointer' onClick={() => {
+                        // TODO: Sanitize the html and send message to room
+                        // TODO: encrypt if room is encrypted
+                    }} />
                 </div>
             </div>
-            <div ref={scrollRef} className='overflow-y-auto overflow-x-hidden scrollbarSmall mr-2 my-1 flex-1 w-full flex flex-col-reverse'>
-                <ChatView roomID={params.roomIdOrAlias} scrollRef={scrollRef} />
-            </div>
-            <ChatInput namespace='Editor' onChange={(editorState, editor) => {
-                // Convert editor state to both html and markdown.
-                // If there is no formatting then just use the plain text.
-                editorState.read(() => {
-                    const html = $generateHtmlFromNodes(editor);
-                    // TODO: Make sure that we strip any non matrix stuff
-                    setHtmlMessage(html);
-                    console.log(html);
-                    const markdown = $convertToMarkdownString(TRANSFORMERS);
-                    setPlainMessage(markdown);
-                    console.log(markdown);
-                });
-                // TODO: we need some send button
-            }} onError={(e) => console.error(e)} />
-        </div>}
+        }
     </div >
 })
 
