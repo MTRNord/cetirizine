@@ -35,7 +35,7 @@ const ChatView: FC<ChatViewProps> = memo(({ roomID }) => {
     const renderEvent = (event: IRoomEvent, previousEventIsFromSameSender: boolean, previousEventType: string) => {
         switch (event.type) {
             case "m.room.message":
-                return <MessageEvent event={event} roomID={roomID} key={event.event_id} />
+                return <MessageEvent event={event} roomID={roomID} key={event.event_id} hasPreviousEvent={previousEventIsFromSameSender && previousEventType === "m.room.message"} />
             case "m.room.member":
                 return <MemberEvent event={event} key={event.event_id} />
             case "m.room.redaction":
