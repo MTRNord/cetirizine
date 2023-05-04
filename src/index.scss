@@ -7,6 +7,18 @@ a {
   @apply text-blue-500;
 }
 
+a:hover {
+  @apply text-blue-700;
+}
+
+a:active {
+  @apply text-blue-700;
+}
+
+a:visited {
+  @apply text-blue-500;
+}
+
 
 /*
 Font families defined by this CSS:

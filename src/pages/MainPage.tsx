@@ -32,7 +32,7 @@ const ChatView: FC<ChatViewProps> = memo(({ roomID }) => {
     const events = room?.getEvents();
 
     // Render events based on the event type and content
-    const renderEvent = (event: IRoomEvent) => {
+    const renderEvent = (event: IRoomEvent, previousEventIsFromSameSender: boolean, previousEventType: string) => {
         switch (event.type) {
             case "m.room.message":
                 return <MessageEvent event={event} roomID={roomID} key={event.event_id} />
@@ -49,7 +49,13 @@ const ChatView: FC<ChatViewProps> = memo(({ roomID }) => {
         return self.findIndex(e => e.event_id === event.event_id) === index;
     });
 
-    const renderedEvents = dedupedEvents?.map(event => renderEvent(event));
+    // Map events to components but also tell components if the previous event was from the same sender and which type it was
+    const renderedEvents = dedupedEvents?.map((event, index) => {
+        const previousEvent = dedupedEvents[index - 1];
+        const previousEventIsFromSameSender = previousEvent?.sender === event.sender;
+        const previousEventType = previousEvent?.type;
+        return renderEvent(event, previousEventIsFromSameSender, previousEventType);
+    });
     return <div className='max-w-[130ch] flex flex-col gap-2'>{renderedEvents}</div>;
 });
 
@@ -183,7 +189,7 @@ const MainPage = memo(() => {
                     <p className='ml-4 text-slate-700 font-normal text-base'>{room.getTopic()}</p>
                 </div>
             </div>
-            <div className='overflow-y-auto overflow-x-hidden scrollbarSmall mr-2 my-1 flex-1 w-full'>
+            <div className='overflow-y-auto overflow-x-hidden scrollbarSmall mr-2 my-1 flex-1 w-full flex flex-col-reverse'>
                 <ChatView roomID={params.roomIdOrAlias} />
             </div>
             <ChatInput namespace='Editor' onChange={(editorState, editor) => {

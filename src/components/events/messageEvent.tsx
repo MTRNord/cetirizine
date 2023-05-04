@@ -30,7 +30,7 @@ const MessageEvent: FC<MessageEventProps> = memo(({ event, roomID }) => {
             if (event.content.format === "org.matrix.custom.html") {
                 // TODO: Sanitize HTML
                 return (
-                    <div className="flex flex-row gap-4 p-2 hover:bg-gray-300 rounded-md duration-200 ease-in-out">
+                    <div className="flex flex-row gap-4 p-2 hover:bg-gray-200 rounded-md duration-200 ease-in-out">
                         <Avatar
                             displayname={room?.getMemberName(event.sender) || ""}
                             avatarUrl={room?.getMemberAvatar(event.sender)}
@@ -46,7 +46,7 @@ const MessageEvent: FC<MessageEventProps> = memo(({ event, roomID }) => {
                 )
             } else {
                 return (
-                    <div className="flex flex-row gap-4 p-2 hover:bg-gray-300 rounded-md duration-200 ease-in-out">
+                    <div className="flex flex-row gap-4 p-2 hover:bg-gray-200 rounded-md duration-200 ease-in-out">
                         <Avatar
                             displayname={room?.getMemberName(event.sender) || ""}
                             avatarUrl={room?.getMemberAvatar(event.sender)}

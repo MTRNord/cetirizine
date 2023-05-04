@@ -694,11 +694,33 @@ export class MatrixClient extends EventEmitter {
             const required_state = room.required_state;
             const is_dm = room.is_dm;
 
-            const roomObj = [...this.rooms].find(room => room.roomID === roomID);
+            let roomObj = [...this.rooms].find(room => room.roomID === roomID);
             if (!roomObj) {
-                // TODO: Warn but create missing room instead of failing on it
-                console.error("Could not find roomObj for roomID", roomID);
-                continue;
+                // Warn, check in the db and if that fails, create a new one.
+                console.warn("Could not find roomObj for roomID:", roomID);
+                const roomFromDB = await tx?.store.get(roomID);
+                if (roomFromDB) {
+                    console.warn("Room in db but not in obj list.", roomID, "Updating obj list.");
+
+                    roomObj = new Room(roomID, this.hostname!);
+                    roomObj.setName(roomFromDB.name);
+                    roomObj.setNotificationCount(roomFromDB.notification_count);
+                    roomObj.setNotificationHighlightCount(roomFromDB.highlight_count);
+                    roomObj.setJoinedCount(roomFromDB.joined_count);
+                    roomObj.setInvitedCount(roomFromDB.invited_count);
+                    roomObj.setDM(roomFromDB.isDM || false);
+                    if (roomFromDB.events) {
+                        roomObj.addEvents(roomFromDB.events);
+                    }
+                    if (roomFromDB.stateEvents) {
+                        roomObj.addStateEvents(roomFromDB.stateEvents);
+                    }
+                    roomObj.windowPos = roomFromDB.windowPos;
+                } else {
+                    console.warn("Could not find room in db. Creating new one.");
+                    roomObj = new Room(roomID, this.hostname!);
+                    this.rooms.add(roomObj);
+                }
             }
 
             if (name) {
