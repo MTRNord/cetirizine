@@ -20,33 +20,19 @@ a {
   }
 }
 
+code {
+  @apply rounded font-normal text-red-500 bg-slate-100 p-0.5;
+}
+
 pre {
   color: #F5F7FA;
   background-color: #1F2933;
 
+  @apply rounded p-2;
+
   code {
-    &::before {
-      padding-left: unset;
-    }
-
-    &::after {
-      padding-right: unset;
-    }
-  }
-}
-
-code {
-  @apply rounded font-normal text-red-500 bg-slate-100 p-0.5;
-
-
-  &::before {
-    content: "";
-    padding-left: 0.25rem;
-  }
-
-  &::after {
-    content: "";
-    padding-right: 0.25rem;
+    color: #F5F7FA;
+    @apply p-0 bg-transparent;
   }
 }
 

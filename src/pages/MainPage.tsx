@@ -82,8 +82,8 @@ const MainPage = memo(() => {
     let params = useParams();
     const room = useRoom(decodeURIComponent(params.roomIdOrAlias || ""));
 
-    const [htmlMessage, setHtmlMessage] = useState<string>("");
-    const [plainMessage, setPlainMessage] = useState<string>("");
+    const [_htmlMessage, setHtmlMessage] = useState<string>("");
+    const [_plainMessage, setPlainMessage] = useState<string>("");
     const scrollRef = useRef<HTMLDivElement>(null);
 
     // Filter toplevel spaces.
