@@ -19,6 +19,10 @@ type MessageEventProps = {
      * If the previous event was sent by the same user
      */
     hasPreviousEvent?: boolean;
+    /**
+     * Reactions to the event
+     */
+    reactions?: IRoomEvent[];
 };
 
 const linkifyOptions = {

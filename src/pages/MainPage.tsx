@@ -40,10 +40,10 @@ const ChatView: FC<ChatViewProps> = memo(({ roomID, scrollRef }) => {
     }, [pathname]);
 
     // Render events based on the event type and content
-    const renderEvent = (event: IRoomEvent, previousEventIsFromSameSender: boolean, previousEventType: string) => {
+    const renderEvent = (event: IRoomEvent, previousEventIsFromSameSender: boolean, previousEventType: string, reactions: IRoomEvent[]) => {
         switch (event.type) {
             case "m.room.message":
-                return <MessageEvent event={event} roomID={roomID} key={event.event_id} hasPreviousEvent={previousEventIsFromSameSender && previousEventType === "m.room.message"} />
+                return <MessageEvent reactions={reactions} event={event} roomID={roomID} key={event.event_id} hasPreviousEvent={previousEventIsFromSameSender && previousEventType === "m.room.message"} />
             case "m.room.member":
                 return <MemberEvent event={event as IRoomMemberEvent} key={event.event_id} />
             case "m.room.redaction":
@@ -62,7 +62,13 @@ const ChatView: FC<ChatViewProps> = memo(({ roomID, scrollRef }) => {
         const previousEvent = dedupedEvents[index - 1];
         const previousEventIsFromSameSender = previousEvent?.sender === event.sender;
         const previousEventType = previousEvent?.type;
-        return renderEvent(event, previousEventIsFromSameSender, previousEventType);
+
+        // Make a list of events which are reactions for the current event we want to render
+        const reactions = dedupedEvents?.filter((e) => {
+            return e.type === "m.reaction" && e.content["m.relates_to"].event_id === event.event_id;
+        });
+
+        return renderEvent(event, previousEventIsFromSameSender, previousEventType, reactions);
     });
     return <div className='max-w-[130ch] flex flex-col gap-2'>{renderedEvents}</div>;
 });
