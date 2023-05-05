@@ -115,7 +115,7 @@ const MessageEvent: FC<MessageEventProps> = memo(({ event, roomID, hasPreviousEv
             }
         } else {
             return (
-                <p>{event.content.body}</p>
+                <p className="ml-[4.3rem] whitespace-normal text-black text-base font-normal">{event.content.body}</p>
             )
         }
     }
