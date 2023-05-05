@@ -59,7 +59,7 @@ const ChatView: FC<ChatViewProps> = memo(({ roomID, scrollRef }) => {
 
     // Map events to components but also tell components if the previous event was from the same sender and which type it was
     const renderedEvents = dedupedEvents?.filter(event => event.type !== "m.reaction").map((event, index) => {
-        const previousEvent = dedupedEvents[index - 1];
+        const previousEvent = dedupedEvents?.filter(event => event.type !== "m.reaction")[index - 1];
         const previousEventIsFromSameSender = previousEvent?.sender === event.sender;
         const previousEventType = previousEvent?.type;
 

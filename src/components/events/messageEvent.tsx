@@ -98,15 +98,15 @@ const MessageEvent: FC<MessageEventProps> = memo(({ event, roomID, hasPreviousEv
                 )
             } else {
                 return (
-                    <div className="flex flex-row gap-4 p-2 hover:bg-gray-200 rounded-md duration-200 ease-in-out items-start">
-                        <Avatar
+                    <div className={!hasPreviousEvent ? "flex flex-row gap-4 p-2 pb-1 hover:bg-gray-200 rounded-md duration-200 ease-in-out items-start" : "flex flex-row p-2 pt-0 hover:bg-gray-200 rounded-md duration-200 ease-in-out"}>
+                        {!hasPreviousEvent && <Avatar
                             displayname={room?.getMemberName(event.sender) || ""}
                             avatarUrl={room?.getMemberAvatar(event.sender)}
                             online={room?.isOnline() || false}
                             dm={room?.isDM() || false}
-                        />
-                        <div className="flex flex-col gap-2">
-                            <h2 className="text-sm font-medium text-red-500 whitespace-normal">{room?.getMemberName(event.sender)}</h2>
+                        />}
+                        <div className={!hasPreviousEvent ? "flex flex-col gap-1" : "ml-[3.7rem]"}>
+                            {!hasPreviousEvent && <h2 className="text-sm font-medium text-red-500 whitespace-normal">{room?.getMemberName(event.sender)}</h2>}
                             <Linkify options={linkifyOptions} as='p' className="whitespace-normal text-black text-base font-normal">{event.content.body}</Linkify>
                         </div>
                     </div>
