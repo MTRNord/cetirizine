@@ -182,7 +182,26 @@ export interface ISlidingSyncResp {
     txn_id: string;
 }
 
-export interface Extensions { }
+export interface Extensions {
+    e2ee?: E2EEExtension;
+    to_device?: ToDeviceExtension;
+}
+
+export interface E2EEExtension {
+    device_one_time_keys_count?: {
+        [key: string]: number;
+    };
+    device_lists?: {
+        changed?: string[];
+        left?: string[];
+    };
+    device_unused_fallback_key_types?: string[];
+}
+
+export interface ToDeviceExtension {
+    next_batch: string;
+    events?: any[];
+}
 
 export interface List {
     ops?: (SYNC_OP | INSERT_OP | INVALIDATE_OP | DELETE_OP)[];

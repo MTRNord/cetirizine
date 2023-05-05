@@ -1,10 +1,15 @@
 /// <reference types="./@types/global.d.ts" />
-import { initAsync, start } from "@matrix-org/matrix-sdk-crypto-js";
+import { LoggerLevel, Tracing, initAsync, start } from "@matrix-org/matrix-sdk-crypto-js";
 import React from 'react'
 import { createRoot } from 'react-dom/client';
 import './index.scss';
 
 initAsync().then(() => {
+  if (Tracing.isAvailable()) {
+    console.log("Tracing is available, turning on");
+    let tracing = new Tracing(LoggerLevel.Trace);
+    tracing.turnOn();
+  }
   start();
 
   import('./app/sdk/client').then(({ MatrixContext, defaultMatrixClient }) => {

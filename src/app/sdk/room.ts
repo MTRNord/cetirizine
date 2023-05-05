@@ -185,4 +185,14 @@ export class Room {
         });
         return avatarURL;
     }
+
+    public isEncrypted(): boolean {
+        let isEncrypted: boolean = false;
+        this.stateEvents.forEach((event) => {
+            if (event.type === "m.room.encryption" && event.content.algorithm === "m.megolm.v1.aes-sha2" && event.state_key === "") {
+                isEncrypted = true;
+            }
+        });
+        return isEncrypted;
+    }
 }

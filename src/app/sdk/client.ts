@@ -27,7 +27,7 @@ import {
     IDBPDatabase,
     openDB
 } from "idb";
-import { DeviceId, KeysBackupRequest, KeysUploadRequest, OlmMachine, RequestType, RoomMessageRequest, SignatureUploadRequest, UserId } from "@matrix-org/matrix-sdk-crypto-js";
+import { DeviceId, DeviceLists, KeysBackupRequest, KeysUploadRequest, OlmMachine, RequestType, RoomMessageRequest, SignatureUploadRequest, UserId } from "@matrix-org/matrix-sdk-crypto-js";
 import { KeysQueryRequest } from "@matrix-org/matrix-sdk-crypto-js";
 import { KeysClaimRequest } from "@matrix-org/matrix-sdk-crypto-js";
 import { ToDeviceRequest } from "@matrix-org/matrix-sdk-crypto-js";
@@ -91,6 +91,7 @@ interface MatrixDB extends DBSchema {
             initialSync: boolean;
             lastRanges?: { [key: string]: number[][] }; // [start, end]
             lastTxnID?: string;
+            to_device_since?: string;
         };
         // User ID
         key: string;
@@ -116,7 +117,8 @@ export class MatrixClient extends EventEmitter {
     private profileInfo?: IProfileInfo;
     private lastRanges?: { [key: string]: number[][] };
     private lastTxnID?: string;
-    private olmMachine?: OlmMachine;
+    private to_device_since?: string;
+    public olmMachine?: OlmMachine;
 
     public get isLoggedIn(): boolean {
         return this.access_token !== undefined;
@@ -156,6 +158,8 @@ export class MatrixClient extends EventEmitter {
                     instance.initialSync = syncInfo.initialSync;
                     instance.lastRanges = syncInfo.lastRanges;
                     instance.lastTxnID = syncInfo.lastTxnID;
+                    console.log("to_device_since:", syncInfo.to_device_since)
+                    instance.to_device_since = syncInfo.to_device_since;
                 }
 
                 // Load rooms
@@ -193,20 +197,22 @@ export class MatrixClient extends EventEmitter {
     }
 
     private async createDatabase() {
-        this.database = await openDB<MatrixDB>("matrix", 3, {
-            upgrade(db) {
-                if (db.objectStoreNames.contains("rooms")) {
-                    db.deleteObjectStore("rooms");
+        this.database = await openDB<MatrixDB>("matrix", 4, {
+            upgrade(db, oldVersion) {
+                if (oldVersion < 1) {
+                    if (db.objectStoreNames.contains("rooms")) {
+                        db.deleteObjectStore("rooms");
+                    }
+                    //if (db.objectStoreNames.contains("loginInfo")) {
+                    //    db.deleteObjectStore("loginInfo");
+                    //}
+                    if (db.objectStoreNames.contains("syncInfo")) {
+                        db.deleteObjectStore("syncInfo");
+                    }
+                    db.createObjectStore('rooms', { keyPath: 'roomID' });
+                    db.createObjectStore('loginInfo', { keyPath: 'userId' });
+                    db.createObjectStore('syncInfo', { keyPath: 'userId' });
                 }
-                //if (db.objectStoreNames.contains("loginInfo")) {
-                //    db.deleteObjectStore("loginInfo");
-                //}
-                if (db.objectStoreNames.contains("syncInfo")) {
-                    db.deleteObjectStore("syncInfo");
-                }
-                db.createObjectStore('rooms', { keyPath: 'roomID' });
-                db.createObjectStore('loginInfo', { keyPath: 'userId' });
-                db.createObjectStore('syncInfo', { keyPath: 'userId' });
             }
         });
     }
@@ -574,6 +580,7 @@ export class MatrixClient extends EventEmitter {
             url = `${this.slidingSyncHostname}/_matrix/client/unstable/org.matrix.msc3575/sync?timeout=30000&pos=${this.syncPos}`
         }
 
+        console.log("to_device_since:", this.to_device_since)
         const resp = await fetch(url, {
             method: "POST",
             headers: {
@@ -641,6 +648,11 @@ export class MatrixClient extends EventEmitter {
                 extensions: {
                     e2ee: {
                         enabled: true,
+                    },
+                    to_device: {
+                        enabled: true,
+                        // TODO: if not initial sync add since token
+                        since: this.to_device_since || null
                     }
                 }
             })
@@ -666,6 +678,26 @@ export class MatrixClient extends EventEmitter {
         const json = await resp.json() as ISlidingSyncResp;
         this.syncPos = json.pos;
 
+        if (json.extensions?.to_device) {
+            console.log("Processing to_device events")
+            await this.olmMachine?.receiveSyncChanges(
+                JSON.stringify(json.extensions.to_device.events || []),
+                new DeviceLists(
+                    json.extensions.e2ee?.device_lists?.changed?.map(
+                        user_id => new UserId(user_id)
+                    ),
+                    json.extensions.e2ee?.device_lists?.left?.map(
+                        user_id => new UserId(user_id)
+                    )
+                ),
+                new Map(Object.entries(json.extensions.e2ee?.device_one_time_keys_count || [])),
+                new Set(json.extensions.e2ee?.device_unused_fallback_key_types)
+            );
+            this.to_device_since = json.extensions.to_device.next_batch;
+        }
+
+        await this.sendIdentifyAndOneTimeKeys();
+
 
         const syncInfoTX = this.database?.transaction('syncInfo', 'readwrite');
         await syncInfoTX?.store.put({
@@ -674,6 +706,7 @@ export class MatrixClient extends EventEmitter {
             initialSync: this.initialSync,
             lastRanges: this.lastRanges,
             lastTxnID: this.lastTxnID,
+            to_device_since: this.to_device_since,
         });
         await syncInfoTX?.done;
 
@@ -887,6 +920,14 @@ export class MatrixClient extends EventEmitter {
             }
             if (state_events) {
                 roomObj.addStateEvents(state_events);
+            }
+            if (required_state || state_events) {
+                if (roomObj.isEncrypted()) {
+                    const joinEvents = [...(required_state || []), ...(state_events || [])]
+                        .filter(event => event.type === "m.room.member" && event.content.membership === "join");
+                    const memberIds = joinEvents.map(event => new UserId(event.state_key));
+                    await this.olmMachine?.updateTrackedUsers(memberIds);
+                }
             }
             if (is_dm) {
                 roomObj.setDM(is_dm);

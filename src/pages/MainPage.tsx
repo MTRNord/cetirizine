@@ -15,6 +15,7 @@ import UnknownEvent from '../components/events/unknownEvent';
 import MemberEvent from '../components/events/memberEvent';
 import { IRoomEvent, IRoomMemberEvent } from '../app/sdk/api/apiTypes';
 import Linkify from 'linkify-react';
+import { RoomId } from '@matrix-org/matrix-sdk-crypto-js';
 
 type ChatViewProps = {
     /**
@@ -34,8 +35,56 @@ type ChatViewProps = {
 
 const ChatView: FC<ChatViewProps> = memo(({ roomID, scrollRef }) => {
     const room = useRoom(decodeURIComponent(roomID || ""));
+    const client = useContext(MatrixContext);
     const events = room?.getEvents();
     const { pathname } = useLocation();
+    const [renderedEvents, setRenderedEvents] = useState<JSX.Element[]>([]);
+
+    // Map events to components but also tell components if the previous event was from the same sender and which type it was
+    const renderEvents = (events: IRoomEvent[]) => {
+        const dedupedEvents = events?.filter((event, index, self) => {
+            return self.findIndex(e => e.event_id === event.event_id) === index;
+        });
+
+
+        Promise.all(dedupedEvents?.filter(event => event.type !== "m.reaction").map(async (event, index) => {
+            const previousEvent = dedupedEvents?.filter(event => event.type !== "m.reaction")[index - 1];
+            const previousEventIsFromSameSender = previousEvent?.sender === event.sender;
+            let previousEventType = previousEvent?.type;
+
+            // Make a list of events which are reactions for the current event we want to render
+            const reactions = dedupedEvents?.filter((e) => {
+                return e.type === "m.reaction" && e.content["m.relates_to"].event_id === event.event_id;
+            });
+
+            // Decrypt the event if it is encrypte
+            if (event.type === "m.room.encrypted") {
+                try {
+                    const decrypted_event = await client.olmMachine?.decryptRoomEvent(JSON.stringify(event), new RoomId(roomID || ""));
+                    if (decrypted_event) {
+                        event = JSON.parse(decrypted_event.event) as IRoomEvent;
+                        previousEventType = event.type;
+                    } else {
+                        return (<p>Unable to decrypt event</p>)
+                    }
+                } catch (e: any) {
+                    console.error(e);
+                }
+            }
+
+            return renderEvent(event, previousEventIsFromSameSender, previousEventType, reactions);
+        })).then((renderedEvents) => {
+            setRenderedEvents(renderedEvents);
+        });
+    }
+
+    useEffect(() => {
+        if (events) {
+            renderEvents(events);
+        }
+    }, [events]);
+
+
     useEffect(() => {
         scrollRef.current?.scrollTo(0, scrollRef.current?.scrollHeight);
     }, [pathname]);
@@ -54,23 +103,6 @@ const ChatView: FC<ChatViewProps> = memo(({ roomID, scrollRef }) => {
         }
     }
 
-    const dedupedEvents = events?.filter((event, index, self) => {
-        return self.findIndex(e => e.event_id === event.event_id) === index;
-    });
-
-    // Map events to components but also tell components if the previous event was from the same sender and which type it was
-    const renderedEvents = dedupedEvents?.filter(event => event.type !== "m.reaction").map((event, index) => {
-        const previousEvent = dedupedEvents?.filter(event => event.type !== "m.reaction")[index - 1];
-        const previousEventIsFromSameSender = previousEvent?.sender === event.sender;
-        const previousEventType = previousEvent?.type;
-
-        // Make a list of events which are reactions for the current event we want to render
-        const reactions = dedupedEvents?.filter((e) => {
-            return e.type === "m.reaction" && e.content["m.relates_to"].event_id === event.event_id;
-        });
-
-        return renderEvent(event, previousEventIsFromSameSender, previousEventType, reactions);
-    });
     return <div className='max-w-[130ch] flex flex-col'>{renderedEvents}</div>;
 });
 
