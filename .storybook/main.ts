@@ -10,6 +10,7 @@ const config: StorybookConfig = {
     '@storybook/addon-a11y',
     '@geometricpanda/storybook-addon-badges',
     '@storybook/addon-styling',
+    'storybook-addon-react-router-v6'
   ],
   framework: {
     name: '@storybook/react-vite',
@@ -37,6 +38,9 @@ const config: StorybookConfig = {
     check: true,
     skipBabel: true,
   },
-  staticDirs: ["../public"]
+  staticDirs: ["../public"],
+  features: {
+    storyStoreV7: false,
+  }
 };
 export default config;
