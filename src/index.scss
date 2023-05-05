@@ -4,22 +4,6 @@ html {
   height: 100%;
 }
 
-a {
-  @apply text-blue-500;
-
-  &:hover {
-    @apply text-blue-700;
-  }
-
-  &:active {
-    @apply text-blue-700;
-  }
-
-  &:visited {
-    @apply text-blue-500;
-  }
-}
-
 code {
   @apply rounded font-normal text-red-500 bg-slate-100 p-0.5;
 }

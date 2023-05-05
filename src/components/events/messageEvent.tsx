@@ -29,6 +29,7 @@ const linkifyOptions = {
     defaultProtocol: "https",
     rel: "noopener",
     target: "_blank",
+    className: "text-blue-500 hover:text-blue-700 active:text-blue-700 visited:text-blue-500"
 }
 
 const MessageEvent: FC<MessageEventProps> = memo(({ event, roomID, hasPreviousEvent }) => {

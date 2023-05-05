@@ -14,6 +14,7 @@ import MessageEvent from '../components/events/messageEvent';
 import UnknownEvent from '../components/events/unknownEvent';
 import MemberEvent from '../components/events/memberEvent';
 import { IRoomEvent, IRoomMemberEvent } from '../app/sdk/api/apiTypes';
+import Linkify from 'linkify-react';
 
 type ChatViewProps = {
     /**
@@ -185,6 +186,13 @@ const MainPage = memo(() => {
         console.error('otherRooms has duplicates', otherRoomsDuplicates);
     }
 
+    const linkifyOptions = {
+        defaultProtocol: "https",
+        rel: "noopener",
+        target: "_blank",
+        className: "text-blue-500 hover:text-blue-700 active:text-blue-700 visited:text-blue-500"
+    }
+
     return <div className='flex flex-row gap-2 min-h-screen h-screen'>
         <div className='flex flex-col bg-gradient-to-br from-slate-100 via-gray-200 to-orange-200 border-r-[1px] border-slate-300'>
             <div className='flex flex-row gap-2 m-2 p-1 items-center border-b-2'>
@@ -202,7 +210,7 @@ const MainPage = memo(() => {
                     <Avatar displayname={room.getName()} avatarUrl={room.getAvatarURL()} dm={room.isDM()} online={room.isOnline()} />
                     <div className='flex flex-row items-center'>
                         <h1 className='text-black font-semibold text-lg flex-shrink-0'>{room.getName()}</h1>
-                        <p className='ml-4 text-slate-700 font-normal text-base'>{room.getTopic()}</p>
+                        <Linkify options={linkifyOptions} as='p' className="ml-4 text-slate-700 font-normal text-base">{room.getTopic()}</Linkify>
                     </div>
                 </div>
                 <div ref={scrollRef} className='overflow-y-auto overflow-x-hidden scrollbarSmall mr-2 my-1 flex-1 w-full flex flex-col-reverse'>
