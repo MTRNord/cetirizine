@@ -70,7 +70,7 @@ const ChatView: FC<ChatViewProps> = memo(({ roomID, scrollRef }) => {
 
         return renderEvent(event, previousEventIsFromSameSender, previousEventType, reactions);
     });
-    return <div className='max-w-[130ch] flex flex-col gap-2'>{renderedEvents}</div>;
+    return <div className='max-w-[130ch] flex flex-col'>{renderedEvents}</div>;
 });
 
 

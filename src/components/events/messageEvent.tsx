@@ -82,7 +82,7 @@ const MessageEvent: FC<MessageEventProps> = memo(({ event, roomID, hasPreviousEv
                 // TODO: sanitize the attributes allowed by matrix spec
 
                 return (
-                    <div className={!hasPreviousEvent ? "flex flex-row gap-4 p-2 pb-1 hover:bg-gray-200 rounded-md duration-200 ease-in-out items-start" : "flex flex-row p-2 pt-0 hover:bg-gray-200 rounded-md duration-200 ease-in-out"}>
+                    <div className={!hasPreviousEvent ? "flex flex-row gap-4 p-2 pb-1 hover:bg-gray-200 rounded-md duration-200 ease-in-out items-start" : "flex flex-row p-2 pb-1 pt-0 hover:bg-gray-200 rounded-md duration-200 ease-in-out"}>
                         {!hasPreviousEvent && <Avatar
                             displayname={room?.getMemberName(event.sender) || ""}
                             avatarUrl={room?.getMemberAvatar(event.sender)}
@@ -98,7 +98,7 @@ const MessageEvent: FC<MessageEventProps> = memo(({ event, roomID, hasPreviousEv
                 )
             } else {
                 return (
-                    <div className={!hasPreviousEvent ? "flex flex-row gap-4 p-2 pb-1 hover:bg-gray-200 rounded-md duration-200 ease-in-out items-start" : "flex flex-row p-2 pt-0 hover:bg-gray-200 rounded-md duration-200 ease-in-out"}>
+                    <div className={!hasPreviousEvent ? "flex flex-row gap-4 p-2 pb-1 hover:bg-gray-200 rounded-md duration-200 ease-in-out items-start" : "flex flex-row p-2 pb-1 pt-0 hover:bg-gray-200 rounded-md duration-200 ease-in-out"}>
                         {!hasPreviousEvent && <Avatar
                             displayname={room?.getMemberName(event.sender) || ""}
                             avatarUrl={room?.getMemberAvatar(event.sender)}
