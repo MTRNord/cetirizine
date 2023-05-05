@@ -31,7 +31,7 @@
     "build": "tsc && vite build",
     "serve": "vite preview",
     "storybook": "storybook dev -p 6006",
-    "percy": "storybook dev -p 6006 & percy storybook http://localhost:6006 --verbose",
+    "percy": "storybook dev -p 6006 & sleep 30 && percy storybook http://localhost:6006 --verbose",
     "build-storybook": "storybook build"
   },
   "eslintConfig": {
