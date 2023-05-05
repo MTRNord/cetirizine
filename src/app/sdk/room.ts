@@ -1,6 +1,26 @@
+import EventEmitter from "events";
 import { IRoomEvent, IRoomStateEvent, isRoomAvatarEvent, isRoomCreateEvent, isRoomTopicEvent, isSpaceChildEvent, isSpaceParentEvent } from "./api/apiTypes";
+import { MatrixClient } from "./client";
+import { useEffect, useState } from "react";
+import { EncryptionAlgorithm, EncryptionSettings, RoomId } from "@matrix-org/matrix-sdk-crypto-js";
 
-export class Room {
+export interface RoomEvents {
+    // Used to notify about changes to the event list
+    'events': (events: IRoomEvent[]) => void;
+    'state_events': (stateEvents: IRoomStateEvent[]) => void;
+}
+
+export declare interface Room {
+    on<U extends keyof RoomEvents>(
+        event: U, listener: RoomEvents[U]
+    ): this;
+
+    emit<U extends keyof RoomEvents>(
+        event: U, ...args: Parameters<RoomEvents[U]>
+    ): boolean;
+}
+
+export class Room extends EventEmitter {
     private events: IRoomEvent[] = [];
     private stateEvents: IRoomStateEvent[] = [];
     private name?: string;
@@ -16,30 +36,29 @@ export class Room {
     } = {}
 
 
-    constructor(public roomID: string, private hostname: string) { }
+    constructor(public roomID: string, private hostname: string, private client: MatrixClient) {
+        super();
+    }
 
     public addEvents(events: IRoomEvent[]) {
-        // if the event id is already known then we update the event instead of pushing it on to the Array
         events.forEach((newEvent) => {
-            const index = this.events.findIndex((oldEvent) => oldEvent.event_id === newEvent.event_id);
-            if (index !== -1) {
-                this.events[index] = newEvent;
-            } else {
-                this.events.push(newEvent);
-            }
+            this.events.push(newEvent);
         });
+
+        this.emit("events", this.events);
     }
 
     public addStateEvents(state: IRoomStateEvent[]) {
         // if the state event id is already known then we update the event instead of pushing it on to the Array
         state.forEach((newEvent) => {
-            const index = this.stateEvents.findIndex((oldEvent) => oldEvent.event_id === newEvent.event_id);
+            const index = this.stateEvents.findIndex((oldEvent) => oldEvent.state_key === newEvent.state_key && oldEvent.type === newEvent.type);
             if (index !== -1) {
                 this.stateEvents[index] = newEvent;
             } else {
                 this.stateEvents.push(newEvent);
             }
         });
+        this.emit("state_events", this.stateEvents);
     }
 
     public getStateEvents(): IRoomStateEvent[] {
@@ -195,4 +214,178 @@ export class Room {
         });
         return isEncrypted;
     }
+
+    public async sendHtmlMessage(html: string, plainText: string): Promise<string> {
+        if (!this.isEncrypted()) {
+            const resp = await fetch(`${this.hostname}/_matrix/client/v3/rooms/${this.roomID}/send/m.room.message/${Date.now().toString()}`, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${this.client.accessToken}`
+                },
+                body: JSON.stringify({
+                    "msgtype": "m.text",
+                    "body": plainText,
+                    "format": "org.matrix.custom.html",
+                    "formatted_body": html
+                })
+            });
+            if (!resp.ok) {
+                throw new Error(`Failed to send message: ${resp.status} ${resp.statusText}`);
+            }
+            const json = await resp.json();
+            return json.event_id;
+        } else {
+            console.log("Sending encrypted message");
+            await this.client.shareKeys();
+            const encrypted = await this.client.olmMachine?.encryptRoomEvent(
+                new RoomId(this.roomID),
+                "m.room.message",
+                JSON.stringify({
+                    "msgtype": "m.text",
+                    "body": plainText,
+                    "format": "org.matrix.custom.html",
+                    "formatted_body": html
+                })
+            );
+            const resp = await fetch(`${this.hostname}/_matrix/client/v3/rooms/${this.roomID}/send/m.room.encrypted/${Date.now().toString()}`, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${this.client.accessToken}`
+                },
+                body: encrypted
+            });
+            if (!resp.ok) {
+                throw new Error(`Failed to send message: ${resp.status} ${resp.statusText}`);
+            }
+            const json = await resp.json();
+            return json.event_id;
+        }
+    }
+
+    public async sendTextMessage(text: string): Promise<string> {
+        if (!this.isEncrypted()) {
+            const resp = await fetch(`${this.hostname}/_matrix/client/v3/rooms/${this.roomID}/send/m.room.message/${Date.now().toString()}`, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${this.client.accessToken}`
+                },
+                body: JSON.stringify({
+                    "msgtype": "m.text",
+                    "body": text
+                })
+            });
+            if (!resp.ok) {
+                throw new Error(`Failed to send message: ${resp.status} ${resp.statusText}`);
+            }
+            const json = await resp.json();
+            return json.event_id;
+        } else {
+            console.log("Sending encrypted message2");
+            await this.client.shareKeys();
+            const encrypted = await this.client.olmMachine?.encryptRoomEvent(
+                new RoomId(this.roomID),
+                "m.room.message",
+                JSON.stringify({
+                    "msgtype": "m.text",
+                    "body": text
+                })
+            );
+            const resp = await fetch(`${this.hostname}/_matrix/client/v3/rooms/${this.roomID}/send/m.room.encrypted/${Date.now().toString()}`, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${this.client.accessToken}`
+                },
+                body: encrypted
+            });
+            if (!resp.ok) {
+                throw new Error(`Failed to send message: ${resp.status} ${resp.statusText}`);
+            }
+            const json = await resp.json();
+            return json.event_id;
+        }
+    }
+
+    public getJoinedMemberIDs(): string[] {
+        const members: string[] = [];
+        this.stateEvents.forEach((event) => {
+            if (event.type === "m.room.member" && event.content.membership === "join") {
+                members.push(event.state_key);
+            }
+        });
+        return members;
+    }
+
+    public getEncryptionSettings(): EncryptionSettings | undefined {
+        let settings: EncryptionSettings | undefined = undefined;
+        this.stateEvents.forEach((event) => {
+            if (event.type === "m.room.encryption" && event.state_key === "") {
+                if (!settings) {
+                    settings = new EncryptionSettings();
+                }
+                settings.algorithm = event.content.algorithm === "m.megolm.v1.aes-sha2" ? EncryptionAlgorithm.MegolmV1AesSha2 : EncryptionAlgorithm.OlmV1Curve25519AesSha2;
+                if (event.content.rotation_period_ms) {
+                    settings.rotationPeriod = BigInt(event.content.rotation_period_ms);
+                }
+                if (event.content.rotation_period_msgs) {
+                    settings.rotationPeriodMessages = BigInt(event.content.rotation_period_msgs);
+                }
+            }
+            if (event.type === "m.room.history_visibility" && event.state_key === "") {
+                if (!settings) {
+                    settings = new EncryptionSettings();
+                }
+                settings.historyVisibility = event.content.history_visibility;
+            }
+        });
+        if (settings) {
+            (settings as EncryptionSettings).onlyAllowTrustedDevices = false;
+        }
+        return settings;
+    }
+}
+
+export function useEvents(room?: Room) {
+    const [events, setEvents] = useState<IRoomEvent[]>(room?.getEvents() || []);
+
+    useEffect(() => {
+        if (room) {
+            setEvents(room?.getEvents() || []);
+            // Listen for event updates
+            const listenForEvents = (events: IRoomEvent[]) => {
+                setEvents([...events]);
+            };
+            room.on("events", listenForEvents);
+            return () => {
+                room.removeListener("events", listenForEvents);
+            }
+        } else {
+            setEvents([]);
+        }
+    }, [room])
+    return events;
+}
+
+export function useStateEvents(room?: Room) {
+    const [events, setEvents] = useState<IRoomStateEvent[]>(room?.getStateEvents() || []);
+
+    useEffect(() => {
+        if (room) {
+            setEvents(room?.getStateEvents() || []);
+            // Listen for event updates
+            const listenForStateEvents = (events: IRoomStateEvent[]) => {
+                setEvents(events);
+            };
+            room.on("state_events", listenForStateEvents);
+            return () => {
+                room.removeListener("state_events", listenForStateEvents);
+            }
+        } else {
+            setEvents([]);
+        }
+    }, [room])
+    return events;
 }

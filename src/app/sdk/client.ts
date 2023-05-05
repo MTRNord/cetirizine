@@ -12,6 +12,7 @@ import {
     IRateLimitError,
     IRoomEvent,
     IRoomStateEvent,
+    ISlidingSyncReq,
     ISlidingSyncResp,
     IWellKnown,
     isDeleteOp,
@@ -27,7 +28,7 @@ import {
     IDBPDatabase,
     openDB
 } from "idb";
-import { DeviceId, DeviceLists, KeysBackupRequest, KeysUploadRequest, OlmMachine, RequestType, RoomMessageRequest, SignatureUploadRequest, UserId } from "@matrix-org/matrix-sdk-crypto-js";
+import { DeviceId, DeviceLists, KeysBackupRequest, KeysUploadRequest, OlmMachine, RequestType, RoomId, RoomMessageRequest, SignatureUploadRequest, UserId } from "@matrix-org/matrix-sdk-crypto-js";
 import { KeysQueryRequest } from "@matrix-org/matrix-sdk-crypto-js";
 import { KeysClaimRequest } from "@matrix-org/matrix-sdk-crypto-js";
 import { ToDeviceRequest } from "@matrix-org/matrix-sdk-crypto-js";
@@ -119,9 +120,25 @@ export class MatrixClient extends EventEmitter {
     private lastTxnID?: string;
     private to_device_since?: string;
     public olmMachine?: OlmMachine;
+    private currentRoom?: string;
+    private abortController = new AbortController();
+
+    public get accessToken(): string | undefined {
+        return this.access_token;
+    }
 
     public get isLoggedIn(): boolean {
         return this.access_token !== undefined;
+    }
+
+    public setCurrentRoom(roomID?: string) {
+        if (roomID !== this.currentRoom) {
+            this.currentRoom = roomID;
+            console.log("Current room changed to", roomID, "restarting sync");
+            this.lastTxnID = Date.now().toString();
+            this.abortController.abort();
+            this.abortController = new AbortController();
+        }
     }
 
     public static async Instance() {
@@ -158,7 +175,6 @@ export class MatrixClient extends EventEmitter {
                     instance.initialSync = syncInfo.initialSync;
                     instance.lastRanges = syncInfo.lastRanges;
                     instance.lastTxnID = syncInfo.lastTxnID;
-                    console.log("to_device_since:", syncInfo.to_device_since)
                     instance.to_device_since = syncInfo.to_device_since;
                 }
 
@@ -169,7 +185,7 @@ export class MatrixClient extends EventEmitter {
 
                 if (rooms) {
                     instance.rooms = new Set(rooms.map(room => {
-                        const roomObj = new Room(room.roomID, instance.hostname!);
+                        const roomObj = new Room(room.roomID, instance.hostname!, instance);
                         roomObj.windowPos = room.windowPos;
                         roomObj.setInvitedCount(room.invited_count);
                         roomObj.setJoinedCount(room.joined_count);
@@ -257,7 +273,6 @@ export class MatrixClient extends EventEmitter {
                 await this.sync();
             } catch (e) {
                 console.error(e);
-                return;
             }
         }
     }
@@ -426,7 +441,7 @@ export class MatrixClient extends EventEmitter {
                 if (!response.ok) {
                     console.error("Failed to send to device", response);
                 }
-                this.olmMachine.markRequestAsSent(request_typed.id!, request_typed.type, await response.text());
+                this.olmMachine.markRequestAsSent(request_typed.id ?? request_typed.txn_id, request_typed.type, await response.text());
             } else if (request.type === RequestType.SignatureUpload) {
                 const request_typed = request as SignatureUploadRequest;
                 const response = await fetch(
@@ -480,6 +495,279 @@ export class MatrixClient extends EventEmitter {
                 this.olmMachine.markRequestAsSent(request_typed.id!, request_typed.type, await response.text());
             }
         }
+
+        await this.shareKeys();
+    }
+
+    public async shareKeys() {
+        if (!this.isLoggedIn) {
+            throw Error("Not logged in");
+        }
+        if (!this.slidingSyncHostname) {
+            throw Error("Hostname must be set first");
+        }
+        if (!this.olmMachine) {
+            throw Error("Olm machine must be set first");
+        }
+        for (const room of [...this.rooms].filter(room => room.isEncrypted())) {
+            const request = await this.olmMachine?.getMissingSessions(room.getJoinedMemberIDs().map(id => new UserId(id)));
+            if (!request) {
+                continue;
+            }
+            // Check which type the request is
+            if (request.type === RequestType.KeysUpload) {
+                // Send the key
+                const request_typed = request as KeysUploadRequest;
+                const response = await fetch(
+                    `${this.hostname}/_matrix/client/v3/keys/upload`,
+                    {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Authorization": `Bearer ${this.access_token}`
+                        },
+                        body: request_typed.body
+                    }
+                )
+                if (!response.ok) {
+                    console.error("Failed to upload keys", response);
+                }
+                this.olmMachine.markRequestAsSent(request_typed.id!, request_typed.type, await response.text());
+            } else if (request.type === RequestType.KeysQuery) {
+                const request_typed = request as KeysQueryRequest;
+                const response = await fetch(
+                    `${this.hostname}/_matrix/client/v3/keys/query`,
+                    {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Authorization": `Bearer ${this.access_token}`
+                        },
+                        body: request_typed.body
+                    }
+                )
+                if (!response.ok) {
+                    console.error("Failed to query keys", response);
+                }
+                this.olmMachine.markRequestAsSent(request_typed.id!, request_typed.type, await response.text());
+            } else if (request.type === RequestType.KeysClaim) {
+                const request_typed = request as KeysClaimRequest;
+                const response = await fetch(
+                    `${this.hostname}/_matrix/client/v3/keys/claim`,
+                    {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Authorization": `Bearer ${this.access_token}`
+                        },
+                        body: request_typed.body
+                    }
+                )
+                if (!response.ok) {
+                    console.error("Failed to claim keys", response);
+                }
+                this.olmMachine.markRequestAsSent(request_typed.id!, request_typed.type, await response.text());
+            } else if (request.type === RequestType.ToDevice) {
+                const request_typed = request as ToDeviceRequest;
+                const response = await fetch(
+                    `${this.hostname}/_matrix/client/v3/sendToDevice/${request_typed.event_type}/${request_typed.txn_id}`,
+                    {
+                        method: "PUT",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Authorization": `Bearer ${this.access_token}`
+                        },
+                        body: request_typed.body
+                    }
+                )
+                if (!response.ok) {
+                    console.error("Failed to send to device", response);
+                }
+                this.olmMachine.markRequestAsSent(request_typed.id ?? request_typed.txn_id, request_typed.type, await response.text());
+            } else if (request.type === RequestType.SignatureUpload) {
+                const request_typed = request as SignatureUploadRequest;
+                const response = await fetch(
+                    `${this.hostname}/_matrix/client/v3/keys/signatures/upload`,
+                    {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Authorization": `Bearer ${this.access_token}`
+                        },
+                        body: request_typed.body
+                    }
+                )
+                if (!response.ok) {
+                    console.error("Failed to upload signatures", response);
+                }
+                this.olmMachine.markRequestAsSent(request_typed.id!, request_typed.type, await response.text());
+            } else if (request.type === RequestType.RoomMessage) {
+                const request_typed = request as RoomMessageRequest;
+                const response = await fetch(
+                    `${this.hostname}/_matrix/client/v3/rooms/${request_typed.room_id}/send/${request_typed.event_type}/${request_typed.txn_id}`,
+                    {
+                        method: "PUT",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Authorization": `Bearer ${this.access_token}`
+                        },
+                        body: request_typed.body
+                    }
+                )
+                if (!response.ok) {
+                    console.error("Failed to send message", response);
+                }
+                this.olmMachine.markRequestAsSent(request_typed.id!, request_typed.type, await response.text());
+            } else if (request.type === RequestType.KeysBackup) {
+                const request_typed = request as KeysBackupRequest;
+                const response = await fetch(
+                    `${this.hostname}/_matrix/client/v3/room_keys/keys`,
+                    {
+                        method: "PUT",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Authorization": `Bearer ${this.access_token}`
+                        },
+                        body: request_typed.body
+                    }
+                )
+                if (!response.ok) {
+                    console.error("Failed to backup keys", response);
+                }
+                this.olmMachine.markRequestAsSent(request_typed.id!, request_typed.type, await response.text());
+            }
+
+
+            const encryptionSettings = room.getEncryptionSettings();
+            if (encryptionSettings) {
+                const requests = await this.olmMachine.shareRoomKey(new RoomId(room.roomID), room.getJoinedMemberIDs().map(id => new UserId(id)), encryptionSettings);
+                for (const request of requests) {
+                    // Check which type the request is
+                    if (request.type === RequestType.KeysUpload) {
+                        // Send the key
+                        const request_typed = request as KeysUploadRequest;
+                        const response = await fetch(
+                            `${this.hostname}/_matrix/client/v3/keys/upload`,
+                            {
+                                method: "POST",
+                                headers: {
+                                    "Content-Type": "application/json",
+                                    "Authorization": `Bearer ${this.access_token}`
+                                },
+                                body: request_typed.body
+                            }
+                        )
+                        if (!response.ok) {
+                            console.error("Failed to upload keys", response);
+                        }
+                        this.olmMachine.markRequestAsSent(request_typed.id!, request_typed.type, await response.text());
+                    } else if (request.type === RequestType.KeysQuery) {
+                        const request_typed = request as KeysQueryRequest;
+                        const response = await fetch(
+                            `${this.hostname}/_matrix/client/v3/keys/query`,
+                            {
+                                method: "POST",
+                                headers: {
+                                    "Content-Type": "application/json",
+                                    "Authorization": `Bearer ${this.access_token}`
+                                },
+                                body: request_typed.body
+                            }
+                        )
+                        if (!response.ok) {
+                            console.error("Failed to query keys", response);
+                        }
+                        this.olmMachine.markRequestAsSent(request_typed.id!, request_typed.type, await response.text());
+                    } else if (request.type === RequestType.KeysClaim) {
+                        const request_typed = request as KeysClaimRequest;
+                        const response = await fetch(
+                            `${this.hostname}/_matrix/client/v3/keys/claim`,
+                            {
+                                method: "POST",
+                                headers: {
+                                    "Content-Type": "application/json",
+                                    "Authorization": `Bearer ${this.access_token}`
+                                },
+                                body: request_typed.body
+                            }
+                        )
+                        if (!response.ok) {
+                            console.error("Failed to claim keys", response);
+                        }
+                        this.olmMachine.markRequestAsSent(request_typed.id!, request_typed.type, await response.text());
+                    } else if (request.type === RequestType.ToDevice) {
+                        const request_typed = request as ToDeviceRequest;
+                        const response = await fetch(
+                            `${this.hostname}/_matrix/client/v3/sendToDevice/${request_typed.event_type}/${request_typed.txn_id}`,
+                            {
+                                method: "PUT",
+                                headers: {
+                                    "Content-Type": "application/json",
+                                    "Authorization": `Bearer ${this.access_token}`
+                                },
+                                body: request_typed.body
+                            }
+                        )
+                        if (!response.ok) {
+                            console.error("Failed to send to device", response);
+                        }
+                        console.log(request_typed);
+                        this.olmMachine.markRequestAsSent(request_typed.id ?? request_typed.txn_id, request_typed.type, await response.text());
+                    } else if (request.type === RequestType.SignatureUpload) {
+                        const request_typed = request as SignatureUploadRequest;
+                        const response = await fetch(
+                            `${this.hostname}/_matrix/client/v3/keys/signatures/upload`,
+                            {
+                                method: "POST",
+                                headers: {
+                                    "Content-Type": "application/json",
+                                    "Authorization": `Bearer ${this.access_token}`
+                                },
+                                body: request_typed.body
+                            }
+                        )
+                        if (!response.ok) {
+                            console.error("Failed to upload signatures", response);
+                        }
+                        this.olmMachine.markRequestAsSent(request_typed.id!, request_typed.type, await response.text());
+                    } else if (request.type === RequestType.RoomMessage) {
+                        const request_typed = request as RoomMessageRequest;
+                        const response = await fetch(
+                            `${this.hostname}/_matrix/client/v3/rooms/${request_typed.room_id}/send/${request_typed.event_type}/${request_typed.txn_id}`,
+                            {
+                                method: "PUT",
+                                headers: {
+                                    "Content-Type": "application/json",
+                                    "Authorization": `Bearer ${this.access_token}`
+                                },
+                                body: request_typed.body
+                            }
+                        )
+                        if (!response.ok) {
+                            console.error("Failed to send message", response);
+                        }
+                        this.olmMachine.markRequestAsSent(request_typed.id!, request_typed.type, await response.text());
+                    } else if (request.type === RequestType.KeysBackup) {
+                        const request_typed = request as KeysBackupRequest;
+                        const response = await fetch(
+                            `${this.hostname}/_matrix/client/v3/room_keys/keys`,
+                            {
+                                method: "PUT",
+                                headers: {
+                                    "Content-Type": "application/json",
+                                    "Authorization": `Bearer ${this.access_token}`
+                                },
+                                body: request_typed.body
+                            }
+                        )
+                        if (!response.ok) {
+                            console.error("Failed to backup keys", response);
+                        }
+                        this.olmMachine.markRequestAsSent(request_typed.id!, request_typed.type, await response.text());
+                    }
+                }
+            }
+        }
     }
 
     private async sync() {
@@ -502,10 +790,12 @@ export class MatrixClient extends EventEmitter {
             "spaces": [[0, Number.MAX_SAFE_INTEGER]]
         };
         let timeline_limit = 1;
+        let subscription_limit = 10;
         if (!this.initialSync) {
             for (const list in lists_ranges) {
                 // Set higher timeline limit for subsequent syncs
                 timeline_limit = 10;
+                subscription_limit = 50;
                 // Calculate overlap between this.roomsInView and this.roomToRoomID and then
                 // calculate the ranges for each list
                 const rawRangeInView = new Set([...this.rooms]
@@ -545,17 +835,12 @@ export class MatrixClient extends EventEmitter {
                 const sorted = rangesInView.sort((a, b) => a[0] - b[0]);
 
                 // Deduplicate ranges
-                const deduped = sorted.reduce((acc, cur, i, arr) => {
-                    if (i === 0) {
-                        acc.push(cur);
-                        return acc;
-                    }
-                    if (cur[0] === arr[i - 1][0] && cur[1] === arr[i - 1][1]) {
-                        return acc;
-                    }
-                    acc.push(cur);
-                    return acc;
-                }, [] as [number, number][]);
+                let known = new Set()
+                let deduped = sorted.map(subarray =>
+                    subarray.filter(item => !known.has(item) && known.add(item))
+                )
+                    .filter(subarray => subarray.length === 2)
+                    .filter(subarray => subarray[0] !== undefined && subarray[1] !== undefined && subarray[0] !== null && subarray[1] !== null)
 
                 lists_ranges[list] = deduped;
             }
@@ -580,82 +865,113 @@ export class MatrixClient extends EventEmitter {
             url = `${this.slidingSyncHostname}/_matrix/client/unstable/org.matrix.msc3575/sync?timeout=30000&pos=${this.syncPos}`
         }
 
-        console.log("to_device_since:", this.to_device_since)
+        const body: ISlidingSyncReq = {
+            // allows clients to know what request params reached the server,
+            // functionally similar to txn IDs on /send for events.
+            txn_id: this.lastTxnID,
+
+            // a delta token to remember information between sessions.
+            // See "Bandwidth optimisations for persistent clients" for more information.
+            // TODO: This isnt implemented anywhere yet
+            //delta_token: "opaque-server-provided-string",
+
+            // Sliding Window API
+            lists: {
+                "spaces": {
+                    slow_get_all_rooms: true,
+                    sort: ["by_name"],
+                    required_state: [
+                        // needed to build sections
+                        ["m.space.child", "*"],
+                        ["m.space.parent", "*"],
+                        ["m.room.create", ""],
+                        // Room Avatar
+                        ["m.room.avatar", "*"],
+                        // Room Topic
+                        ["m.room.topic", "*"],
+                        // Request only the m.room.member events required to render events in the timeline.
+                        // The "$LAZY" value is a special sentinel value meaning "lazy loading" and is only valid for
+                        // the "m.room.member" event type. For more information on the semantics, see "Lazy-Loading Room Members".
+                        ["m.room.member", "$LAZY"],
+                        // E2EE
+                        ["m.room.encryption", ""],
+                        ["m.room.history_visibility", ""],
+                    ],
+                    timeline_limit: timeline_limit,
+                    filters: {
+                        room_types: ["m.space"]
+                    }
+                },
+                "overview": {
+                    ranges: this.lastRanges["overview"],
+                    sort: ["by_notification_level", "by_recency", "by_name"],
+                    required_state: [
+                        // needed to build sections
+                        ["m.space.child", "*"],
+                        ["m.space.parent", "*"],
+                        ["m.room.create", ""],
+                        // Room Avatar
+                        ["m.room.avatar", "*"],
+                        // Room Topic
+                        ["m.room.topic", "*"],
+                        // Request only the m.room.member events required to render events in the timeline.
+                        // The "$LAZY" value is a special sentinel value meaning "lazy loading" and is only valid for
+                        // the "m.room.member" event type. For more information on the semantics, see "Lazy-Loading Room Members".
+                        ["m.room.member", "$LAZY"],
+                        // E2EE
+                        ["m.room.encryption", ""],
+                        ["m.room.history_visibility", ""],
+                    ],
+                    timeline_limit: timeline_limit,
+                    filters: {}
+                },
+            },
+            bump_event_types: ["m.room.message", "m.room.encrypted"],
+
+            extensions: {
+                e2ee: {
+                    enabled: true,
+                },
+                to_device: {
+                    enabled: true,
+                    since: this.to_device_since || null
+                }
+            },
+        };
+
+        if (this.currentRoom) {
+            body.room_subscriptions = {};
+            body.room_subscriptions[this.currentRoom] = {
+                sort: ["by_notification_level", "by_recency", "by_name"],
+                required_state: [
+                    // needed to build sections
+                    ["m.space.child", "*"],
+                    ["m.space.parent", "*"],
+                    ["m.room.create", ""],
+                    // Room Avatar
+                    ["m.room.avatar", "*"],
+                    // Room Topic
+                    ["m.room.topic", "*"],
+                    // Request only the m.room.member events required to render events in the timeline.
+                    // The "$LAZY" value is a special sentinel value meaning "lazy loading" and is only valid for
+                    // the "m.room.member" event type. For more information on the semantics, see "Lazy-Loading Room Members".
+                    ["m.room.member", "$LAZY"],
+                    // E2EE
+                    ["m.room.encryption", ""],
+                    ["m.room.history_visibility", ""],
+                ],
+                timeline_limit: subscription_limit,
+                filters: {}
+            }
+        }
+
         const resp = await fetch(url, {
             method: "POST",
+            signal: this.abortController.signal,
             headers: {
                 "Authorization": `Bearer ${this.access_token}`
             },
-            body: JSON.stringify({
-                // allows clients to know what request params reached the server,
-                // functionally similar to txn IDs on /send for events.
-                // TODO: check resp
-                txn_id: this.lastTxnID,
-
-                // a delta token to remember information between sessions.
-                // See "Bandwidth optimisations for persistent clients" for more information.
-                // TODO: This isnt implemented anywhere yet
-                //delta_token: "opaque-server-provided-string",
-
-                // Sliding Window API
-                lists: {
-                    // TODO: We need a list that fetches all spaces
-                    "spaces": {
-                        slow_get_all_rooms: true,
-                        sort: ["by_name"],
-                        required_state: [
-                            // needed to build sections
-                            ["m.space.child", "*"],
-                            ["m.space.parent", "*"],
-                            ["m.room.create", ""],
-                            // Room Avatar
-                            ["m.room.avatar", "*"],
-                            // Room Topic
-                            ["m.room.topic", "*"],
-                            // Request only the m.room.member events required to render events in the timeline.
-                            // The "$LAZY" value is a special sentinel value meaning "lazy loading" and is only valid for
-                            // the "m.room.member" event type. For more information on the semantics, see "Lazy-Loading Room Members".
-                            ["m.room.member", "$LAZY"],
-                        ],
-                        timeline_limit: timeline_limit,
-                        filters: {
-                            room_types: ["m.space"]
-                        }
-                    },
-                    "overview": {
-                        ranges: this.lastRanges["overview"],
-                        sort: ["by_notification_level", "by_recency", "by_name"],
-                        required_state: [
-                            // needed to build sections
-                            ["m.space.child", "*"],
-                            ["m.space.parent", "*"],
-                            ["m.room.create", ""],
-                            // Room Avatar
-                            ["m.room.avatar", "*"],
-                            // Room Topic
-                            ["m.room.topic", "*"],
-                            // Request only the m.room.member events required to render events in the timeline.
-                            // The "$LAZY" value is a special sentinel value meaning "lazy loading" and is only valid for
-                            // the "m.room.member" event type. For more information on the semantics, see "Lazy-Loading Room Members".
-                            ["m.room.member", "$LAZY"],
-                        ],
-                        timeline_limit: timeline_limit,
-                        filters: {}
-                    },
-                },
-                bump_event_types: ["m.room.message", "m.room.encrypted"],
-
-                extensions: {
-                    e2ee: {
-                        enabled: true,
-                    },
-                    to_device: {
-                        enabled: true,
-                        // TODO: if not initial sync add since token
-                        since: this.to_device_since || null
-                    }
-                }
-            })
+            body: JSON.stringify(body)
         });
         if (!resp.ok) {
             if (resp.status === 400) {
@@ -671,6 +987,7 @@ export class MatrixClient extends EventEmitter {
                     });
                     await syncInfoTX?.done;
                 }
+                return;
             }
             console.error(resp);
             console.error("Error syncing. See console for error.");
@@ -679,7 +996,6 @@ export class MatrixClient extends EventEmitter {
         this.syncPos = json.pos;
 
         if (json.extensions?.to_device) {
-            console.log("Processing to_device events")
             await this.olmMachine?.receiveSyncChanges(
                 JSON.stringify(json.extensions.to_device.events || []),
                 new DeviceLists(
@@ -731,7 +1047,7 @@ export class MatrixClient extends EventEmitter {
                                 continue;
                             }
 
-                            const newRoom = new Room(roomID, this.hostname!);
+                            const newRoom = new Room(roomID, this.hostname!, this);
                             // We start to remember the Room now.
                             newRoom.setName(roomID);
                             newRoom.windowPos[listKey] = i;
@@ -797,12 +1113,12 @@ export class MatrixClient extends EventEmitter {
                             });
                         } else {
                             const roomFromDB = await tx?.store.get(op.room_id);
-                            let newRoom = new Room(op.room_id, this.hostname!);
+                            let newRoom = new Room(op.room_id, this.hostname!, this);
                             newRoom.setName(op.room_id);
                             newRoom.windowPos[listKey] = op.index;
                             if (roomFromDB) {
                                 console.warn("Room in db but not in obj list.", op.room_id, "Updating obj list.");
-                                newRoom = new Room(op.room_id, this.hostname!)
+                                newRoom = new Room(op.room_id, this.hostname!, this)
                                 newRoom.setName(roomFromDB.name);
                                 newRoom.setNotificationCount(roomFromDB.notification_count);
                                 newRoom.setNotificationHighlightCount(roomFromDB.highlight_count);
@@ -862,7 +1178,6 @@ export class MatrixClient extends EventEmitter {
                 }
             }
         }
-        const tx = this.database?.transaction('rooms', 'readwrite');
         for (const roomID in json.rooms) {
             const room = json.rooms[roomID];
             const name = room.name;
@@ -880,11 +1195,15 @@ export class MatrixClient extends EventEmitter {
             if (!roomObj) {
                 // Warn, check in the db and if that fails, create a new one.
                 console.warn("Could not find roomObj for roomID:", roomID);
+
+                const tx = this.database?.transaction('rooms', 'readwrite');
                 const roomFromDB = await tx?.store.get(roomID);
+                await tx?.done;
+
                 if (roomFromDB) {
                     console.warn("Room in db but not in obj list.", roomID, "Updating obj list.");
 
-                    roomObj = new Room(roomID, this.hostname!);
+                    roomObj = new Room(roomID, this.hostname!, this);
                     roomObj.setName(roomFromDB.name);
                     roomObj.setNotificationCount(roomFromDB.notification_count);
                     roomObj.setNotificationHighlightCount(roomFromDB.highlight_count);
@@ -900,7 +1219,7 @@ export class MatrixClient extends EventEmitter {
                     roomObj.windowPos = roomFromDB.windowPos;
                 } else {
                     console.warn("Could not find room in db. Creating new one.");
-                    roomObj = new Room(roomID, this.hostname!);
+                    roomObj = new Room(roomID, this.hostname!, this);
                     this.rooms.add(roomObj);
                 }
             }
@@ -933,6 +1252,8 @@ export class MatrixClient extends EventEmitter {
                 roomObj.setDM(is_dm);
             }
 
+
+            const tx = this.database?.transaction('rooms', 'readwrite');
             // Write to database
             await tx?.store.put({
                 windowPos: roomObj.windowPos,
@@ -948,8 +1269,8 @@ export class MatrixClient extends EventEmitter {
                 isSpace: roomObj.isSpace(),
                 isDM: roomObj.isDM(),
             });
+            await tx?.done
         }
-        await tx?.done
 
         if (this.initialSync) {
             this.initialSync = false;

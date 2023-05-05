@@ -170,6 +170,37 @@ export interface ISyncResponse {
 }
 
 // Sliding sync
+export interface ISlidingSyncReq {
+    txn_id?: string;
+    lists?: {
+        [key: string]: {
+            ranges?: number[][];
+            slow_get_all_rooms?: boolean;
+            sort?: string[];
+            required_state?: string[][];
+            timeline_limit?: number;
+            filters?: {
+                [key: string]: any;
+            };
+        };
+    }
+    bump_event_types?: string[];
+    extensions?: {
+        [key: string]: any;
+    };
+    room_subscriptions?: {
+        [key: string]: {
+            sort?: string[];
+            required_state?: string[][];
+            timeline_limit?: number;
+            filters?: {
+                [key: string]: any;
+            };
+        };
+    };
+};
+
+
 export interface ISlidingSyncResp {
     lists?: {
         [key: string]: List;

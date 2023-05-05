@@ -1,15 +1,13 @@
-import { Send, Settings } from 'lucide-react';
+import { Settings } from 'lucide-react';
 import Avatar from '../components/avatar/avatar';
 import ChatInput from '../components/input/chat/input';
 import RoomList, { Section } from '../components/roomList/roomList';
 import './MainPage.scss';
 import { useProfile, useRoom, useRooms, useSpaces } from '../app/sdk/client';
-import { Room } from '../app/sdk/room';
+import { Room, useEvents } from '../app/sdk/room';
 import { FC, memo, useContext, useEffect, useRef, useState } from 'react';
 import { MatrixContext } from '../app/sdk/client';
 import { useLocation, useParams } from 'react-router-dom';
-import { $generateHtmlFromNodes } from '@lexical/html';
-import { $convertToMarkdownString, TRANSFORMERS } from '@lexical/markdown';
 import MessageEvent from '../components/events/messageEvent';
 import UnknownEvent from '../components/events/unknownEvent';
 import MemberEvent from '../components/events/memberEvent';
@@ -36,7 +34,7 @@ type ChatViewProps = {
 const ChatView: FC<ChatViewProps> = memo(({ roomID, scrollRef }) => {
     const room = useRoom(decodeURIComponent(roomID || ""));
     const client = useContext(MatrixContext);
-    const events = room?.getEvents();
+    const events = useEvents(room);
     const { pathname } = useLocation();
     const [renderedEvents, setRenderedEvents] = useState<JSX.Element[]>([]);
 
@@ -84,7 +82,6 @@ const ChatView: FC<ChatViewProps> = memo(({ roomID, scrollRef }) => {
         }
     }, [events]);
 
-
     useEffect(() => {
         scrollRef.current?.scrollTo(0, scrollRef.current?.scrollHeight);
     }, [pathname]);
@@ -114,9 +111,8 @@ const MainPage = memo(() => {
     const client = useContext(MatrixContext);
     let params = useParams();
     const room = useRoom(decodeURIComponent(params.roomIdOrAlias || ""));
+    client.setCurrentRoom(params.roomIdOrAlias ? decodeURIComponent(params.roomIdOrAlias) : undefined)
 
-    const [_htmlMessage, setHtmlMessage] = useState<string>("");
-    const [_plainMessage, setPlainMessage] = useState<string>("");
     const scrollRef = useRef<HTMLDivElement>(null);
 
     // Filter toplevel spaces.
@@ -240,34 +236,15 @@ const MainPage = memo(() => {
             room && <div className='flex-1 flex flex-col'>
                 <div className='pb-2 flex flex-row items-center border-b-2 mt-4 ml-2'>
                     <Avatar displayname={room.getName()} avatarUrl={room.getAvatarURL()} dm={room.isDM()} online={room.isOnline()} />
-                    <div className='flex flex-row items-center'>
+                    <div className='flex flex-row items-start'>
                         <h1 className='text-black font-semibold text-lg flex-shrink-0'>{room.getName()}</h1>
-                        <Linkify options={linkifyOptions} as='p' className="ml-4 text-slate-700 font-normal text-base">{room.getTopic()}</Linkify>
+                        <Linkify options={linkifyOptions} as='p' className="ml-4 text-slate-700 font-normal text-base line-clamp-2 text-ellipsis">{room.getTopic()}</Linkify>
                     </div>
                 </div>
                 <div ref={scrollRef} className='overflow-y-auto overflow-x-hidden scrollbarSmall mr-2 my-1 flex-1 w-full flex flex-col-reverse'>
                     <ChatView roomID={params.roomIdOrAlias} scrollRef={scrollRef} />
                 </div>
-                <div className='flex flex-row items-end'>
-                    <ChatInput namespace='Editor' onChange={(editorState, editor) => {
-                        // Convert editor state to both html and markdown.
-                        // If there is no formatting then just use the plain text.
-                        editorState.read(() => {
-                            const html = $generateHtmlFromNodes(editor);
-                            // TODO: Make sure that we strip any non matrix stuff
-                            setHtmlMessage(html);
-                            console.log(html);
-                            const markdown = $convertToMarkdownString(TRANSFORMERS);
-                            setPlainMessage(markdown);
-                            console.log(markdown);
-                        });
-                        // TODO: we need some send button
-                    }} onError={(e) => console.error(e)} />
-                    <Send size={45} stroke='unset' className='stroke-slate-600 rounded m-4 hover:bg-slate-300 hover:stroke-slate-500 p-2 cursor-pointer' onClick={() => {
-                        // TODO: Sanitize the html and send message to room
-                        // TODO: encrypt if room is encrypted
-                    }} />
-                </div>
+                <ChatInput namespace='Editor' roomID={decodeURIComponent(params.roomIdOrAlias || "")} />
             </div>
         }
     </div >
