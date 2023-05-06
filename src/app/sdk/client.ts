@@ -26,6 +26,7 @@ import EventEmitter from "events";
 import {
     DBSchema,
     IDBPDatabase,
+    deleteDB,
     openDB
 } from "idb";
 import { DeviceId, DeviceLists, KeysBackupRequest, KeysUploadRequest, OlmMachine, RequestType, RoomId, RoomMessageRequest, SignatureUploadRequest, UserId } from "@matrix-org/matrix-sdk-crypto-js";
@@ -109,7 +110,6 @@ export class MatrixClient extends EventEmitter {
     private slidingSyncHostname?: string;
     private syncing = false;
     private roomsInView: string[] = [];
-    // TODO: Use to filter rooms by spaces visible. Eventually even make lists per space dynamically and use that to filter
     private spaceOpen: string[] = [];
     private rooms: Set<Room> = new Set();
     private syncPos?: string;
@@ -122,6 +122,9 @@ export class MatrixClient extends EventEmitter {
     public olmMachine?: OlmMachine;
     private currentRoom?: string;
     private abortController = new AbortController();
+    private mustUpdateTxnID = true;
+    private outgoingRequestsBeingProcessed = false;
+    private missingSessionsBeingRequested = false;
 
     public get accessToken(): string | undefined {
         return this.access_token;
@@ -135,8 +138,8 @@ export class MatrixClient extends EventEmitter {
         if (roomID !== this.currentRoom) {
             this.currentRoom = roomID;
             console.log("Current room changed to", roomID, "restarting sync");
-            this.lastTxnID = Date.now().toString();
-            this.abortController.abort();
+            this.mustUpdateTxnID = true;
+            //this.abortController.abort();
             this.abortController = new AbortController();
         }
     }
@@ -163,7 +166,9 @@ export class MatrixClient extends EventEmitter {
                     avatar_url: loginInfo[0].avatarUrl,
                     displayname: loginInfo[0].displayName,
                 };
-                instance.olmMachine = await OlmMachine.initialize(new UserId(instance.mxid), new DeviceId(instance.device_id!), "cetirizine-crypto");
+                if (instance.mxid && instance.hostname && instance.access_token && instance.device_id) {
+                    instance.olmMachine = await OlmMachine.initialize(new UserId(instance.mxid), new DeviceId(instance.device_id), "cetirizine-crypto");
+                }
 
                 // Load sync info
                 const syncTx = instance.database?.transaction('syncInfo', 'readonly');
@@ -369,134 +374,19 @@ export class MatrixClient extends EventEmitter {
             throw Error("Olm machine must be set first");
         }
 
+        if (this.outgoingRequestsBeingProcessed) {
+            return;
+        }
+        this.outgoingRequestsBeingProcessed = true;
+
         const outgoing_requests = await this.olmMachine.outgoingRequests();
 
         for (const request of outgoing_requests) {
-            // Check which type the request is
-            if (request.type === RequestType.KeysUpload) {
-                // Send the key
-                const request_typed = request as KeysUploadRequest;
-                const response = await fetch(
-                    `${this.hostname}/_matrix/client/v3/keys/upload`,
-                    {
-                        method: "POST",
-                        headers: {
-                            "Content-Type": "application/json",
-                            "Authorization": `Bearer ${this.access_token}`
-                        },
-                        body: request_typed.body
-                    }
-                )
-                if (!response.ok) {
-                    console.error("Failed to upload keys", response);
-                }
-                this.olmMachine.markRequestAsSent(request_typed.id!, request_typed.type, await response.text());
-            } else if (request.type === RequestType.KeysQuery) {
-                const request_typed = request as KeysQueryRequest;
-                const response = await fetch(
-                    `${this.hostname}/_matrix/client/v3/keys/query`,
-                    {
-                        method: "POST",
-                        headers: {
-                            "Content-Type": "application/json",
-                            "Authorization": `Bearer ${this.access_token}`
-                        },
-                        body: request_typed.body
-                    }
-                )
-                if (!response.ok) {
-                    console.error("Failed to query keys", response);
-                }
-                this.olmMachine.markRequestAsSent(request_typed.id!, request_typed.type, await response.text());
-            } else if (request.type === RequestType.KeysClaim) {
-                const request_typed = request as KeysClaimRequest;
-                const response = await fetch(
-                    `${this.hostname}/_matrix/client/v3/keys/claim`,
-                    {
-                        method: "POST",
-                        headers: {
-                            "Content-Type": "application/json",
-                            "Authorization": `Bearer ${this.access_token}`
-                        },
-                        body: request_typed.body
-                    }
-                )
-                if (!response.ok) {
-                    console.error("Failed to claim keys", response);
-                }
-                this.olmMachine.markRequestAsSent(request_typed.id!, request_typed.type, await response.text());
-            } else if (request.type === RequestType.ToDevice) {
-                const request_typed = request as ToDeviceRequest;
-                const response = await fetch(
-                    `${this.hostname}/_matrix/client/v3/sendToDevice/${request_typed.event_type}/${request_typed.txn_id}`,
-                    {
-                        method: "PUT",
-                        headers: {
-                            "Content-Type": "application/json",
-                            "Authorization": `Bearer ${this.access_token}`
-                        },
-                        body: request_typed.body
-                    }
-                )
-                if (!response.ok) {
-                    console.error("Failed to send to device", response);
-                }
-                this.olmMachine.markRequestAsSent(request_typed.id ?? request_typed.txn_id, request_typed.type, await response.text());
-            } else if (request.type === RequestType.SignatureUpload) {
-                const request_typed = request as SignatureUploadRequest;
-                const response = await fetch(
-                    `${this.hostname}/_matrix/client/v3/keys/signatures/upload`,
-                    {
-                        method: "POST",
-                        headers: {
-                            "Content-Type": "application/json",
-                            "Authorization": `Bearer ${this.access_token}`
-                        },
-                        body: request_typed.body
-                    }
-                )
-                if (!response.ok) {
-                    console.error("Failed to upload signatures", response);
-                }
-                this.olmMachine.markRequestAsSent(request_typed.id!, request_typed.type, await response.text());
-            } else if (request.type === RequestType.RoomMessage) {
-                const request_typed = request as RoomMessageRequest;
-                const response = await fetch(
-                    `${this.hostname}/_matrix/client/v3/rooms/${request_typed.room_id}/send/${request_typed.event_type}/${request_typed.txn_id}`,
-                    {
-                        method: "PUT",
-                        headers: {
-                            "Content-Type": "application/json",
-                            "Authorization": `Bearer ${this.access_token}`
-                        },
-                        body: request_typed.body
-                    }
-                )
-                if (!response.ok) {
-                    console.error("Failed to send message", response);
-                }
-                this.olmMachine.markRequestAsSent(request_typed.id!, request_typed.type, await response.text());
-            } else if (request.type === RequestType.KeysBackup) {
-                const request_typed = request as KeysBackupRequest;
-                const response = await fetch(
-                    `${this.hostname}/_matrix/client/v3/room_keys/keys`,
-                    {
-                        method: "PUT",
-                        headers: {
-                            "Content-Type": "application/json",
-                            "Authorization": `Bearer ${this.access_token}`
-                        },
-                        body: request_typed.body
-                    }
-                )
-                if (!response.ok) {
-                    console.error("Failed to backup keys", response);
-                }
-                this.olmMachine.markRequestAsSent(request_typed.id!, request_typed.type, await response.text());
-            }
+            await this.processRequest(request);
         }
 
         await this.shareKeys();
+        this.outgoingRequestsBeingProcessed = false;
     }
 
     public async shareKeys() {
@@ -509,264 +399,217 @@ export class MatrixClient extends EventEmitter {
         if (!this.olmMachine) {
             throw Error("Olm machine must be set first");
         }
-        for (const room of [...this.rooms].filter(room => room.isEncrypted())) {
-            const request = await this.olmMachine?.getMissingSessions(room.getJoinedMemberIDs().map(id => new UserId(id)));
-            if (!request) {
-                continue;
-            }
-            // Check which type the request is
-            if (request.type === RequestType.KeysUpload) {
-                // Send the key
-                const request_typed = request as KeysUploadRequest;
-                const response = await fetch(
-                    `${this.hostname}/_matrix/client/v3/keys/upload`,
-                    {
-                        method: "POST",
-                        headers: {
-                            "Content-Type": "application/json",
-                            "Authorization": `Bearer ${this.access_token}`
-                        },
-                        body: request_typed.body
-                    }
-                )
-                if (!response.ok) {
-                    console.error("Failed to upload keys", response);
-                }
-                this.olmMachine.markRequestAsSent(request_typed.id!, request_typed.type, await response.text());
-            } else if (request.type === RequestType.KeysQuery) {
-                const request_typed = request as KeysQueryRequest;
-                const response = await fetch(
-                    `${this.hostname}/_matrix/client/v3/keys/query`,
-                    {
-                        method: "POST",
-                        headers: {
-                            "Content-Type": "application/json",
-                            "Authorization": `Bearer ${this.access_token}`
-                        },
-                        body: request_typed.body
-                    }
-                )
-                if (!response.ok) {
-                    console.error("Failed to query keys", response);
-                }
-                this.olmMachine.markRequestAsSent(request_typed.id!, request_typed.type, await response.text());
-            } else if (request.type === RequestType.KeysClaim) {
-                const request_typed = request as KeysClaimRequest;
-                const response = await fetch(
-                    `${this.hostname}/_matrix/client/v3/keys/claim`,
-                    {
-                        method: "POST",
-                        headers: {
-                            "Content-Type": "application/json",
-                            "Authorization": `Bearer ${this.access_token}`
-                        },
-                        body: request_typed.body
-                    }
-                )
-                if (!response.ok) {
-                    console.error("Failed to claim keys", response);
-                }
-                this.olmMachine.markRequestAsSent(request_typed.id!, request_typed.type, await response.text());
-            } else if (request.type === RequestType.ToDevice) {
-                const request_typed = request as ToDeviceRequest;
-                const response = await fetch(
-                    `${this.hostname}/_matrix/client/v3/sendToDevice/${request_typed.event_type}/${request_typed.txn_id}`,
-                    {
-                        method: "PUT",
-                        headers: {
-                            "Content-Type": "application/json",
-                            "Authorization": `Bearer ${this.access_token}`
-                        },
-                        body: request_typed.body
-                    }
-                )
-                if (!response.ok) {
-                    console.error("Failed to send to device", response);
-                }
-                this.olmMachine.markRequestAsSent(request_typed.id ?? request_typed.txn_id, request_typed.type, await response.text());
-            } else if (request.type === RequestType.SignatureUpload) {
-                const request_typed = request as SignatureUploadRequest;
-                const response = await fetch(
-                    `${this.hostname}/_matrix/client/v3/keys/signatures/upload`,
-                    {
-                        method: "POST",
-                        headers: {
-                            "Content-Type": "application/json",
-                            "Authorization": `Bearer ${this.access_token}`
-                        },
-                        body: request_typed.body
-                    }
-                )
-                if (!response.ok) {
-                    console.error("Failed to upload signatures", response);
-                }
-                this.olmMachine.markRequestAsSent(request_typed.id!, request_typed.type, await response.text());
-            } else if (request.type === RequestType.RoomMessage) {
-                const request_typed = request as RoomMessageRequest;
-                const response = await fetch(
-                    `${this.hostname}/_matrix/client/v3/rooms/${request_typed.room_id}/send/${request_typed.event_type}/${request_typed.txn_id}`,
-                    {
-                        method: "PUT",
-                        headers: {
-                            "Content-Type": "application/json",
-                            "Authorization": `Bearer ${this.access_token}`
-                        },
-                        body: request_typed.body
-                    }
-                )
-                if (!response.ok) {
-                    console.error("Failed to send message", response);
-                }
-                this.olmMachine.markRequestAsSent(request_typed.id!, request_typed.type, await response.text());
-            } else if (request.type === RequestType.KeysBackup) {
-                const request_typed = request as KeysBackupRequest;
-                const response = await fetch(
-                    `${this.hostname}/_matrix/client/v3/room_keys/keys`,
-                    {
-                        method: "PUT",
-                        headers: {
-                            "Content-Type": "application/json",
-                            "Authorization": `Bearer ${this.access_token}`
-                        },
-                        body: request_typed.body
-                    }
-                )
-                if (!response.ok) {
-                    console.error("Failed to backup keys", response);
-                }
-                this.olmMachine.markRequestAsSent(request_typed.id!, request_typed.type, await response.text());
-            }
 
+        if (this.missingSessionsBeingRequested) {
+            return;
+        }
+        this.missingSessionsBeingRequested = true;
 
+        const encryptedRooms = [...this.rooms].filter(room => room.isEncrypted());
+        const users = encryptedRooms.map(room => room.getJoinedMemberIDs().map(id => new UserId(id))).flat();
+        const request = await this.olmMachine?.getMissingSessions(users);
+        if (request) {
+            await this.processRequest(request);
+        }
+
+        for (const room of encryptedRooms) {
             const encryptionSettings = room.getEncryptionSettings();
             if (encryptionSettings) {
                 const requests = await this.olmMachine.shareRoomKey(new RoomId(room.roomID), room.getJoinedMemberIDs().map(id => new UserId(id)), encryptionSettings);
                 for (const request of requests) {
-                    // Check which type the request is
-                    if (request.type === RequestType.KeysUpload) {
-                        // Send the key
-                        const request_typed = request as KeysUploadRequest;
-                        const response = await fetch(
-                            `${this.hostname}/_matrix/client/v3/keys/upload`,
-                            {
-                                method: "POST",
-                                headers: {
-                                    "Content-Type": "application/json",
-                                    "Authorization": `Bearer ${this.access_token}`
-                                },
-                                body: request_typed.body
-                            }
-                        )
-                        if (!response.ok) {
-                            console.error("Failed to upload keys", response);
-                        }
-                        this.olmMachine.markRequestAsSent(request_typed.id!, request_typed.type, await response.text());
-                    } else if (request.type === RequestType.KeysQuery) {
-                        const request_typed = request as KeysQueryRequest;
-                        const response = await fetch(
-                            `${this.hostname}/_matrix/client/v3/keys/query`,
-                            {
-                                method: "POST",
-                                headers: {
-                                    "Content-Type": "application/json",
-                                    "Authorization": `Bearer ${this.access_token}`
-                                },
-                                body: request_typed.body
-                            }
-                        )
-                        if (!response.ok) {
-                            console.error("Failed to query keys", response);
-                        }
-                        this.olmMachine.markRequestAsSent(request_typed.id!, request_typed.type, await response.text());
-                    } else if (request.type === RequestType.KeysClaim) {
-                        const request_typed = request as KeysClaimRequest;
-                        const response = await fetch(
-                            `${this.hostname}/_matrix/client/v3/keys/claim`,
-                            {
-                                method: "POST",
-                                headers: {
-                                    "Content-Type": "application/json",
-                                    "Authorization": `Bearer ${this.access_token}`
-                                },
-                                body: request_typed.body
-                            }
-                        )
-                        if (!response.ok) {
-                            console.error("Failed to claim keys", response);
-                        }
-                        this.olmMachine.markRequestAsSent(request_typed.id!, request_typed.type, await response.text());
-                    } else if (request.type === RequestType.ToDevice) {
-                        const request_typed = request as ToDeviceRequest;
-                        const response = await fetch(
-                            `${this.hostname}/_matrix/client/v3/sendToDevice/${request_typed.event_type}/${request_typed.txn_id}`,
-                            {
-                                method: "PUT",
-                                headers: {
-                                    "Content-Type": "application/json",
-                                    "Authorization": `Bearer ${this.access_token}`
-                                },
-                                body: request_typed.body
-                            }
-                        )
-                        if (!response.ok) {
-                            console.error("Failed to send to device", response);
-                        }
-                        console.log(request_typed);
-                        this.olmMachine.markRequestAsSent(request_typed.id ?? request_typed.txn_id, request_typed.type, await response.text());
-                    } else if (request.type === RequestType.SignatureUpload) {
-                        const request_typed = request as SignatureUploadRequest;
-                        const response = await fetch(
-                            `${this.hostname}/_matrix/client/v3/keys/signatures/upload`,
-                            {
-                                method: "POST",
-                                headers: {
-                                    "Content-Type": "application/json",
-                                    "Authorization": `Bearer ${this.access_token}`
-                                },
-                                body: request_typed.body
-                            }
-                        )
-                        if (!response.ok) {
-                            console.error("Failed to upload signatures", response);
-                        }
-                        this.olmMachine.markRequestAsSent(request_typed.id!, request_typed.type, await response.text());
-                    } else if (request.type === RequestType.RoomMessage) {
-                        const request_typed = request as RoomMessageRequest;
-                        const response = await fetch(
-                            `${this.hostname}/_matrix/client/v3/rooms/${request_typed.room_id}/send/${request_typed.event_type}/${request_typed.txn_id}`,
-                            {
-                                method: "PUT",
-                                headers: {
-                                    "Content-Type": "application/json",
-                                    "Authorization": `Bearer ${this.access_token}`
-                                },
-                                body: request_typed.body
-                            }
-                        )
-                        if (!response.ok) {
-                            console.error("Failed to send message", response);
-                        }
-                        this.olmMachine.markRequestAsSent(request_typed.id!, request_typed.type, await response.text());
-                    } else if (request.type === RequestType.KeysBackup) {
-                        const request_typed = request as KeysBackupRequest;
-                        const response = await fetch(
-                            `${this.hostname}/_matrix/client/v3/room_keys/keys`,
-                            {
-                                method: "PUT",
-                                headers: {
-                                    "Content-Type": "application/json",
-                                    "Authorization": `Bearer ${this.access_token}`
-                                },
-                                body: request_typed.body
-                            }
-                        )
-                        if (!response.ok) {
-                            console.error("Failed to backup keys", response);
-                        }
-                        this.olmMachine.markRequestAsSent(request_typed.id!, request_typed.type, await response.text());
-                    }
+                    await this.processRequest(request);
                 }
             }
+        }
+
+        this.missingSessionsBeingRequested = false;
+    }
+
+    private async logout() {
+        this.stopSync();
+        this.abortController.abort();
+        this.access_token = undefined;
+        this.device_id = undefined;
+        this.initialSync = true;
+        this.rooms = new Set();
+        this.slidingSyncHostname = undefined;
+        this.syncPos = undefined;
+        this.to_device_since = undefined;
+        this.outgoingRequestsBeingProcessed = false;
+        this.missingSessionsBeingRequested = false;
+        const syncInfoTX = this.database?.transaction('syncInfo', 'readwrite');
+        await syncInfoTX?.store.delete(this.mxid!);
+        await syncInfoTX?.done;
+        const loginInfoTX = this.database?.transaction('loginInfo', 'readwrite');
+        await loginInfoTX?.store.delete(this.mxid!);
+        await loginInfoTX?.done;
+        const roomTX = this.database?.transaction('rooms', 'readwrite');
+        await roomTX?.store.clear();
+        await roomTX?.done;
+        await deleteDB("cetirizine-crypto");
+        this.mxid = undefined;
+    }
+
+    private async processRequest(request: any) {
+        if (!this.isLoggedIn) {
+            throw Error("Not logged in");
+        }
+        if (!this.slidingSyncHostname) {
+            throw Error("Hostname must be set first");
+        }
+        if (!this.olmMachine) {
+            throw Error("Olm machine must be set first");
+        }
+        // Check which type the request is
+        if (request.type === RequestType.KeysUpload) {
+            // Send the key
+            const request_typed = request as KeysUploadRequest;
+            const response = await fetch(
+                `${this.hostname}/_matrix/client/v3/keys/upload`,
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${this.access_token}`
+                    },
+                    body: request_typed.body
+                }
+            )
+            if (!response.ok) {
+                if (response.status === 401) {
+                    await this.logout();
+                    console.error(response);
+                }
+                console.error("Failed to upload keys", response);
+            }
+            this.olmMachine.markRequestAsSent(request_typed.id!, request_typed.type, await response.text());
+        } else if (request.type === RequestType.KeysQuery) {
+            const request_typed = request as KeysQueryRequest;
+            const response = await fetch(
+                `${this.hostname}/_matrix/client/v3/keys/query`,
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${this.access_token}`
+                    },
+                    body: request_typed.body
+                }
+            )
+            if (!response.ok) {
+                if (response.status === 401) {
+                    await this.logout();
+                    console.error(response);
+                }
+                console.error("Failed to query keys", response);
+            }
+            this.olmMachine.markRequestAsSent(request_typed.id!, request_typed.type, await response.text());
+        } else if (request.type === RequestType.KeysClaim) {
+            const request_typed = request as KeysClaimRequest;
+            const response = await fetch(
+                `${this.hostname}/_matrix/client/v3/keys/claim`,
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${this.access_token}`
+                    },
+                    body: request_typed.body
+                }
+            )
+            if (!response.ok) {
+                if (response.status === 401) {
+                    await this.logout();
+                    console.error(response);
+                }
+                console.error("Failed to claim keys", response);
+            }
+            this.olmMachine.markRequestAsSent(request_typed.id!, request_typed.type, await response.text());
+        } else if (request.type === RequestType.ToDevice) {
+            const request_typed = request as ToDeviceRequest;
+            const response = await fetch(
+                `${this.hostname}/_matrix/client/v3/sendToDevice/${request_typed.event_type}/${request_typed.txn_id}`,
+                {
+                    method: "PUT",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${this.access_token}`
+                    },
+                    body: request_typed.body
+                }
+            )
+            if (!response.ok) {
+                if (response.status === 401) {
+                    await this.logout();
+                    console.error(response);
+                }
+                console.error("Failed to send to device", response);
+            }
+            console.log(request_typed);
+            this.olmMachine.markRequestAsSent(request_typed.id ?? request_typed.txn_id, request_typed.type, await response.text());
+        } else if (request.type === RequestType.SignatureUpload) {
+            const request_typed = request as SignatureUploadRequest;
+            const response = await fetch(
+                `${this.hostname}/_matrix/client/v3/keys/signatures/upload`,
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${this.access_token}`
+                    },
+                    body: request_typed.body
+                }
+            )
+            if (!response.ok) {
+                if (response.status === 401) {
+                    await this.logout();
+                    console.error(response);
+                }
+                console.error("Failed to upload signatures", response);
+            }
+            this.olmMachine.markRequestAsSent(request_typed.id!, request_typed.type, await response.text());
+        } else if (request.type === RequestType.RoomMessage) {
+            const request_typed = request as RoomMessageRequest;
+            const response = await fetch(
+                `${this.hostname}/_matrix/client/v3/rooms/${request_typed.room_id}/send/${request_typed.event_type}/${request_typed.txn_id}`,
+                {
+                    method: "PUT",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${this.access_token}`
+                    },
+                    body: request_typed.body
+                }
+            )
+            if (!response.ok) {
+                if (response.status === 401) {
+                    await this.logout();
+                    console.error(response);
+                }
+                console.error("Failed to send message", response);
+            }
+            this.olmMachine.markRequestAsSent(request_typed.id!, request_typed.type, await response.text());
+        } else if (request.type === RequestType.KeysBackup) {
+            const request_typed = request as KeysBackupRequest;
+            const response = await fetch(
+                `${this.hostname}/_matrix/client/v3/room_keys/keys`,
+                {
+                    method: "PUT",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${this.access_token}`
+                    },
+                    body: request_typed.body
+                }
+            )
+            if (!response.ok) {
+                if (response.status === 401) {
+                    await this.logout();
+                    console.error(response);
+                }
+                console.error("Failed to backup keys", response);
+            }
+            this.olmMachine.markRequestAsSent(request_typed.id!, request_typed.type, await response.text());
         }
     }
 
@@ -785,10 +628,15 @@ export class MatrixClient extends EventEmitter {
             "overview": number[][];
             [key: string]: number[][];
         } = {
-            "overview": [[0, 10]],
+            "overview": [[0, 50]],
             // Needed for calcs
             "spaces": [[0, Number.MAX_SAFE_INTEGER]]
         };
+        for (const space of this.spaceOpen) {
+            if (space === "other") { continue }
+            lists_ranges[space] = [[0, 50]];
+        }
+
         let timeline_limit = 1;
         let subscription_limit = 10;
         if (!this.initialSync) {
@@ -809,8 +657,8 @@ export class MatrixClient extends EventEmitter {
                 }
 
                 // Increment range by 1 to make sure we always get a little more than we need
-                // [1,2,3,4,7,8,9,10,11] -> [2,3,4,5,8,9,10,11,12]
-                rawRangeInView.add([...rawRangeInView][rawRangeInView.size - 1] + 1);
+                // [1,2,3,4,7,8,9,10,11] -> [2,3,4,5,8,9,10,11,16]
+                rawRangeInView.add([...rawRangeInView][rawRangeInView.size - 1] + 5);
 
 
                 // Turn an input like [1,2,3,4,7,8,9,10,11] to [[1,4], [7,11]]
@@ -834,15 +682,36 @@ export class MatrixClient extends EventEmitter {
                 // Sort by the first element of each range and add to the object
                 const sorted = rangesInView.sort((a, b) => a[0] - b[0]);
 
+                const deduped = [];
+                deduped.push(sorted[0]);
+                for (let i = 1; i < sorted.length; i++) {
+                    let ok;
+                    for (let j = 0; j < i; j++) {
+                        if (deduped[j].length != sorted[i].length) {
+                            continue
+                        }
+                        ok = false;
+                        for (let k = 0; k < sorted[i].length; k++) {
+                            if (sorted[i][k] != sorted[j][k]) {
+                                ok = true
+                            }
+                        };
+                        if (ok == false) {
+                            break
+                        };
+                    }
+                    if (ok) {
+                        deduped.push(sorted[i])
+                    };
+                }
+
+
                 // Deduplicate ranges
-                let known = new Set()
-                let deduped = sorted.map(subarray =>
-                    subarray.filter(item => !known.has(item) && known.add(item))
-                )
+                const deduped_final = deduped
                     .filter(subarray => subarray.length === 2)
                     .filter(subarray => subarray[0] !== undefined && subarray[1] !== undefined && subarray[0] !== null && subarray[1] !== null)
 
-                lists_ranges[list] = deduped;
+                lists_ranges[list] = deduped_final;
             }
         }
 
@@ -859,10 +728,15 @@ export class MatrixClient extends EventEmitter {
             this.lastTxnID = Date.now().toString();
         }
 
+        if (this.mustUpdateTxnID) {
+            this.lastTxnID = Date.now().toString();
+            this.mustUpdateTxnID = false;
+        }
 
-        let url = `${this.slidingSyncHostname}/_matrix/client/unstable/org.matrix.msc3575/sync?timeout=30000`;
+
+        let url = `${this.slidingSyncHostname}/_matrix/client/unstable/org.matrix.msc3575/sync?timeout=5000`;
         if (this.syncPos) {
-            url = `${this.slidingSyncHostname}/_matrix/client/unstable/org.matrix.msc3575/sync?timeout=30000&pos=${this.syncPos}`
+            url = `${this.slidingSyncHostname}/_matrix/client/unstable/org.matrix.msc3575/sync?timeout=5000&pos=${this.syncPos}`
         }
 
         const body: ISlidingSyncReq = {
@@ -923,7 +797,9 @@ export class MatrixClient extends EventEmitter {
                         ["m.room.history_visibility", ""],
                     ],
                     timeline_limit: timeline_limit,
-                    filters: {}
+                    filters: {
+                        not_room_types: ["m.space"],
+                    }
                 },
             },
             bump_event_types: ["m.room.message", "m.room.encrypted"],
@@ -938,6 +814,39 @@ export class MatrixClient extends EventEmitter {
                 }
             },
         };
+
+        for (const space of this.spaceOpen) {
+            if (space === "other") { continue }
+            if (!body.lists) {
+                body.lists = {};
+            }
+            body.lists[space] = {
+                slow_get_all_rooms: true,
+                //ranges: this.lastRanges[space],
+                // sort: ["by_notification_level", "by_recency", "by_name"],
+                required_state: [
+                    // needed to build sections
+                    ["m.space.child", "*"],
+                    ["m.space.parent", "*"],
+                    ["m.room.create", ""],
+                    // Room Avatar
+                    ["m.room.avatar", "*"],
+                    // Room Topic
+                    ["m.room.topic", "*"],
+                    // Request only the m.room.member events required to render events in the timeline.
+                    // The "$LAZY" value is a special sentinel value meaning "lazy loading" and is only valid for
+                    // the "m.room.member" event type. For more information on the semantics, see "Lazy-Loading Room Members".
+                    ["m.room.member", "$LAZY"],
+                    // E2EE
+                    ["m.room.encryption", ""],
+                    ["m.room.history_visibility", ""],
+                ],
+                timeline_limit: timeline_limit,
+                filters: {
+                    "spaces": [space]
+                }
+            }
+        }
 
         if (this.currentRoom) {
             body.room_subscriptions = {};
@@ -969,6 +878,7 @@ export class MatrixClient extends EventEmitter {
             method: "POST",
             signal: this.abortController.signal,
             headers: {
+                "Content-Type": "application/json",
                 "Authorization": `Bearer ${this.access_token}`
             },
             body: JSON.stringify(body)
@@ -988,9 +898,11 @@ export class MatrixClient extends EventEmitter {
                     await syncInfoTX?.done;
                 }
                 return;
+            } else if (resp.status === 401) {
+                await this.logout();
+                console.error(resp);
+                console.error("Error syncing. See console for error.");
             }
-            console.error(resp);
-            console.error("Error syncing. See console for error.");
         }
         const json = await resp.json() as ISlidingSyncResp;
         this.syncPos = json.pos;
@@ -1300,11 +1212,25 @@ export class MatrixClient extends EventEmitter {
     }
 
     public addSpaceOpen(roomID: string) {
+        if (roomID === "other") {
+            return;
+        }
         this.spaceOpen.push(roomID);
+
+        console.log("Space opened", roomID, "restarting sync");
+        this.mustUpdateTxnID = true;
+        //this.abortController.abort();
+        this.abortController = new AbortController();
     }
 
     public removeSpaceOpen(roomID: string) {
+        if (roomID === "other") {
+            return;
+        }
         this.spaceOpen = this.spaceOpen.filter(room => room !== roomID);
+        this.mustUpdateTxnID = true;
+
+        // We intentionally do not restart the sync here since it will update in the next sync anyway.
     }
 
     public getRooms(): Set<Room> {

@@ -9,7 +9,7 @@ import { FC, memo, useContext, useEffect, useRef, useState } from 'react';
 import { MatrixContext } from '../app/sdk/client';
 import { useLocation, useParams } from 'react-router-dom';
 import MessageEvent from '../components/events/messageEvent';
-import UnknownEvent from '../components/events/unknownEvent';
+import UnknownEvent, { UndecryptableEvent } from '../components/events/unknownEvent';
 import MemberEvent from '../components/events/memberEvent';
 import { IRoomEvent, IRoomMemberEvent } from '../app/sdk/api/apiTypes';
 import Linkify from 'linkify-react';
@@ -45,8 +45,8 @@ const ChatView: FC<ChatViewProps> = memo(({ roomID, scrollRef }) => {
         });
 
 
-        Promise.all(dedupedEvents?.filter(event => event.type !== "m.reaction").map(async (event, index) => {
-            const previousEvent = dedupedEvents?.filter(event => event.type !== "m.reaction")[index - 1];
+        Promise.all(dedupedEvents?.filter(event => event.type !== "m.reaction" && !event.content["m.relates_to"]).map(async (event, index) => {
+            let previousEvent = dedupedEvents?.filter(event => event.type !== "m.reaction")[index - 1];
             const previousEventIsFromSameSender = previousEvent?.sender === event.sender;
             let previousEventType = previousEvent?.type;
 
@@ -55,15 +55,57 @@ const ChatView: FC<ChatViewProps> = memo(({ roomID, scrollRef }) => {
                 return e.type === "m.reaction" && e.content["m.relates_to"].event_id === event.event_id;
             });
 
+            // Check if there is an edit (m.relates_to with rel_type of "m.replace")
+            const edit = dedupedEvents?.find((e) => {
+                if (!e.content["m.relates_to"]) {
+                    return false;
+                }
+                return e.content["m.relates_to"].rel_type === "m.replace" && e.content["m.relates_to"].event_id === event.event_id;
+            });
+
+            // If there is an edit, use the edited event instead of the original event
+            if (edit) {
+                event = edit;
+                if (edit.content["m.new_content"]) {
+                    event.content.body = edit.content["m.new_content"].body;
+                    event.content.formatted_body = edit.content["m.new_content"].formatted_body;
+                    event.content.format = edit.content["m.new_content"].format;
+                }
+            }
+
+
             // Decrypt the event if it is encrypte
             if (event.type === "m.room.encrypted") {
                 try {
                     const decrypted_event = await client.olmMachine?.decryptRoomEvent(JSON.stringify(event), new RoomId(roomID || ""));
                     if (decrypted_event) {
                         event = JSON.parse(decrypted_event.event) as IRoomEvent;
-                        previousEventType = event.type;
+                        if (event.content["m.new_content"]) {
+                            event.content.body = event.content["m.new_content"].body;
+                            event.content.formatted_body = event.content["m.new_content"].formatted_body;
+                            event.content.format = event.content["m.new_content"].format;
+                        }
                     } else {
-                        return (<p>Unable to decrypt event</p>)
+                        return (<UndecryptableEvent event={event} hasPreviousEvent={previousEventIsFromSameSender} roomID={roomID}></UndecryptableEvent>)
+                    }
+                } catch (e: any) {
+                    console.error(e);
+                    return (<UndecryptableEvent event={event} hasPreviousEvent={previousEventIsFromSameSender} roomID={roomID}></UndecryptableEvent>)
+                }
+            }
+
+            // Decrypt previousEvent if it is encrypted
+            if (previousEvent?.type === "m.room.encrypted") {
+                try {
+                    const decrypted_event = await client.olmMachine?.decryptRoomEvent(JSON.stringify(previousEvent), new RoomId(roomID || ""));
+                    if (decrypted_event) {
+                        previousEvent = JSON.parse(decrypted_event.event) as IRoomEvent;
+                        previousEventType = previousEvent.type;
+                        if (previousEvent.content["m.new_content"]) {
+                            previousEvent.content.body = previousEvent.content["m.new_content"].body;
+                            previousEvent.content.formatted_body = previousEvent.content["m.new_content"].formatted_body;
+                            previousEvent.content.format = previousEvent.content["m.new_content"].format;
+                        }
                     }
                 } catch (e: any) {
                     console.error(e);
