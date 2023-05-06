@@ -4,10 +4,9 @@ import { BADGE } from '@geometricpanda/storybook-addon-badges';
 
 const meta: Meta<typeof Header> = {
     title: 'Fundamentals/Typography/Header',
-    tags: ['autodocs'],
     component: Header,
     parameters: {
-        badges: [BADGE.EXPERIMENTAL]
+        //badges: [BADGE.EXPERIMENTAL]
     },
     argTypes: {
         children: {

@@ -8,8 +8,7 @@ const config: StorybookConfig = {
     "@storybook/addon-essentials",
     "@storybook/addon-interactions",
     '@storybook/addon-a11y',
-    '@geometricpanda/storybook-addon-badges',
-    '@storybook/addon-styling',
+    //'@geometricpanda/storybook-addon-badges',
     'storybook-addon-react-router-v6'
   ],
   framework: {

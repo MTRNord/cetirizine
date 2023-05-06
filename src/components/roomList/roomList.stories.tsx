@@ -5,11 +5,10 @@ import { withRouter } from 'storybook-addon-react-router-v6';
 
 const meta: Meta<typeof RoomList> = {
     title: 'Chat/RoomList',
-    tags: ['autodocs'],
     component: RoomList,
     decorators: [withRouter],
     parameters: {
-        badges: [BADGE.EXPERIMENTAL]
+        //badges: [BADGE.EXPERIMENTAL]
     },
     argTypes: {
         sections: {

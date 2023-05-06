@@ -4,10 +4,9 @@ import { BADGE } from '@geometricpanda/storybook-addon-badges';
 
 const meta: Meta<typeof Avatar> = {
     title: 'Chat/Avatar',
-    tags: ['autodocs'],
     component: Avatar,
     parameters: {
-        badges: [BADGE.EXPERIMENTAL]
+        //badges: [BADGE.EXPERIMENTAL]
     },
     argTypes: {
         avatarUrl: {

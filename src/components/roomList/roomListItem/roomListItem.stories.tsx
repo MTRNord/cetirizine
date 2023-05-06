@@ -4,10 +4,9 @@ import { BADGE } from '@geometricpanda/storybook-addon-badges';
 
 const meta: Meta<typeof RoomListItem> = {
     title: 'Chat/RoomList/Item',
-    tags: ['autodocs'],
     component: RoomListItem,
     parameters: {
-        badges: [BADGE.EXPERIMENTAL]
+        //badges: [BADGE.EXPERIMENTAL]
     },
     argTypes: {
         avatarUrl: {

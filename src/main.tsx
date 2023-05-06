@@ -1,4 +1,3 @@
-/// <reference types="./@types/global.d.ts" />
 import { LoggerLevel, Tracing, initAsync, start } from "@matrix-org/matrix-sdk-crypto-js";
 import React from 'react'
 import { createRoot } from 'react-dom/client';

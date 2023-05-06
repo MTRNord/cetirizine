@@ -4,10 +4,9 @@ import { BADGE } from '@geometricpanda/storybook-addon-badges';
 
 const meta: Meta<typeof Input> = {
     title: 'Fundamentals/Inputs/BasicInput',
-    tags: ['autodocs'],
     component: Input,
     parameters: {
-        badges: [BADGE.EXPERIMENTAL]
+        //badges: [BADGE.EXPERIMENTAL]
     },
     argTypes: {
         placeholder: {

@@ -3,7 +3,6 @@ import LoginPage from './LoginPage';
 
 const meta: Meta<typeof LoginPage> = {
     title: 'Pages/LoginPage',
-    tags: ['autodocs'],
     component: LoginPage,
 };
 

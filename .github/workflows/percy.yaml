@@ -12,7 +12,7 @@ jobs:
       - uses: actions/setup-node@v3
         with:
           node-version: '18'
-      - run: npm install
+      - run: npm install && npx browserslist@latest --update-db
       - run: npm run percy
         env:
           PERCY_TOKEN: ${{ secrets.PERCY_TOKEN }}

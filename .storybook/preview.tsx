@@ -1,8 +1,7 @@
 import type { Preview } from "@storybook/react";
-import React from "react";
-import { withThemeByDataAttribute } from '@storybook/addon-styling';
 import "../src/index.scss";
 import "./tailwindcss.scss";
+import { DEFAULT_THEME, withTailwindTheme } from "./withTailwindTheme.decorator";
 
 const preview: Preview = {
   parameters: {
@@ -19,18 +18,25 @@ const preview: Preview = {
       },
     },
   },
-  decorators: [
-    withThemeByDataAttribute({
-      themes: {
-        light: 'light',
-        dark: 'dark',
+  globalTypes: {
+    theme: {
+      name: "Theme",
+      description: "Global theme for components",
+      defaultValue: DEFAULT_THEME,
+      toolbar: {
+        icon: "paintbrush",
+        // Array of plain string values or MenuItem shape (see below)
+        items: [
+          { value: "light", title: "Light", left: "🌞" },
+          { value: "dark", title: "Dark", left: "🌛" },
+        ],
+        // Change title based on selected value
+        dynamicTitle: true,
       },
-      defaultTheme: 'light',
-      attributeName: 'data-mode',
-    }),
-    (Story) => (
-      <Story />
-    ),
+    },
+  },
+  decorators: [
+    withTailwindTheme
   ]
 };
 

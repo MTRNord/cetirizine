@@ -4,10 +4,9 @@ import { BADGE } from '@geometricpanda/storybook-addon-badges';
 
 const meta: Meta<typeof Button> = {
     title: 'Fundamentals/Buttons/BasicButton',
-    tags: ['autodocs'],
     component: Button,
     parameters: {
-        badges: [BADGE.EXPERIMENTAL]
+        //badges: [BADGE.EXPERIMENTAL]
     },
     argTypes: {
         children: {
