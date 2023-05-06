@@ -311,12 +311,22 @@ export interface IRoomMessageTextContent extends IRoomMessageContent<"m.text"> {
     formatted_body?: string;
 }
 
+export interface IRoomMessageImageContent extends IRoomMessageContent<"m.image"> {
+    info?: IImageInfo;
+    url?: string;
+    file?: IEncryptedFile;
+}
+
 export interface IRoomMessageEvent<Content = any> extends IRoomEvent<Content> { }
 
 export interface IRoomMessageTextEvent extends IRoomMessageEvent<IRoomMessageTextContent> { }
 
 export function isRoomMessageTextEvent(event: IRoomEvent): event is IRoomMessageTextEvent {
     return event.type === "m.room.message" && event.content.msgtype === "m.text";
+}
+
+export function isRoomMessageImageEvent(event: IRoomEvent): event is IRoomMessageEvent<IRoomMessageImageContent> {
+    return event.type === "m.room.message" && event.content.msgtype === "m.image";
 }
 
 export function isRoomMessageEvent(event: IRoomEvent): event is IRoomMessageEvent {
@@ -368,12 +378,29 @@ export interface IThumbnailInfo {
     w: number;
 }
 
+export interface IEncryptedFile {
+    v: string;
+    key: {
+        alg: string;
+        ext: boolean;
+        k: string;
+        key_ops: string[];
+        kty: string;
+    };
+    iv: string;
+    hashes: {
+        [key: string]: string;
+    };
+    url: string;
+}
+
 export interface IImageInfo {
     h: number;
     mimetype: string;
     size: number;
     thumbnail_info?: IThumbnailInfo;
     thumbnail_url?: string;
+    thumbnail_file?: IEncryptedFile;
     w: number;
 }
 

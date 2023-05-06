@@ -1,8 +1,8 @@
-import { memo } from "react";
-import { IRoomEvent, isRoomMessageTextEvent } from "../../app/sdk/api/apiTypes";
+import { memo, useContext, useEffect, useState } from "react";
+import { IRoomEvent, isRoomMessageImageEvent, isRoomMessageTextEvent } from "../../app/sdk/api/apiTypes";
 import { FC } from "react";
 import Avatar from "../avatar/avatar";
-import { useRoom } from "../../app/sdk/client";
+import { MatrixContext, useRoom } from "../../app/sdk/client";
 import Linkify from "linkify-react";
 import DOMPurify from "dompurify";
 
@@ -34,6 +34,7 @@ const linkifyOptions = {
 
 const MessageEvent: FC<MessageEventProps> = memo(({ event, roomID, hasPreviousEvent }) => {
     const room = useRoom(roomID);
+    const client = useContext(MatrixContext);
 
     const renderCorrectMessage = (event: IRoomEvent) => {
         if (isRoomMessageTextEvent(event)) {
@@ -113,6 +114,38 @@ const MessageEvent: FC<MessageEventProps> = memo(({ event, roomID, hasPreviousEv
                     </div>
                 )
             }
+        } else if (isRoomMessageImageEvent(event)) {
+            const [url, setUrl] = useState<string | undefined>(undefined);
+
+            useEffect(() => {
+                if (event.content.url) {
+                    setUrl(client.convertMXC(event.content.url));
+                } else {
+                    // Image is encrypted and we need to download and decrypt it
+
+                }
+            }, [event.content.url])
+
+            return (
+                <div className={!hasPreviousEvent ? "flex flex-row gap-4 p-2 pb-1 hover:bg-gray-200 rounded-md duration-200 ease-in-out items-start" : "flex flex-row p-2 pb-1 pt-0 hover:bg-gray-200 rounded-md duration-200 ease-in-out"}>
+                    {!hasPreviousEvent && <Avatar
+                        displayname={room?.getMemberName(event.sender) || ""}
+                        avatarUrl={room?.getMemberAvatar(event.sender)}
+                        online={room?.isOnline() || false}
+                        dm={room?.isDM() || false}
+                    />}
+                    <div className={!hasPreviousEvent ? "flex flex-col gap-1" : "ml-[3.7rem]"}>
+                        {!hasPreviousEvent && <h2 className="text-sm font-medium text-red-500 whitespace-normal">{room?.getMemberName(event.sender)}</h2>}
+                        {/* TODO: Loading circle while image is loading */}
+                        <img
+                            src={url}
+                            alt={event.content.body}
+                            title={event.content.body}
+                            className="rounded-md object-cover border-slate-400 border-2 max-h-[512px] max-w-[512px] h-[unset]"
+                        />
+                    </div>
+                </div>
+            )
         } else {
             return (
                 <div className={!hasPreviousEvent ? "flex flex-row gap-4 p-2 pb-1 hover:bg-gray-200 rounded-md duration-200 ease-in-out items-start" : "flex flex-row p-2 pb-1 pt-0 hover:bg-gray-200 rounded-md duration-200 ease-in-out"}>

@@ -71,7 +71,7 @@ export class Room extends EventEmitter {
             if (isRoomAvatarEvent(event)) {
                 const rawAvatarURL = event.content.url;
                 if (rawAvatarURL?.startsWith("mxc://")) {
-                    avatarURL = `${this.hostname}/_matrix/media/r0/download/${rawAvatarURL.substring(6)}`;
+                    avatarURL = this.client.convertMXC(rawAvatarURL);
                 }
             }
         });
@@ -197,7 +197,7 @@ export class Room extends EventEmitter {
                 if (event.state_key === userID && event.content.membership == "join") {
                     const rawAvatarURL = event.content.avatar_url;
                     if (rawAvatarURL?.startsWith("mxc://")) {
-                        avatarURL = `${this.hostname}/_matrix/media/r0/download/${rawAvatarURL.substring(6)}`;
+                        avatarURL = this.client.convertMXC(rawAvatarURL);
                     }
                 }
             }

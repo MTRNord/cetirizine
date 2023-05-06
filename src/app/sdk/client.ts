@@ -134,6 +134,10 @@ export class MatrixClient extends EventEmitter {
         return this.access_token !== undefined;
     }
 
+    public convertMXC(url: string): string {
+        return `${this.hostname}/_matrix/media/r0/download/${url.substring(6)}`;
+    }
+
     public setCurrentRoom(roomID?: string) {
         if (roomID !== this.currentRoom) {
             this.currentRoom = roomID;
