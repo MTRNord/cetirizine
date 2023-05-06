@@ -9,7 +9,7 @@ import { FC, memo, useContext, useEffect, useRef, useState } from 'react';
 import { MatrixContext } from '../app/sdk/client';
 import { useLocation, useParams } from 'react-router-dom';
 import MessageEvent from '../components/events/messageEvent';
-import UnknownEvent, { UndecryptableEvent } from '../components/events/unknownEvent';
+import UnknownEvent, { RedactedEvent, UndecryptableEvent } from '../components/events/unknownEvent';
 import MemberEvent from '../components/events/memberEvent';
 import { IRoomEvent, IRoomMemberEvent } from '../app/sdk/api/apiTypes';
 import Linkify from 'linkify-react';
@@ -47,7 +47,7 @@ const ChatView: FC<ChatViewProps> = memo(({ roomID, scrollRef }) => {
         });
 
 
-        Promise.all(dedupedEvents?.filter(event => event.type !== "m.reaction" && !event.content["m.relates_to"]).map(async (event, index) => {
+        Promise.all(dedupedEvents?.filter(event => event.type !== "m.reaction" && event.type !== "m.room.redaction" && !event.content["m.relates_to"]).map(async (event, index) => {
             let previousEvent = dedupedEvents?.filter(event => event.type !== "m.reaction")[index - 1];
             const previousEventIsFromSameSender = previousEvent?.sender === event.sender;
             let previousEventType = previousEvent?.type;
@@ -56,6 +56,20 @@ const ChatView: FC<ChatViewProps> = memo(({ roomID, scrollRef }) => {
             const reactions = dedupedEvents?.filter((e) => {
                 return e.type === "m.reaction" && e.content["m.relates_to"].event_id === event.event_id;
             });
+
+            // Check if event is redacted
+            const redaction = dedupedEvents?.find((e) => {
+                return e.type === "m.room.redaction" && e.redacts === event.event_id;
+            });
+            const redacted = redaction !== undefined;
+            let redacted_because = undefined;
+            let redaction_id = undefined;
+            if (redacted) {
+                redaction_id = redaction?.event_id;
+                if (redaction.content.reason) {
+                    redacted_because = redaction.content.reason;
+                }
+            }
 
             // Check if there is an edit (m.relates_to with rel_type of "m.replace")
             const edit = dedupedEvents?.find((e) => {
@@ -88,10 +102,16 @@ const ChatView: FC<ChatViewProps> = memo(({ roomID, scrollRef }) => {
                             event.content.format = event.content["m.new_content"].format;
                         }
                     } else {
+                        if (redacted) {
+                            return (<RedactedEvent event={event} redacted_because={redacted_because} key={redaction_id} roomID={roomID} hasPreviousEvent={previousEventIsFromSameSender} />)
+                        }
                         return (<UndecryptableEvent key={event.event_id} event={event} hasPreviousEvent={previousEventIsFromSameSender} roomID={roomID}></UndecryptableEvent>)
                     }
                 } catch (e: any) {
                     console.error(e);
+                    if (redacted) {
+                        return (<RedactedEvent event={event} redacted_because={redacted_because} key={redaction_id} roomID={roomID} hasPreviousEvent={previousEventIsFromSameSender} />)
+                    }
                     return (<UndecryptableEvent key={event.event_id} event={event} hasPreviousEvent={previousEventIsFromSameSender} roomID={roomID}></UndecryptableEvent>)
                 }
             }
@@ -114,7 +134,7 @@ const ChatView: FC<ChatViewProps> = memo(({ roomID, scrollRef }) => {
                 }
             }
 
-            return renderEvent(event, previousEventIsFromSameSender, previousEventType, reactions);
+            return renderEvent(event, previousEventIsFromSameSender, previousEventType, reactions, redacted, redacted_because, redaction_id);
         })).then((renderedEvents) => {
             setRenderedEvents(renderedEvents);
         });
@@ -131,14 +151,15 @@ const ChatView: FC<ChatViewProps> = memo(({ roomID, scrollRef }) => {
     }, [pathname]);
 
     // Render events based on the event type and content
-    const renderEvent = (event: IRoomEvent, previousEventIsFromSameSender: boolean, previousEventType: string, reactions: IRoomEvent[]) => {
+    const renderEvent = (event: IRoomEvent, previousEventIsFromSameSender: boolean, previousEventType: string, reactions: IRoomEvent[], redacted: boolean, redacted_because: string, redaction_id?: string) => {
+        if (redacted) {
+            return (<RedactedEvent event={event} redacted_because={redacted_because} roomID={roomID} hasPreviousEvent={previousEventIsFromSameSender} key={redaction_id} />)
+        }
         switch (event.type) {
             case "m.room.message":
                 return <MessageEvent reactions={reactions} event={event} roomID={roomID} key={event.event_id} hasPreviousEvent={previousEventIsFromSameSender && previousEventType === "m.room.message"} />
             case "m.room.member":
                 return <MemberEvent event={event as IRoomMemberEvent} key={event.event_id} />
-            case "m.room.redaction":
-                return <></>;
             default:
                 return <UnknownEvent event={event} key={event.event_id} />
         }
