@@ -86,11 +86,11 @@ const ChatView: FC<ChatViewProps> = memo(({ roomID, scrollRef }) => {
                             event.content.format = event.content["m.new_content"].format;
                         }
                     } else {
-                        return (<UndecryptableEvent event={event} hasPreviousEvent={previousEventIsFromSameSender} roomID={roomID}></UndecryptableEvent>)
+                        return (<UndecryptableEvent key={event.event_id} event={event} hasPreviousEvent={previousEventIsFromSameSender} roomID={roomID}></UndecryptableEvent>)
                     }
                 } catch (e: any) {
                     console.error(e);
-                    return (<UndecryptableEvent event={event} hasPreviousEvent={previousEventIsFromSameSender} roomID={roomID}></UndecryptableEvent>)
+                    return (<UndecryptableEvent key={event.event_id} event={event} hasPreviousEvent={previousEventIsFromSameSender} roomID={roomID}></UndecryptableEvent>)
                 }
             }
 
