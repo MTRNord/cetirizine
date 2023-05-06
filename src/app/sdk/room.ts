@@ -65,6 +65,16 @@ export class Room extends EventEmitter {
         return this.stateEvents;
     }
 
+    public isTombstoned(): boolean {
+        let isTombstoned: boolean = false;
+        this.stateEvents.forEach((event) => {
+            if (event.type === "m.room.tombstone") {
+                isTombstoned = true;
+            }
+        });
+        return isTombstoned;
+    }
+
     public getAvatarURL(): string | undefined {
         let avatarURL: string | undefined = undefined;
         this.stateEvents.forEach((event) => {

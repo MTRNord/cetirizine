@@ -1,9 +1,10 @@
-import { FC, memo, useContext, useState } from "react";
+import { FC, memo, useContext, useEffect, useState } from "react";
 import RoomListItem from "./roomListItem/roomListItem";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import './roomList.scss';
 import { useNavigate } from "react-router-dom";
 import { MatrixContext } from "../../app/sdk/client";
+import { useInView } from "react-intersection-observer";
 
 type Room = {
     /**
@@ -108,25 +109,41 @@ const RoomListRooms: FC<RoomListRoomsProps> = memo(({ sectionID, rooms, onClick,
 const RoomSection: FC<{ section: Section, onRoomClick: (roomID: string) => void, activeRoom: string | undefined }> = memo(({ section, onRoomClick, activeRoom }: { section: Section, onRoomClick: (roomID: string) => void, activeRoom: string | undefined }) => {
     const [hidden, setHidden] = useState<boolean>(true);
     const matrixClient = useContext(MatrixContext);
-    if (hidden) {
-        matrixClient.removeSpaceOpen(section.roomID);
-    } else {
-        matrixClient.addSpaceOpen(section.roomID);
-    }
+    const { ref, inView } = useInView({
+        triggerOnce: true,
+        threshold: 1,
+        onChange(inView) {
+            if (section.roomID !== "other") {
+                if (inView) {
+                    matrixClient.addInViewRoom(section.roomID)
+                } else {
+                    matrixClient.removeInViewRoom(section.roomID)
+                }
+            }
+        },
+    });
+    useEffect(() => {
+        if (hidden) {
+            matrixClient.removeSpaceOpen(section.roomID);
+        } else {
+            matrixClient.addSpaceOpen(section.roomID);
+        }
+    }, [hidden])
     return (
-        <div key={section.roomID} className="flex flex-col gap-1 pl-4 select-none">
-            <div className="flex flex-row gap-2 py-1 items-center justify-start cursor-pointer h-8 text-slate-600" onClick={() => setHidden(prev => !prev)}>
-                {hidden ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
-                <span className='font-normal text-base capitalize max-w-[32ch] overflow-hidden text-ellipsis w-full whitespace-nowrap'>{section.sectionName}</span>
-            </div >
-            {!hidden && (<RoomListRooms
+        <div ref={ref} key={section.roomID} className="flex flex-col gap-1 pl-4 select-none">
+            {
+                inView && <div className="flex flex-row gap-2 py-1 items-center justify-start cursor-pointer h-8 text-slate-600" onClick={() => setHidden(prev => !prev)}>
+                    {hidden ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
+                    <span className='font-normal text-base capitalize max-w-[32ch] overflow-hidden text-ellipsis w-full whitespace-nowrap'>{section.sectionName}</span>
+                </div >}
+            {!hidden && inView && (<RoomListRooms
                 hidden={hidden}
                 sectionID={section.roomID}
                 rooms={section.rooms}
                 onClick={onRoomClick}
                 activeRoom={activeRoom}
             />)}
-            {!hidden && (
+            {!hidden && inView && (
                 section.subsections.map(section => {
                     return (
                         <RoomSection

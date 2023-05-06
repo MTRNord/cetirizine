@@ -42,8 +42,8 @@ const RoomListItem: FC<RoomListItemProps> = memo(({ roomId, avatarUrl, displayna
     const matrixClient = useContext(MatrixContext);
     const { ref, inView } = useInView({
         triggerOnce: true,
-        rootMargin: '200px 0px',
         skip: hidden,
+        threshold: 1,
         onChange(inView) {
             if (inView) {
                 matrixClient.addInViewRoom(roomId)

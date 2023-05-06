@@ -110,6 +110,7 @@ export class MatrixClient extends EventEmitter {
     private slidingSyncHostname?: string;
     private syncing = false;
     private roomsInView: string[] = [];
+    private spacesInView: string[] = [];
     private spaceOpen: string[] = [];
     private rooms: Set<Room> = new Set();
     private syncPos?: string;
@@ -630,11 +631,11 @@ export class MatrixClient extends EventEmitter {
         // This is the initial sync case for each list
         let lists_ranges: {
             "overview": number[][];
+            "spaces": number[][];
             [key: string]: number[][];
         } = {
-            "overview": [[0, 50]],
-            // Needed for calcs
-            "spaces": [[0, Number.MAX_SAFE_INTEGER]]
+            "overview": [[0, 20]],
+            "spaces": [[0, 20]]
         };
         for (const space of this.spaceOpen) {
             if (space === "other") { continue }
@@ -650,72 +651,88 @@ export class MatrixClient extends EventEmitter {
                 subscription_limit = 50;
                 // Calculate overlap between this.roomsInView and this.roomToRoomID and then
                 // calculate the ranges for each list
-                const rawRangeInView = new Set([...this.rooms]
+                let rawRangeInView = new Set([...this.rooms]
                     .filter(room => this.roomsInView.includes(room.roomID))
-                    .map(room => room.windowPos[list]).sort())
+                    .map(room => room.windowPos[list]).sort().filter(x => x !== undefined && x !== null))
 
-
-                if (rawRangeInView.size === 0) {
-                    // If there are no rooms in view, we can skip this list
-                    continue;
-                }
-
-                // Increment range by 1 to make sure we always get a little more than we need
-                // [1,2,3,4,7,8,9,10,11] -> [2,3,4,5,8,9,10,11,16]
-                rawRangeInView.add([...rawRangeInView][rawRangeInView.size - 1] + 5);
-
-
-                // Turn an input like [1,2,3,4,7,8,9,10,11] to [[1,4], [7,11]]
-                const rangesInView = [...rawRangeInView].reduce((acc, cur, i, arr) => {
-                    if (i === 0) {
-                        // [1,2,3,4] -> [[1,1]]
-                        acc.push([cur, cur]);
-                        return acc;
-                    }
-                    // Cur = 2, arr = [1,2,3,4], arr[i - 1] + 1 = 2 then
-                    if (cur === arr[i - 1] + 1) {
-                        // [1,2,3,4,7] -> [[1,2]]
-                        acc[acc.length - 1][1] = cur;
-                        return acc;
-                    }
-                    // Else [1,2,3,4,7] -> [[1,2], [7,7]]
-                    acc.push([cur, cur]);
-                    return acc;
-                }, [] as [number, number][]);
-
-                // Sort by the first element of each range and add to the object
-                const sorted = rangesInView.sort((a, b) => a[0] - b[0]);
-
-                const deduped = [];
-                deduped.push(sorted[0]);
-                for (let i = 1; i < sorted.length; i++) {
-                    let ok;
-                    for (let j = 0; j < i; j++) {
-                        if (deduped[j].length != sorted[i].length) {
-                            continue
-                        }
-                        ok = false;
-                        for (let k = 0; k < sorted[i].length; k++) {
-                            if (sorted[i][k] != sorted[j][k]) {
-                                ok = true
-                            }
-                        };
-                        if (ok == false) {
-                            break
-                        };
-                    }
-                    if (ok) {
-                        deduped.push(sorted[i])
-                    };
+                if (list === "spaces") {
+                    // If we are syncing the spaces list, we need to use the spaceInView list instead
+                    rawRangeInView = new Set([...this.rooms]
+                        .filter(room => this.spacesInView.includes(room.roomID))
+                        .map(room => room.windowPos[list]).sort().filter(x => x !== undefined && x !== null))
                 }
 
 
-                // Deduplicate ranges
-                const deduped_final = deduped
-                    .filter(subarray => subarray.length === 2)
-                    .filter(subarray => subarray[0] !== undefined && subarray[1] !== undefined && subarray[0] !== null && subarray[1] !== null)
+                // if (rawRangeInView.size === 0) {
+                //     // If there are no rooms in view, we can skip this list
+                //     continue;
+                // }
 
-                lists_ranges[list] = deduped_final;
+                // // Increment range by 1 to make sure we always get a little more than we need
+                // // [1,2,3,4,7,8,9,10,11] -> [2,3,4,5,8,9,10,11,16]
+                // for (const [i, v] of rawRangeInView.entries()) {
+                //     if (i % 2 === 0) {
+                //         rawRangeInView.add(v + 5);
+                //     }
+                // }
+
+                // // Turn an input like [1,2,3,4,7,8,9,10,11] to [[1,4], [7,11]]
+                // const rangesInView = [...rawRangeInView].reduce((acc, cur, i, arr) => {
+                //     if (i === 0) {
+                //         // [1,2,3,4] -> [[1,1]]
+                //         acc.push([cur, cur]);
+                //         return acc;
+                //     }
+                //     // Cur = 2, arr = [1,2,3,4], arr[i - 1] + 1 = 2 then
+                //     if (cur === arr[i - 1] + 1) {
+                //         // [1,2,3,4,7] -> [[1,2]]
+                //         acc[acc.length - 1][1] = cur;
+                //         return acc;
+                //     }
+                //     // Else [1,2,3,4,7] -> [[1,2], [7,7]]
+                //     acc.push([cur, cur]);
+                //     return acc;
+                // }, [] as [number, number][]);
+
+                // // Sort by the first element of each range and add to the object
+                // const sorted = rangesInView.sort((a, b) => a[0] - b[0]);
+
+                // const deduped = [];
+                // deduped.push(sorted[0]);
+                // for (let i = 1; i < sorted.length; i++) {
+                //     let ok;
+                //     for (let j = 0; j < i; j++) {
+                //         if (deduped[j].length != sorted[i].length) {
+                //             continue
+                //         }
+                //         ok = false;
+                //         for (let k = 0; k < sorted[i].length; k++) {
+                //             if (sorted[i][k] != sorted[j][k]) {
+                //                 ok = true
+                //             }
+                //         };
+                //         if (ok == false) {
+                //             break
+                //         };
+                //     }
+                //     if (ok) {
+                //         deduped.push(sorted[i])
+                //     };
+                // }
+
+
+                // // Deduplicate ranges
+                // const deduped_final = deduped
+                //     .filter(subarray => subarray.length === 2)
+                //     .filter(subarray => subarray[0] !== undefined && subarray[1] !== undefined && subarray[0] !== null && subarray[1] !== null)
+
+                if (rawRangeInView.size !== 0) {
+                    console.log("changed:", rawRangeInView)
+                    const minimum = Math.min(...rawRangeInView);
+                    const maximum = Math.max(...rawRangeInView);
+
+                    lists_ranges[list] = [[Math.max(minimum - 10, 0), maximum + 10]];
+                }
             }
         }
 
@@ -756,13 +773,15 @@ export class MatrixClient extends EventEmitter {
             // Sliding Window API
             lists: {
                 "spaces": {
-                    slow_get_all_rooms: true,
+                    ranges: this.lastRanges["spaces"],
+                    // slow_get_all_rooms: true,
                     sort: ["by_name"],
                     required_state: [
                         // needed to build sections
                         ["m.space.child", "*"],
                         ["m.space.parent", "*"],
                         ["m.room.create", ""],
+                        ["m.room.tombstone", ""],
                         // Room Avatar
                         ["m.room.avatar", "*"],
                         // Room Topic
@@ -775,7 +794,7 @@ export class MatrixClient extends EventEmitter {
                         ["m.room.encryption", ""],
                         ["m.room.history_visibility", ""],
                     ],
-                    timeline_limit: timeline_limit,
+                    timeline_limit: 0,
                     filters: {
                         room_types: ["m.space"]
                     }
@@ -788,6 +807,7 @@ export class MatrixClient extends EventEmitter {
                         ["m.space.child", "*"],
                         ["m.space.parent", "*"],
                         ["m.room.create", ""],
+                        ["m.room.tombstone", ""],
                         // Room Avatar
                         ["m.room.avatar", "*"],
                         // Room Topic
@@ -825,14 +845,15 @@ export class MatrixClient extends EventEmitter {
                 body.lists = {};
             }
             body.lists[space] = {
-                slow_get_all_rooms: true,
-                //ranges: this.lastRanges[space],
-                // sort: ["by_notification_level", "by_recency", "by_name"],
+                //slow_get_all_rooms: true,
+                ranges: this.lastRanges[space],
+                sort: ["by_notification_level", "by_recency", "by_name"],
                 required_state: [
                     // needed to build sections
                     ["m.space.child", "*"],
                     ["m.space.parent", "*"],
                     ["m.room.create", ""],
+                    ["m.room.tombstone", ""],
                     // Room Avatar
                     ["m.room.avatar", "*"],
                     // Room Topic
@@ -861,6 +882,7 @@ export class MatrixClient extends EventEmitter {
                     ["m.space.child", "*"],
                     ["m.space.parent", "*"],
                     ["m.room.create", ""],
+                    ["m.room.tombstone", ""],
                     // Room Avatar
                     ["m.room.avatar", "*"],
                     // Room Topic
@@ -1215,6 +1237,14 @@ export class MatrixClient extends EventEmitter {
         this.roomsInView = this.roomsInView.filter(room => room !== roomID);
     }
 
+    public addInViewSpace(roomID: string) {
+        this.spacesInView.push(roomID);
+    }
+
+    public removeInViewSpace(roomID: string) {
+        this.spacesInView = this.spacesInView.filter(room => room !== roomID);
+    }
+
     public addSpaceOpen(roomID: string) {
         if (roomID === "other") {
             return;
@@ -1242,7 +1272,7 @@ export class MatrixClient extends EventEmitter {
     }
 
     private getSpaces(): Room[] {
-        return [...this.rooms].filter(room => room.isSpace()).sort((a: Room, b: Room) => {
+        return [...this.rooms].filter(room => room.isSpace() && !room.isTombstoned()).sort((a: Room, b: Room) => {
             if (a.getName() < b.getName()) {
                 return -1;
             }
@@ -1274,6 +1304,9 @@ export class MatrixClient extends EventEmitter {
         // Find spaces of parents
         // Check parents of each room and if we have a parent make sure to add it to the result unless already added
         for (const room of this.getRooms()) {
+            if (room.isSpace() || room.isTombstoned()) {
+                continue;
+            }
             const parents = room.getSpaceParentIDs();
             for (const parent of parents) {
                 const parentObj = [...this.getRooms()].find(room => room.roomID === parent.roomID);

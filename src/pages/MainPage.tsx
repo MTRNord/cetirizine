@@ -161,25 +161,47 @@ const MainPage = memo(() => {
     // A toplevel space is a space that is not a child of another space.
     // We can not rely only on the parent. We need to check in both directions.
     const toplevelSpaces = [...spacesWithRooms].filter(({ spaceRoom }) => {
+        const not_tombstoned = !spaceRoom.isTombstoned();
         const not_a_child = ![...spacesWithRooms].some(({ children: otherChildren }) => {
             return [...otherChildren].some(room => room.roomID === spaceRoom.roomID);
         });
         // Also check if there are no parents set
         const no_parents = spaceRoom.getSpaceParentIDs().length === 0;
-        return not_a_child && no_parents;
+        return not_a_child && no_parents && not_tombstoned;
     });
 
     // Filter rooms which are not part of any space and are not a space.
     // A room is not part of any space if it is not a child of any space.
     // A room is not a space if it has not any space as parent.
     const leftOverRooms = [...rooms].filter(room => {
+        const not_tombstoned = !room.isTombstoned();
         const not_a_child = ![...spacesWithRooms].some(({ children }) => {
             return [...children].some(otherRoom => otherRoom.roomID === room.roomID);
         });
         const no_parents = room.getSpaceParentIDs().length === 0;
         const not_a_space = !room.isSpace();
-        return not_a_child && no_parents && not_a_space;
+        return not_a_child && no_parents && not_a_space && not_tombstoned;
+    }).sort((a, b) => {
+        // Sort rooms by sliding sync list order of overview list,
+
+        // Get the index of the room in the sync list.
+        const a_index = a.windowPos["overview"];
+        const b_index = b.windowPos["overview"];
+
+        // If the room is not in the sync list, it will be at the end of the list.
+        // This is the same as the index being -1.
+        // So we need to check for that.
+        if (a_index === -1) {
+            return 1;
+        }
+        if (b_index === -1) {
+            return -1;
+        }
+
+        // If the room is in the sync list, we can compare the indexes.
+        return a_index - b_index;
     });
+
 
     // Generate a list of sections.
     // Each section apart from special toplevel ones is a space.
@@ -192,7 +214,26 @@ const MainPage = memo(() => {
     // The toplevel section "Other" is always present.
     // The toplevel section "Other" is always the last section.
     const sections = toplevelSpaces.map(space => {
-        const rooms = [...space.children].filter(room => !room.isSpace()).map(room => {
+        const rooms = [...space.children].filter(room => !room.isSpace() && !room.isTombstoned()).sort((a, b) => {
+            // Sort rooms by sliding sync list order of the spaces list,
+
+            // Get the index of the room in the sync list.
+            const a_index = a.windowPos[space.spaceRoom.roomID];
+            const b_index = b.windowPos[space.spaceRoom.roomID];
+
+            // If the room is not in the sync list, it will be at the end of the list.
+            // This is the same as the index being -1.
+            // So we need to check for that.
+            if (a_index === -1) {
+                return 1;
+            }
+            if (b_index === -1) {
+                return -1;
+            }
+
+            // If the room is in the sync list, we can compare the indexes.
+            return a_index - b_index;
+        }).map(room => {
             return {
                 roomID: room.roomID,
                 displayname: room.getName(),
@@ -205,7 +246,7 @@ const MainPage = memo(() => {
         const generateSubsections = (subspace: Room): Section | undefined => {
             const subspaceMeta = [...spacesWithRooms].find(space => space.spaceRoom.roomID === subspace.roomID);
             if (subspaceMeta) {
-                const rooms = [...subspaceMeta?.children].map(room => {
+                const rooms = [...subspaceMeta?.children].filter(room => !room.isSpace() && !room.isTombstoned()).map(room => {
                     return {
                         roomID: room.roomID,
                         displayname: room.getName(),
@@ -220,7 +261,7 @@ const MainPage = memo(() => {
                     rooms: rooms,
                     roomID: subspace.roomID,
                     subsections: [...subspaceMeta?.children]
-                        .filter(room => room.isSpace()).map(generateSubsections)
+                        .filter(room => room.isSpace() && !room.isTombstoned()).map(generateSubsections)
                         .filter(section => section !== undefined) as Section[],
                 }
             }
