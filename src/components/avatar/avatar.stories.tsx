@@ -1,13 +1,9 @@
 import { Meta, StoryObj } from '@storybook/react';
 import Avatar from './avatar';
-import { BADGE } from '@geometricpanda/storybook-addon-badges';
 
 const meta: Meta<typeof Avatar> = {
     title: 'Chat/Avatar',
     component: Avatar,
-    parameters: {
-        //badges: [BADGE.EXPERIMENTAL]
-    },
     argTypes: {
         avatarUrl: {
             required: false,

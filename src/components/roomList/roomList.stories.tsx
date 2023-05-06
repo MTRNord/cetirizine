@@ -1,15 +1,11 @@
 import { Meta, StoryObj } from '@storybook/react';
 import RoomList from './roomList';
-import { BADGE } from '@geometricpanda/storybook-addon-badges';
 import { withRouter } from 'storybook-addon-react-router-v6';
 
 const meta: Meta<typeof RoomList> = {
     title: 'Chat/RoomList',
     component: RoomList,
     decorators: [withRouter],
-    parameters: {
-        //badges: [BADGE.EXPERIMENTAL]
-    },
     argTypes: {
         sections: {
             required: true,

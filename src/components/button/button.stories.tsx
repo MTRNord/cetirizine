@@ -1,13 +1,9 @@
 import { Meta, StoryObj } from '@storybook/react';
 import Button from './button';
-import { BADGE } from '@geometricpanda/storybook-addon-badges';
 
 const meta: Meta<typeof Button> = {
     title: 'Fundamentals/Buttons/BasicButton',
     component: Button,
-    parameters: {
-        //badges: [BADGE.EXPERIMENTAL]
-    },
     argTypes: {
         children: {
             required: true,

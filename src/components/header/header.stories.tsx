@@ -1,13 +1,9 @@
 import { Meta, StoryObj } from '@storybook/react';
 import Header from './header';
-import { BADGE } from '@geometricpanda/storybook-addon-badges';
 
 const meta: Meta<typeof Header> = {
     title: 'Fundamentals/Typography/Header',
     component: Header,
-    parameters: {
-        //badges: [BADGE.EXPERIMENTAL]
-    },
     argTypes: {
         children: {
             required: true,

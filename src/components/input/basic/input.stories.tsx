@@ -1,13 +1,9 @@
 import { Meta, StoryObj } from '@storybook/react';
 import Input from './input';
-import { BADGE } from '@geometricpanda/storybook-addon-badges';
 
 const meta: Meta<typeof Input> = {
     title: 'Fundamentals/Inputs/BasicInput',
     component: Input,
-    parameters: {
-        //badges: [BADGE.EXPERIMENTAL]
-    },
     argTypes: {
         placeholder: {
             required: true,

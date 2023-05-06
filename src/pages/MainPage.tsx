@@ -42,6 +42,8 @@ const ChatView: FC<ChatViewProps> = memo(({ roomID, scrollRef }) => {
     const renderEvents = (events: IRoomEvent[]) => {
         const dedupedEvents = events?.filter((event, index, self) => {
             return self.findIndex(e => e.event_id === event.event_id) === index;
+        }).sort((a, b) => {
+            return a.origin_server_ts - b.origin_server_ts;
         });
 
 

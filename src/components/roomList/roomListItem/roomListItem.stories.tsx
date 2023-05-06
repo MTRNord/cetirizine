@@ -1,13 +1,9 @@
 import { Meta, StoryObj } from '@storybook/react';
 import RoomListItem from './roomListItem';
-import { BADGE } from '@geometricpanda/storybook-addon-badges';
 
 const meta: Meta<typeof RoomListItem> = {
     title: 'Chat/RoomList/Item',
     component: RoomListItem,
-    parameters: {
-        //badges: [BADGE.EXPERIMENTAL]
-    },
     argTypes: {
         avatarUrl: {
             required: false,
