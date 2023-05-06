@@ -1,11 +1,13 @@
 import { Meta, StoryObj } from '@storybook/react';
 import ChatInput from './input';
 import { BADGE } from '@geometricpanda/storybook-addon-badges';
+import { withRouter } from 'storybook-addon-react-router-v6';
 
 const meta: Meta<typeof ChatInput> = {
     title: 'Chat/Input',
     tags: ['autodocs'],
     component: ChatInput,
+    decorators: [withRouter],
     parameters: {
         badges: [BADGE.EXPERIMENTAL]
     },

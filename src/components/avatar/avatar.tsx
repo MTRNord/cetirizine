@@ -22,14 +22,14 @@ type AvatarProps = {
 const Avatar: FC<AvatarProps> = memo(({ avatarUrl, displayname, dm = false, online = false }: AvatarProps) => {
     if (avatarUrl) {
         return (
-            <div className="flex relative min-w-[2rem] min-h-[2rem] justify-center items-center m-0 mr-3 text-xl rounded-full text-white">
+            <div className="flex relative min-w-[2rem] min-h-[2rem] w-[2rem] h-[2rem] justify-center items-center m-0 mr-3 text-xl rounded-full text-white">
                 <img className="rounded-full w-8 h-8 object-cover" alt={displayname} src={avatarUrl} />
                 {
                     dm ?
                         (
                             online ?
-                                <div className="bg-green-500 rounded-full w-3 h-3 absolute bottom-0 right-0"></div> :
-                                <div className="bg-red-500 rounded-full w-3 h-3 absolute bottom-0 right-0"></div>
+                                <div className="bg-green-500 rounded-full w-3 h-3 absolute right-0 bottom-0"></div> :
+                                <div className="bg-red-500 rounded-full w-3 h-3 absolute right-0 bottom-0"></div>
                         ) :
                         <></>
                 }
