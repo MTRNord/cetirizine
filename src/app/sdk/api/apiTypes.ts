@@ -346,6 +346,7 @@ export interface IRoomMemberContent {
     displayname?: string;
     membership: "invite" | "join" | "knock" | "leave" | "ban";
     is_direct?: boolean;
+    reason?: string;
 }
 
 export interface IRoomMemberEvent extends IRoomStateEvent<IRoomMemberContent> { }

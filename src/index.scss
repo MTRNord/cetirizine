@@ -24,6 +24,13 @@ pre {
   }
 }
 
+/**
+  * Blockquote should be light grey with a thick left border
+  */
+blockquote {
+  @apply border-l-4 border-gray-300 p-4 py-0 bg-slate-100 rounded-md;
+}
+
 /*
 Font families defined by this CSS:
 
