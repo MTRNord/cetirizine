@@ -5,6 +5,7 @@ import Avatar from "../avatar/avatar";
 import { MatrixContext, useRoom } from "../../app/sdk/client";
 import Linkify from "linkify-react";
 import DOMPurify from "dompurify";
+import { UndecryptableEvent } from "./unknownEvent";
 
 type MessageEventProps = {
     /**
@@ -116,6 +117,7 @@ const MessageEvent: FC<MessageEventProps> = memo(({ event, roomID, hasPreviousEv
             }
         } else if (isRoomMessageImageEvent(event)) {
             const [url, setUrl] = useState<string | undefined>(undefined);
+            const [unableToDecrypt, setUnableToDecrypt] = useState<boolean>(event.content.file !== undefined);
 
             useEffect(() => {
                 if (event.content.url) {
@@ -125,6 +127,10 @@ const MessageEvent: FC<MessageEventProps> = memo(({ event, roomID, hasPreviousEv
 
                 }
             }, [event.content.url])
+
+            if (unableToDecrypt) {
+                return (<UndecryptableEvent event={event} roomID={roomID} hasPreviousEvent={hasPreviousEvent} />)
+            }
 
             return (
                 <div className={!hasPreviousEvent ? "flex flex-row gap-4 p-2 pb-1 hover:bg-gray-200 rounded-md duration-200 ease-in-out items-start" : "flex flex-row p-2 pb-1 pt-0 hover:bg-gray-200 rounded-md duration-200 ease-in-out"}>
