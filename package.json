@@ -28,7 +28,7 @@
     "build": "tsc && vite build",
     "serve": "vite preview",
     "storybook": "storybook dev -p 6006",
-    "percy": "npm run build-storybook -s ./public && percy storybook ./storybook-static --verbose",
+    "percy": "percy storybook http://localhost:6006 --verbose",
     "build-storybook": "storybook build -s ./public"
   },
   "eslintConfig": {
