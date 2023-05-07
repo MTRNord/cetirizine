@@ -487,6 +487,7 @@ export class MatrixClient extends EventEmitter {
                     console.error(response);
                 }
                 console.error("Failed to upload keys", response);
+                return;
             }
             this.olmMachine.markRequestAsSent(request_typed.id!, request_typed.type, await response.text());
         } else if (request.type === RequestType.KeysQuery) {
@@ -508,6 +509,7 @@ export class MatrixClient extends EventEmitter {
                     console.error(response);
                 }
                 console.error("Failed to query keys", response);
+                return;
             }
             this.olmMachine.markRequestAsSent(request_typed.id!, request_typed.type, await response.text());
         } else if (request.type === RequestType.KeysClaim) {
@@ -529,6 +531,7 @@ export class MatrixClient extends EventEmitter {
                     console.error(response);
                 }
                 console.error("Failed to claim keys", response);
+                return;
             }
             this.olmMachine.markRequestAsSent(request_typed.id!, request_typed.type, await response.text());
         } else if (request.type === RequestType.ToDevice) {
@@ -550,6 +553,7 @@ export class MatrixClient extends EventEmitter {
                     console.error(response);
                 }
                 console.error("Failed to send to device", response);
+                return;
             }
             this.olmMachine.markRequestAsSent(request_typed.id ?? request_typed.txn_id, request_typed.type, await response.text());
         } else if (request.type === RequestType.SignatureUpload) {
@@ -571,6 +575,7 @@ export class MatrixClient extends EventEmitter {
                     console.error(response);
                 }
                 console.error("Failed to upload signatures", response);
+                return;
             }
             this.olmMachine.markRequestAsSent(request_typed.id!, request_typed.type, await response.text());
         } else if (request.type === RequestType.RoomMessage) {
@@ -592,6 +597,7 @@ export class MatrixClient extends EventEmitter {
                     console.error(response);
                 }
                 console.error("Failed to send message", response);
+                return;
             }
             this.olmMachine.markRequestAsSent(request_typed.id!, request_typed.type, await response.text());
         } else if (request.type === RequestType.KeysBackup) {
@@ -613,6 +619,7 @@ export class MatrixClient extends EventEmitter {
                     console.error(response);
                 }
                 console.error("Failed to backup keys", response);
+                return;
             }
             this.olmMachine.markRequestAsSent(request_typed.id!, request_typed.type, await response.text());
         }
