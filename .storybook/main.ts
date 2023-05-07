@@ -22,7 +22,8 @@ const config: StorybookConfig = {
     return mergeConfig(config, {
       // https://github.com/storybookjs/storybook/issues/22223
       build: {
-        target: 'esnext'
+        target: 'esnext',
+        sourceMap: false,
       }
     });
   },

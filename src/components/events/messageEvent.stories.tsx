@@ -80,3 +80,25 @@ export const ImageEvent: Story = {
         }
     }
 };
+
+export const AudioEvent: Story = {
+    args: {
+        event: {
+            content: {
+                body: "mixaund-bright-future.mp3",
+                info: {
+                    mimetype: "audio/mpeg",
+                    size: 9329941
+                },
+                msgtype: "m.audio",
+                url: "mxc://midnightthoughts.space/4ffaba6ebc3d29165b4549ef47bbc07b6468aab8"
+            },
+            origin_server_ts: 1683125956695,
+            sender: "@example:example.org",
+            type: "m.room.message",
+            unsigned: {},
+            event_id: "$143273582443PhrSn:example.org",
+            room_id: "!jEsUZKDJdhlrceRyVU:example.org"
+        }
+    }
+};
