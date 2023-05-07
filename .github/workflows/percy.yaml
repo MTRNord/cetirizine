@@ -12,7 +12,7 @@ jobs:
       - uses: actions/setup-node@v3
         with:
           node-version: '18'
-      - run: npm install && npx browserslist@latest --update-db && patch node_modules/@matrix-org/matrix-sdk-crypto-js/pkg/matrix_sdk_crypto_js.js < .github/workflows/patch/matrix_sdk_crypto_js.patch
+      - run: npm install && npx browserslist@latest --update-db && patch node_modules/@matrix-org/matrix-sdk-crypto-js/pkg/matrix_sdk_crypto_js.js < "${GITHUB_WORKSPACE}/.github/workflows/patch/matrix_sdk_crypto_js.patch"
       - run: npm run percy
         env:
           PERCY_TOKEN: ${{ secrets.PERCY_TOKEN }}
