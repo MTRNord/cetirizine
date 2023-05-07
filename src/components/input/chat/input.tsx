@@ -28,7 +28,7 @@ import { FC, memo, useEffect, useState } from 'react';
 import { Send } from 'lucide-react';
 import { useRoom } from '../../../app/sdk/client';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
-import { CLEAR_EDITOR_COMMAND, ParagraphNode } from 'lexical';
+import { CLEAR_EDITOR_COMMAND, CLEAR_HISTORY_COMMAND, ParagraphNode } from 'lexical';
 import { useLocation } from 'react-router-dom';
 
 type ChatInputProps = {
@@ -90,6 +90,7 @@ const SendButton: FC<SendButtonProps> = memo(({ roomID, htmlMessage, plainMessag
             try {
                 await room.sendHtmlMessage(htmlMessage, plainMessage);
                 editor.dispatchCommand(CLEAR_EDITOR_COMMAND, undefined);
+                editor.dispatchCommand(CLEAR_HISTORY_COMMAND, undefined);
                 localStorage.removeItem(`editor-${roomID}`);
             } catch (e: any) {
                 console.log(e);
@@ -98,6 +99,7 @@ const SendButton: FC<SendButtonProps> = memo(({ roomID, htmlMessage, plainMessag
             try {
                 await room.sendTextMessage(plainMessage);
                 editor.dispatchCommand(CLEAR_EDITOR_COMMAND, undefined);
+                editor.dispatchCommand(CLEAR_HISTORY_COMMAND, undefined);
                 localStorage.removeItem(`editor-${roomID}`);
             } catch (e: any) {
                 console.log(e);
@@ -135,6 +137,7 @@ const RoomChangePlugin: FC<RoomChangeProps> = ({ roomID }) => {
                 editor.setEditorState(initialEditorState)
             } else {
                 editor.dispatchCommand(CLEAR_EDITOR_COMMAND, undefined);
+                editor.dispatchCommand(CLEAR_HISTORY_COMMAND, undefined);
             }
         }
     }, [pathname, roomID]);
