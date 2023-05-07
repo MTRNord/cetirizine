@@ -4,11 +4,11 @@ import { createRoot } from 'react-dom/client';
 import './index.scss';
 
 initAsync().then(() => {
-  if (Tracing.isAvailable()) {
-    console.log("Tracing is available, turning on");
-    let tracing = new Tracing(LoggerLevel.Info);
-    tracing.turnOn();
-  }
+  // if (Tracing.isAvailable()) {
+  //   console.log("Tracing is available, turning on");
+  //   let tracing = new Tracing(LoggerLevel.Info);
+  //   tracing.turnOn();
+  // }
   console.log("Crypto starting")
   start();
   console.log("Crypto started")
