@@ -19,7 +19,6 @@ jobs:
           export NODE_OPTIONS="--max_old_space_size=4096"
           npm install
           npx browserslist@latest --update-db
-          patch node_modules/@matrix-org/matrix-sdk-crypto-js/pkg/matrix_sdk_crypto_js.js < .github/crypto-dep.patch
           npm run build -- --base /cetirizine/
           npm run build-storybook -- --disable-telemetry -o dist/storybook
           

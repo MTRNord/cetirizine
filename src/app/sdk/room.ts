@@ -2,7 +2,7 @@ import EventEmitter from "events";
 import { IRoomEvent, IRoomStateEvent, isRoomAvatarEvent, isRoomCreateEvent, isRoomTopicEvent, isSpaceChildEvent, isSpaceParentEvent } from "./api/apiTypes";
 import { MatrixClient } from "./client";
 import { useEffect, useState } from "react";
-import { EncryptionAlgorithm, EncryptionSettings, RoomId } from "@matrix-org/matrix-sdk-crypto-js";
+import { EncryptionAlgorithm, EncryptionSettings, RoomId } from "@mtrnord/matrix-sdk-crypto-js";
 
 export interface RoomEvents {
     // Used to notify about changes to the event list

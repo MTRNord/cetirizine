@@ -29,10 +29,10 @@ import {
     deleteDB,
     openDB
 } from "idb";
-import { DeviceId, DeviceLists, KeysBackupRequest, KeysUploadRequest, OlmMachine, RequestType, RoomId, RoomMessageRequest, SignatureUploadRequest, UserId } from "@matrix-org/matrix-sdk-crypto-js";
-import { KeysQueryRequest } from "@matrix-org/matrix-sdk-crypto-js";
-import { KeysClaimRequest } from "@matrix-org/matrix-sdk-crypto-js";
-import { ToDeviceRequest } from "@matrix-org/matrix-sdk-crypto-js";
+import { DeviceId, DeviceLists, KeysBackupRequest, KeysUploadRequest, OlmMachine, RequestType, RoomId, RoomMessageRequest, SignatureUploadRequest, UserId } from "@mtrnord/matrix-sdk-crypto-js";
+import { KeysQueryRequest } from "@mtrnord/matrix-sdk-crypto-js";
+import { KeysClaimRequest } from "@mtrnord/matrix-sdk-crypto-js";
+import { ToDeviceRequest } from "@mtrnord/matrix-sdk-crypto-js";
 
 export interface MatrixClientEvents {
     // Used to notify about changes to the room list

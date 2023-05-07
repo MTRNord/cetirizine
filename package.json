@@ -5,7 +5,7 @@
   "type": "module",
   "dependencies": {
     "@lexical/react": "^0.10.0",
-    "@matrix-org/matrix-sdk-crypto-js": "^0.1.0-alpha.8",
+    "@mtrnord/matrix-sdk-crypto-js": "0.1.0-alpha.2",
     "dompurify": "^3.0.3",
     "events": "^3.3.0",
     "highlight.js": "^11.8.0",

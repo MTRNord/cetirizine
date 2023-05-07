@@ -16,7 +16,6 @@ jobs:
           export NODE_OPTIONS="--max_old_space_size=4096"
           npm install
           npx browserslist@latest --update-db
-          patch node_modules/@matrix-org/matrix-sdk-crypto-js/pkg/matrix_sdk_crypto_js.js < .github/crypto-dep.patch
       - run: |
           export NODE_OPTIONS="--max_old_space_size=4096"
           npm run storybook -- --no-open &

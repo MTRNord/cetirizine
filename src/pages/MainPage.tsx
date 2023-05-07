@@ -13,7 +13,7 @@ import UnknownEvent, { RedactedEvent, UndecryptableEvent } from '../components/e
 import MemberEvent from '../components/events/memberEvent';
 import { IRoomEvent, IRoomMemberEvent } from '../app/sdk/api/apiTypes';
 import Linkify from 'linkify-react';
-import { RoomId } from '@matrix-org/matrix-sdk-crypto-js';
+import { RoomId } from '@mtrnord/matrix-sdk-crypto-js';
 
 type ChatViewProps = {
     /**
