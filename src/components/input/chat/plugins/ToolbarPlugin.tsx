@@ -22,7 +22,6 @@ import {
     FORMAT_TEXT_COMMAND,
     $getSelection,
     $isRangeSelection,
-    $createParagraphNode,
     $getNodeByKey,
     LexicalEditor,
     RangeSelection,
@@ -57,11 +56,12 @@ import {
 } from "@lexical/code";
 import { Bold, ChevronDown, Code, Heading1, Heading2, Heading4, Heading5, Italic, Link, List, ListOrdered, Quote, Redo, Strikethrough, Text, Underline, Undo } from "lucide-react";
 import { Heading3 } from "lucide-react";
+import { $createCustomParagraphNode } from "../customNodes/CustomParagraphNode";
 
 const LowPriority = 1;
 
 const supportedBlockTypes = new Set([
-    "paragraph",
+    "custom-paragraph",
     "quote",
     "code",
     "h1",
@@ -71,27 +71,27 @@ const supportedBlockTypes = new Set([
 ]);
 
 interface BlockTypes {
-    code: string,
+    "code": string,
     h1: string,
     h2: string,
     h3: string,
     h4: string,
     h5: string,
     ol: string,
-    paragraph: string,
+    "custom-paragraph": string,
     quote: string,
     ul: string
 }
 
 const blockTypeToBlockName: BlockTypes = {
-    code: "Code Block",
+    "code": "Code Block",
     h1: "Large Heading",
     h2: "Small Heading",
     h3: "Heading",
     h4: "Heading",
     h5: "Heading",
     ol: "Numbered List",
-    paragraph: "Normal",
+    "custom-paragraph": "Normal",
     quote: "Quote",
     ul: "Bulleted List"
 } as const;
@@ -313,12 +313,12 @@ const BlockOptionsDropdownList = memo(({
     }, [dropDownRef, setShowBlockOptionsDropDown, toolbarRef]);
 
     const formatParagraph = () => {
-        if (blockType !== "paragraph") {
+        if (blockType !== "custom-paragraph") {
             editor.update(() => {
                 const selection = $getSelection();
 
                 if ($isRangeSelection(selection)) {
-                    $wrapNodes(selection, () => $createParagraphNode());
+                    $wrapNodes(selection, () => $createCustomParagraphNode());
                 }
             });
         }
@@ -400,7 +400,7 @@ const BlockOptionsDropdownList = memo(({
             <button className="item" onClick={formatParagraph}>
                 <Text className="icon" size={20} />
                 <span className="text">Normal</span>
-                {blockType === "paragraph" && <span className="active" />}
+                {blockType === "custom-paragraph" && <span className="active" />}
             </button>
             <button className="item" onClick={formatLargeHeading}>
                 <Heading1 className="icon" size={20} />
@@ -441,7 +441,7 @@ const ToolbarPlugin = memo(() => {
     const toolbarRef = useRef(null);
     const [canUndo, setCanUndo] = useState(false);
     const [canRedo, setCanRedo] = useState(false);
-    const [blockType, setBlockType] = useState<BlockType>("paragraph");
+    const [blockType, setBlockType] = useState<BlockType>("custom-paragraph");
     const [selectedElementKey, setSelectedElementKey] = useState(null);
     const [showBlockOptionsDropDown, setShowBlockOptionsDropDown] = useState(
         false
@@ -613,7 +613,7 @@ const ToolbarPlugin = memo(() => {
                                                 <Heading5 className="icon" size={20} /> :
                                                 blockType === "code" ?
                                                     <Code className="icon" size={20} /> :
-                                                    blockType === "paragraph" ?
+                                                    blockType === "custom-paragraph" ?
                                                         <Text className="icon" size={20} /> :
                                                         blockType === "ol" ?
                                                             <ListOrdered className="icon" size={20} /> :

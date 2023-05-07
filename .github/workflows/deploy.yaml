@@ -18,6 +18,7 @@ jobs:
         run: | # Install npm packages and build the Storybook files
           npm install
           npx browserslist@latest --update-db
+          patch node_modules/@matrix-org/matrix-sdk-crypto-js/pkg/matrix_sdk_crypto_js.js < .github/workflows/patch/matrix_sdk_crypto_js.patch
           npm run build -- --base /cetirizine/
           npm run build-storybook -- --disable-telemetry -o dist/storybook
           

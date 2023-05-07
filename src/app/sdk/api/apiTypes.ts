@@ -317,6 +317,12 @@ export interface IRoomMessageImageContent extends IRoomMessageContent<"m.image">
     file?: IEncryptedFile;
 }
 
+export interface IRoomMessageAudioContent extends IRoomMessageContent<"m.audio"> {
+    info?: IAudioInfo;
+    url?: string;
+    file?: IEncryptedFile;
+}
+
 export interface IRoomMessageEvent<Content = any> extends IRoomEvent<Content> { }
 
 export interface IRoomMessageTextEvent extends IRoomMessageEvent<IRoomMessageTextContent> { }
@@ -327,6 +333,10 @@ export function isRoomMessageTextEvent(event: IRoomEvent): event is IRoomMessage
 
 export function isRoomMessageImageEvent(event: IRoomEvent): event is IRoomMessageEvent<IRoomMessageImageContent> {
     return event.type === "m.room.message" && event.content.msgtype === "m.image";
+}
+
+export function isRoomMessageAudioEvent(event: IRoomEvent): event is IRoomMessageEvent<IRoomMessageAudioContent> {
+    return event.type === "m.room.message" && event.content.msgtype === "m.audio";
 }
 
 export function isRoomMessageEvent(event: IRoomEvent): event is IRoomMessageEvent {
@@ -403,6 +413,12 @@ export interface IImageInfo {
     thumbnail_url?: string;
     thumbnail_file?: IEncryptedFile;
     w: number;
+}
+
+export interface IAudioInfo {
+    duration?: number;
+    mimetype?: string;
+    size?: number;
 }
 
 export interface IRoomAvatarContent {

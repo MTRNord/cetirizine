@@ -6,7 +6,7 @@ import './index.scss';
 initAsync().then(() => {
   if (Tracing.isAvailable()) {
     console.log("Tracing is available, turning on");
-    let tracing = new Tracing(LoggerLevel.Trace);
+    let tracing = new Tracing(LoggerLevel.Info);
     tracing.turnOn();
   }
   start();

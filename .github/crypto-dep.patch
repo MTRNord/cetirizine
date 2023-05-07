@@ -1,0 +1,11 @@
+--- matrix_sdk_crypto_js.js	2023-05-07 19:00:04.360260024 +0200
++++ matrix_sdk_crypto_js_fixed.js	2023-05-07 18:59:48.775003117 +0200
+@@ -6444,7 +6444,7 @@
+ );
+ 
+ let inited = false;
+-__initSync = function () {
++const __initSync = function () {
+     if (inited) {
+         return;
+     }

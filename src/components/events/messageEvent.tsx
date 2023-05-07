@@ -1,5 +1,5 @@
 import { memo, useContext, useEffect, useState } from "react";
-import { IRoomEvent, isRoomMessageImageEvent, isRoomMessageTextEvent } from "../../app/sdk/api/apiTypes";
+import { IRoomEvent, isRoomMessageAudioEvent, isRoomMessageImageEvent, isRoomMessageTextEvent } from "../../app/sdk/api/apiTypes";
 import { FC } from "react";
 import Avatar from "../avatar/avatar";
 import { MatrixContext, useRoom } from "../../app/sdk/client";
@@ -8,6 +8,9 @@ import linkifyHtml from 'linkify-html';
 import DOMPurify from "dompurify";
 import { UndecryptableEvent } from "./unknownEvent";
 import { decryptAttachment } from "matrix-encrypt-attachment";
+import Waveform from './helpers/Waveform';
+import hljs from 'highlight.js';
+import 'highlight.js/styles/base16/solarized-dark.css';
 
 type MessageEventProps = {
     /**
@@ -36,7 +39,9 @@ const linkifyOptions = {
 }
 
 const MessageEvent: FC<MessageEventProps> = memo(({ event, roomID, hasPreviousEvent }) => {
+    const client = useContext(MatrixContext);
     const room = useRoom(roomID);
+
 
     const renderCorrectMessage = (event: IRoomEvent) => {
         if (isRoomMessageTextEvent(event)) {
@@ -83,7 +88,22 @@ const MessageEvent: FC<MessageEventProps> = memo(({ event, roomID, hasPreviousEv
                         "summary"
                     ]
                 })
-                const linkified = linkifyHtml(sanitized, linkifyOptions);
+                let linkified = linkifyHtml(sanitized, linkifyOptions);
+                // Extract code and language from the html
+                const codeRegex = /<pre><code (?:class="language-(?<language>.*?)")?.*?>(?<code>[\s\S]*?)<\/code><\/pre>/;
+                const code = codeRegex.exec(linkified);
+
+                if (code?.groups?.["code"]) {
+                    if (code.groups?.["language"]) {
+                        // Highlight the code
+                        const highlighted = hljs.highlight(code.groups?.["code"], { language: code.groups?.["language"] }).value;
+                        linkified = linkified.replace(code.groups?.["code"], `${highlighted}`);
+                    } else {
+                        // Highlight the code
+                        const highlighted = hljs.highlightAuto(code.groups?.["code"]).value;
+                        linkified = linkified.replace(code[0], `${highlighted}`);
+                    }
+                }
                 // TODO: sanitize the attributes allowed by matrix spec
 
                 return (
@@ -118,7 +138,6 @@ const MessageEvent: FC<MessageEventProps> = memo(({ event, roomID, hasPreviousEv
                 )
             }
         } else if (isRoomMessageImageEvent(event)) {
-            const client = useContext(MatrixContext);
             const [url, setUrl] = useState<string | undefined>(undefined);
             const [unableToDecrypt, setUnableToDecrypt] = useState<boolean>(event.content.file !== undefined);
 
@@ -193,6 +212,78 @@ const MessageEvent: FC<MessageEventProps> = memo(({ event, roomID, hasPreviousEv
                             title={event.content.body}
                             className="rounded-md object-cover border-slate-400 border-2 max-h-[23.333rem] max-w-[23.333rem] h-[unset]"
                         />
+                    </div>
+                </div>
+            )
+        } else if (isRoomMessageAudioEvent(event)) {
+            const [url, setUrl] = useState<string | undefined>(undefined);
+            const [unableToDecrypt, setUnableToDecrypt] = useState<boolean>(event.content.file !== undefined);
+
+            const decryptAudio = (event: IRoomEvent) => {
+                console.log("Downloading audio file:", event.event_id);
+                fetch(client.convertMXC(event.content.file.url), {
+                    headers: {
+                        Authorization: `Bearer ${client.accessToken}`
+                    }
+                }).then((response) => {
+                    if (!response.ok) {
+                        // TODO: display error?
+                        console.log("Unable to decrypt audio file:", response.text());
+                        return;
+                    }
+                    console.log("Downloaded audio file:", event.event_id);
+                    response.arrayBuffer().then((responseData) => {
+                        // Decrypt the array buffer using the information taken from the event content.
+                        decryptAttachment(responseData, event.content.file).then((dataArray) => {
+                            // Turn the array into a Blob and give it the correct MIME-type.
+
+                            // IMPORTANT: we must not allow scriptable mime-types into Blobs otherwise
+                            // they introduce XSS attacks if the Blob URI is viewed directly in the
+                            // browser (e.g. by copying the URI into a new tab or window.)
+                            // See warning at top of file.
+                            let mimetype = event.content.info?.mimetype ? event.content.info.mimetype.split(";")[0].trim() : "";
+                            mimetype = getBlobSafeMimeType(mimetype);
+
+                            const blob = new Blob([dataArray], { type: mimetype });
+                            setUrl(URL.createObjectURL(blob));
+                            setUnableToDecrypt(false);
+                            console.log("Decrypted audio file:", event.event_id);
+                        }).catch((e: any) => {
+                            console.log("Unable to decrypt audio file due to decryption error:", e);
+                            setUnableToDecrypt(true);
+                        });
+                    });
+                });
+            }
+
+            useEffect(() => {
+                if (isRoomMessageAudioEvent(event)) {
+                    if (event.content.url) {
+                        setUrl(client.convertMXC(event.content.url));
+                    } else {
+                        // Audio is encrypted and we need to download and decrypt it
+                        if (event.content.file) {
+                            decryptAudio(event);
+                        }
+                    }
+                }
+            }, [event])
+
+            if (unableToDecrypt) {
+                return (<UndecryptableEvent event={event} roomID={roomID} hasPreviousEvent={hasPreviousEvent} />)
+            }
+
+            return (
+                <div className={!hasPreviousEvent ? "flex flex-row gap-4 p-2 pb-1 hover:bg-gray-200 rounded-md duration-200 ease-in-out items-start" : "flex flex-row p-2 pb-1 pt-1 hover:bg-gray-200 rounded-md duration-200 ease-in-out"}>
+                    {!hasPreviousEvent && <Avatar
+                        displayname={room?.getMemberName(event.sender) || event.sender}
+                        avatarUrl={room?.getMemberAvatar(event.sender)}
+                        online={room?.isOnline() || false}
+                        dm={room?.isDM() || false}
+                    />}
+                    <div className={!hasPreviousEvent ? "flex flex-col gap-1" : "flex-1 ml-[3.7rem]"}>
+                        {!hasPreviousEvent && <h2 className="text-sm font-medium text-red-500 whitespace-pre-wrap">{room?.getMemberName(event.sender) || event.sender}</h2>}
+                        {url && <Waveform src_url={url} />}
                     </div>
                 </div>
             )

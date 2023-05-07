@@ -18,6 +18,8 @@ import { TRANSFORMERS, $convertToMarkdownString } from "@lexical/markdown";
 
 import AutoLinkPlugin from "./plugins/AutoLinkPlugin";
 import ToolbarPlugin from "./plugins/ToolbarPlugin";
+//import TreeViewPlugin from "./plugins/DebugPlugin";
+import { CustomParagraphNode } from './customNodes/CustomParagraphNode';
 import CodeHighlightPlugin from './plugins/CodeHighlightPlugin';
 import EditorTheme from './theme';
 
@@ -26,7 +28,7 @@ import { FC, memo, useEffect, useState } from 'react';
 import { Send } from 'lucide-react';
 import { useRoom } from '../../../app/sdk/client';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
-import { CLEAR_EDITOR_COMMAND } from 'lexical';
+import { CLEAR_EDITOR_COMMAND, ParagraphNode } from 'lexical';
 import { useLocation } from 'react-router-dom';
 
 type ChatInputProps = {
@@ -57,9 +59,17 @@ type SendButtonProps = {
      * The plain text message
      */
     plainMessage: string
+    /**
+     * Callback when sending starts
+     */
+    onStartSending: () => void
+    /**
+     * Callback when sending stops
+     */
+    onStopSending: () => void
 };
 
-const SendButton: FC<SendButtonProps> = memo(({ roomID, htmlMessage, plainMessage }: SendButtonProps) => {
+const SendButton: FC<SendButtonProps> = memo(({ roomID, htmlMessage, plainMessage, onStartSending, onStopSending }: SendButtonProps) => {
     const room = useRoom(roomID || "");
     const [editor] = useLexicalComposerContext();
 
@@ -68,12 +78,14 @@ const SendButton: FC<SendButtonProps> = memo(({ roomID, htmlMessage, plainMessag
         if (!room) {
             return;
         }
-        console.log("Sending message to: ", roomID)
 
         // TODO: local echo
-        if (htmlMessage === "" && plainMessage === "") {
+        if ((htmlMessage === "" && plainMessage === "") || htmlMessage === '<p class="editor-paragraph"><br></p>') {
             return;
         }
+        onStartSending();
+        console.log("Sending message to: ", roomID)
+
         if (htmlMessage !== '<p class="editor-paragraph"><br></p>') {
             try {
                 await room.sendHtmlMessage(htmlMessage, plainMessage);
@@ -91,6 +103,7 @@ const SendButton: FC<SendButtonProps> = memo(({ roomID, htmlMessage, plainMessag
                 console.log(e);
             }
         }
+        onStopSending();
     }} />
 });
 
@@ -132,11 +145,13 @@ const RoomChangePlugin: FC<RoomChangeProps> = ({ roomID }) => {
 const ChatInput: FC<ChatInputProps> = memo(({ namespace, roomID }: ChatInputProps) => {
     const [htmlMessage, setHtmlMessage] = useState<string>("");
     const [plainMessage, setPlainMessage] = useState<string>("");
+    const [sending, setSending] = useState(false);
 
     const initialConfig: InitialConfigType = {
         namespace: namespace,
         theme: EditorTheme,
         onError: (e) => console.error(e),
+        editable: !sending,
         nodes: [
             HeadingNode,
             ListNode,
@@ -148,7 +163,14 @@ const ChatInput: FC<ChatInputProps> = memo(({ namespace, roomID }: ChatInputProp
             TableCellNode,
             TableRowNode,
             AutoLinkNode,
-            LinkNode
+            LinkNode,
+            CustomParagraphNode,
+            {
+                replace: ParagraphNode,
+                with: (_node: ParagraphNode) => {
+                    return new CustomParagraphNode();
+                }
+            }
         ]
     }
     return (
@@ -166,8 +188,38 @@ const ChatInput: FC<ChatInputProps> = memo(({ namespace, roomID }: ChatInputProp
                             // Convert editor state to both html and markdown.
                             // If there is no formatting then just use the plain text.
                             editorState.read(() => {
-                                const html = $generateHtmlFromNodes(editor);
+                                let html = $generateHtmlFromNodes(editor);
                                 // TODO: Make sure that we strip any non matrix stuff
+                                const codeRegex = /(?<all><code .* (?:data-highlight-language="(?<language>.*?)")(?: .*?)?>(?<code>[\s\S]*?)<\/code>)/;
+                                let matched = codeRegex.exec(html);
+                                while (matched !== null) {
+                                    if (matched) {
+                                        const { groups } = matched;
+                                        if (groups) {
+                                            let { all, language, code } = groups;
+
+                                            const spanRegex = /<span(?: class=".*?")?>(?<content>.*?)<\/span>/;
+                                            let matchedspans = spanRegex.exec(code);
+                                            while (matchedspans !== null) {
+                                                if (matchedspans) {
+                                                    const { groups } = matchedspans;
+                                                    if (groups) {
+                                                        const { content } = groups;
+
+                                                        code = code.replaceAll(matchedspans[0], content)
+                                                    }
+                                                }
+                                                matchedspans = spanRegex.exec(code)
+                                            }
+
+                                            code = code.replaceAll("<br>", "\n")
+                                            html = html.replace(all, `<pre><code class="language-${language}">${code}</code></pre>`)
+
+
+                                        }
+                                    }
+                                    matched = codeRegex.exec(html)
+                                }
                                 setHtmlMessage(html);
                                 const markdown = $convertToMarkdownString(TRANSFORMERS);
                                 setPlainMessage(markdown);
@@ -181,9 +233,10 @@ const ChatInput: FC<ChatInputProps> = memo(({ namespace, roomID }: ChatInputProp
                         <MarkdownShortcutPlugin transformers={TRANSFORMERS} />
                         <ClearEditorPlugin />
                         <RoomChangePlugin roomID={roomID} />
+                        {/*<TreeViewPlugin />*/}
                     </div>
                 </div>
-                <SendButton roomID={roomID} htmlMessage={htmlMessage} plainMessage={plainMessage} />
+                <SendButton roomID={roomID} htmlMessage={htmlMessage} plainMessage={plainMessage} onStartSending={() => { console.log("Sending"); setSending(true) }} onStopSending={() => { setSending(false) }} />
             </LexicalComposer>
 
         </div>

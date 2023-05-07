@@ -338,13 +338,14 @@ export class MatrixClient extends EventEmitter {
                 max = Number(n);
             }
         }
-        const roomObj = [...this.rooms].find(room => room.windowPos[listKey] === index);
-        if (roomObj) {
-            const tx = this.database?.transaction('rooms', 'readwrite');
-            await tx?.store.delete(roomObj.roomID);
-            await tx?.done;
-            this.rooms.delete(roomObj)
-        }
+        // TODO: Unclear if this is needed or working. Probably wrong?
+        // const roomObj = [...this.rooms].find(room => room.windowPos[listKey] === index);
+        // if (roomObj) {
+        //     const tx = this.database?.transaction('rooms', 'readwrite');
+        //     await tx?.store.delete(roomObj.roomID);
+        //     await tx?.done;
+        //     this.rooms.delete(roomObj)
+        // }
         if (max < 0 || index > max) {
             return;
         }
@@ -550,7 +551,6 @@ export class MatrixClient extends EventEmitter {
                 }
                 console.error("Failed to send to device", response);
             }
-            console.log(request_typed);
             this.olmMachine.markRequestAsSent(request_typed.id ?? request_typed.txn_id, request_typed.type, await response.text());
         } else if (request.type === RequestType.SignatureUpload) {
             const request_typed = request as SignatureUploadRequest;
@@ -639,7 +639,7 @@ export class MatrixClient extends EventEmitter {
         };
         for (const space of this.spaceOpen) {
             if (space === "other") { continue }
-            lists_ranges[space] = [[0, 50]];
+            lists_ranges[space] = [[0, 20]];
         }
 
         let timeline_limit = 1;
@@ -655,79 +655,14 @@ export class MatrixClient extends EventEmitter {
                     .filter(room => this.roomsInView.includes(room.roomID))
                     .map(room => room.windowPos[list]).sort().filter(x => x !== undefined && x !== null))
 
-                if (list === "spaces") {
+                if (this.getSpaces().find(r => r.roomID === list)) {
                     // If we are syncing the spaces list, we need to use the spaceInView list instead
                     rawRangeInView = new Set([...this.rooms]
                         .filter(room => this.spacesInView.includes(room.roomID))
                         .map(room => room.windowPos[list]).sort().filter(x => x !== undefined && x !== null))
                 }
 
-
-                // if (rawRangeInView.size === 0) {
-                //     // If there are no rooms in view, we can skip this list
-                //     continue;
-                // }
-
-                // // Increment range by 1 to make sure we always get a little more than we need
-                // // [1,2,3,4,7,8,9,10,11] -> [2,3,4,5,8,9,10,11,16]
-                // for (const [i, v] of rawRangeInView.entries()) {
-                //     if (i % 2 === 0) {
-                //         rawRangeInView.add(v + 5);
-                //     }
-                // }
-
-                // // Turn an input like [1,2,3,4,7,8,9,10,11] to [[1,4], [7,11]]
-                // const rangesInView = [...rawRangeInView].reduce((acc, cur, i, arr) => {
-                //     if (i === 0) {
-                //         // [1,2,3,4] -> [[1,1]]
-                //         acc.push([cur, cur]);
-                //         return acc;
-                //     }
-                //     // Cur = 2, arr = [1,2,3,4], arr[i - 1] + 1 = 2 then
-                //     if (cur === arr[i - 1] + 1) {
-                //         // [1,2,3,4,7] -> [[1,2]]
-                //         acc[acc.length - 1][1] = cur;
-                //         return acc;
-                //     }
-                //     // Else [1,2,3,4,7] -> [[1,2], [7,7]]
-                //     acc.push([cur, cur]);
-                //     return acc;
-                // }, [] as [number, number][]);
-
-                // // Sort by the first element of each range and add to the object
-                // const sorted = rangesInView.sort((a, b) => a[0] - b[0]);
-
-                // const deduped = [];
-                // deduped.push(sorted[0]);
-                // for (let i = 1; i < sorted.length; i++) {
-                //     let ok;
-                //     for (let j = 0; j < i; j++) {
-                //         if (deduped[j].length != sorted[i].length) {
-                //             continue
-                //         }
-                //         ok = false;
-                //         for (let k = 0; k < sorted[i].length; k++) {
-                //             if (sorted[i][k] != sorted[j][k]) {
-                //                 ok = true
-                //             }
-                //         };
-                //         if (ok == false) {
-                //             break
-                //         };
-                //     }
-                //     if (ok) {
-                //         deduped.push(sorted[i])
-                //     };
-                // }
-
-
-                // // Deduplicate ranges
-                // const deduped_final = deduped
-                //     .filter(subarray => subarray.length === 2)
-                //     .filter(subarray => subarray[0] !== undefined && subarray[1] !== undefined && subarray[0] !== null && subarray[1] !== null)
-
                 if (rawRangeInView.size !== 0) {
-                    console.log("changed:", rawRangeInView)
                     const minimum = Math.min(...rawRangeInView);
                     const maximum = Math.max(...rawRangeInView);
 
@@ -744,7 +679,6 @@ export class MatrixClient extends EventEmitter {
         }
 
         if (!this.lastRanges) {
-            console.log(lists_ranges)
             this.lastRanges = lists_ranges;
             this.lastTxnID = Date.now().toString();
         }
@@ -834,7 +768,7 @@ export class MatrixClient extends EventEmitter {
                 },
                 to_device: {
                     enabled: true,
-                    since: this.to_device_since || null
+                    since: this.to_device_since
                 }
             },
         };
@@ -845,7 +779,7 @@ export class MatrixClient extends EventEmitter {
                 body.lists = {};
             }
             body.lists[space] = {
-                //slow_get_all_rooms: true,
+                slow_get_all_rooms: true,
                 ranges: this.lastRanges[space],
                 sort: ["by_notification_level", "by_recency", "by_name"],
                 required_state: [
@@ -1097,16 +1031,17 @@ export class MatrixClient extends EventEmitter {
                         }
                         gapIndex = op.index;
                     } else if (isInvalidateOp(op)) {
-                        const tx = this.database?.transaction('rooms', 'readwrite');
-                        for (let i = op.range[0]; i <= op.range[1]; i++) {
-                            // We shall first forget about these and "startover"
-                            const roomObj = [...this.rooms].find(room => room.windowPos[listKey] === i);
-                            if (roomObj) {
-                                await tx?.store.delete(roomObj.roomID);
-                                this.rooms.delete(roomObj)
-                            }
-                        }
-                        await tx?.done;
+                        // TODO: Figure out if this is needed in reality
+                        // const tx = this.database?.transaction('rooms', 'readwrite');
+                        // for (let i = op.range[0]; i <= op.range[1]; i++) {
+                        //     // We shall first forget about these and "startover"
+                        //     const roomObj = [...this.rooms].find(room => room.windowPos[listKey] === i);
+                        //     if (roomObj) {
+                        //         await tx?.store.delete(roomObj.roomID);
+                        //         this.rooms.delete(roomObj)
+                        //     }
+                        // }
+                        // await tx?.done;
                     }
                 }
                 if (gapIndex !== -1) {

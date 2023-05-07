@@ -1,5 +1,5 @@
 import {
-    BrowserRouter,
+    HashRouter,
     Route,
     Routes,
 } from "react-router-dom";
@@ -9,12 +9,12 @@ import { ProtectedRoute } from './app/protectedRoute';
 import { memo } from "react";
 
 function App() {
-    return <BrowserRouter basename={import.meta.env.BASE_URL}>
+    return <HashRouter basename={import.meta.env.BASE_URL}>
         <Routes>
             <Route path="/:roomIdOrAlias?" element={<ProtectedRoute><MainPage /></ProtectedRoute>} />
             <Route path="/login" element={<LoginPage />} />
         </Routes>
-    </BrowserRouter>;
+    </HashRouter>;
 }
 
 export default memo(App);
