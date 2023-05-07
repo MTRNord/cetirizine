@@ -44,11 +44,12 @@ const ChatView: FC<ChatViewProps> = memo(({ roomID, scrollRef }) => {
             return self.findIndex(e => e.event_id === event.event_id) === index;
         }).sort((a, b) => {
             return a.origin_server_ts - b.origin_server_ts;
-        }).filter(event => event.type !== "m.reaction" && event.type !== "m.room.redaction" && !event.content["m.relates_to"]);
+        })
+        const no_relations = dedupedEvents.filter(event => event.type !== "m.reaction" && event.type !== "m.room.redaction" && !event.content["m.relates_to"]);
 
 
-        Promise.all(dedupedEvents?.map(async (event, index) => {
-            let previousEvent = dedupedEvents?.[index - 1];
+        Promise.all(no_relations?.map(async (event, index) => {
+            let previousEvent = no_relations?.[index - 1];
             const previousEventIsFromSameSender = previousEvent?.sender === event.sender;
             let previousEventType = previousEvent?.type;
 
@@ -58,7 +59,7 @@ const ChatView: FC<ChatViewProps> = memo(({ roomID, scrollRef }) => {
             });
 
             // Check if event is redacted
-            const redaction = dedupedEvents?.find((e) => {
+            const redaction = no_relations?.find((e) => {
                 return e.type === "m.room.redaction" && e.redacts === event.event_id;
             });
             const redacted = redaction !== undefined;
