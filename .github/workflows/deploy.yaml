@@ -23,6 +23,9 @@ jobs:
           npm run build-storybook -- --disable-telemetry -o dist/storybook
           
           cp dist/index.html dist/404.html
+        env:
+          # also other environment variable
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Deploy 🚀
         uses: JamesIves/github-pages-deploy-action@v4.4.1
         with:

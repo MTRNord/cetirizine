@@ -7,5 +7,5 @@ export default defineConfig({
     appType: 'mpa',
     build: {
         target: 'esnext'
-    }
+    },
 })

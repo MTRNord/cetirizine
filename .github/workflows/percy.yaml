@@ -16,6 +16,9 @@ jobs:
           export NODE_OPTIONS="--max_old_space_size=4096"
           npm install
           npx browserslist@latest --update-db
+        env:
+          # also other environment variable
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: |
           export NODE_OPTIONS="--max_old_space_size=4096"
           npm run storybook -- --no-open &
