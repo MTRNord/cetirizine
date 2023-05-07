@@ -1,4 +1,4 @@
-import { LoggerLevel, Tracing, initAsync, start } from "@mtrnord/matrix-sdk-crypto-js";
+import { initAsync, start } from "@mtrnord/matrix-sdk-crypto-js";
 import React from 'react'
 import { createRoot } from 'react-dom/client';
 import './index.scss';
