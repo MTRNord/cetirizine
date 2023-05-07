@@ -1,4 +1,4 @@
-import{r as Y,j as x,a as lu,g as t_,b as dp,d as _a,m as up}from"./vendor-9ff4cf4d.js";import{M as dr,u as ur,i as QC,a as _p,b as pp,c as XC,d as ZC,e as jC,f as JC}from"./client-241b350c.js";/**
+import{r as Y,j as x,a as lu,g as t_,b as dp,d as _a,m as up}from"./vendor-9ff4cf4d.js";import{M as dr,u as ur,i as QC,a as _p,b as pp,c as XC,d as ZC,e as jC,f as JC}from"./client-899bf75e.js";/**
  * @remix-run/router v1.6.1
  *
  * Copyright (c) Remix Software Inc.
