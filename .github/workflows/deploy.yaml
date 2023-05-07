@@ -16,11 +16,12 @@ jobs:
           persist-credentials: false
       - name: Install and Build 🔧
         run: | # Install npm packages and build the Storybook files
+          export NODE_OPTIONS="--max_old_space_size=4096"
           npm install
           npx browserslist@latest --update-db
           patch node_modules/@matrix-org/matrix-sdk-crypto-js/pkg/matrix_sdk_crypto_js.js < .github/crypto-dep.patch
           npm run build -- --base /cetirizine/
-          NODE_OPTIONS='--max-old-space-size=2048' npm run build-storybook -- --disable-telemetry -o dist/storybook
+          npm run build-storybook -- --disable-telemetry -o dist/storybook
           
           cp dist/index.html dist/404.html
       - name: Deploy 🚀
