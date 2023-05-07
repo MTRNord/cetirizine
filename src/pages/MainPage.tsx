@@ -44,11 +44,11 @@ const ChatView: FC<ChatViewProps> = memo(({ roomID, scrollRef }) => {
             return self.findIndex(e => e.event_id === event.event_id) === index;
         }).sort((a, b) => {
             return a.origin_server_ts - b.origin_server_ts;
-        });
+        }).filter(event => event.type !== "m.reaction" && event.type !== "m.room.redaction" && !event.content["m.relates_to"]);
 
 
-        Promise.all(dedupedEvents?.filter(event => event.type !== "m.reaction" && event.type !== "m.room.redaction" && !event.content["m.relates_to"]).map(async (event, index) => {
-            let previousEvent = dedupedEvents?.filter(event => event.type !== "m.reaction")[index - 1];
+        Promise.all(dedupedEvents?.map(async (event, index) => {
+            let previousEvent = dedupedEvents?.[index - 1];
             const previousEventIsFromSameSender = previousEvent?.sender === event.sender;
             let previousEventType = previousEvent?.type;
 
