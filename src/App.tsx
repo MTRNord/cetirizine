@@ -10,7 +10,7 @@ import { memo } from "react";
 
 function App() {
     console.log("Rendering App")
-    return <HashRouter basename={import.meta.env.BASE_URL}>
+    return <HashRouter>
         <Routes>
             <Route path="/:roomIdOrAlias?" element={<ProtectedRoute><MainPage /></ProtectedRoute>} />
             <Route path="/login" element={<LoginPage />} />
