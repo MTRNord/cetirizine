@@ -9,6 +9,7 @@ import { ProtectedRoute } from './app/protectedRoute';
 import { memo } from "react";
 
 function App() {
+    console.log("Rendering App")
     return <HashRouter basename={import.meta.env.BASE_URL}>
         <Routes>
             <Route path="/:roomIdOrAlias?" element={<ProtectedRoute><MainPage /></ProtectedRoute>} />
