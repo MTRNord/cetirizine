@@ -29,7 +29,7 @@
     "serve": "vite preview",
     "storybook": "storybook dev -p 6006",
     "percy": "percy storybook http://localhost:6006 --verbose",
-    "build-storybook": "storybook build -s ./public"
+    "build-storybook": "storybook build"
   },
   "eslintConfig": {
     "extends": [
