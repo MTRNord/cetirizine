@@ -9,10 +9,13 @@ initAsync().then(() => {
     let tracing = new Tracing(LoggerLevel.Info);
     tracing.turnOn();
   }
+  console.log("Crypto starting")
   start();
+  console.log("Crypto started")
 
   import('./app/sdk/client').then(({ MatrixContext, defaultMatrixClient }) => {
     import('./App').then(({ default: App }) => {
+      console.log("Starting App")
       const container = document.getElementById('root')!;
       const root = createRoot(container);
 
