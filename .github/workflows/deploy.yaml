@@ -7,11 +7,12 @@ on:
 jobs:
   deploy-storybook:
     permissions:
+      packages: read
       contents: write
     runs-on: ubuntu-latest
     steps:
       - name: Checkout 🛎️
-        uses: actions/checkout@v3.5.2
+        uses: actions/checkout@v3
         with:
           persist-credentials: false
       - uses: actions/setup-node@v3
