@@ -12,6 +12,7 @@ jobs:
       - uses: actions/setup-node@v3
         with:
           node-version: '18'
+          registry-url: https://npm.pkg.github.com/
       - run: |
           export NODE_OPTIONS="--max_old_space_size=4096"
           npm install
