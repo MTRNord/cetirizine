@@ -332,6 +332,12 @@ export function isRoomMessageTextEvent(event: IRoomEvent): event is IRoomMessage
     return event.type === "m.room.message" && event.content.msgtype === "m.text";
 }
 
+export interface IRoomMessageNoticeEvent extends IRoomMessageEvent<IRoomMessageTextContent> { }
+
+export function isRoomMessageNoticeEvent(event: IRoomEvent): event is IRoomMessageNoticeEvent {
+    return event.type === "m.room.message" && event.content.msgtype === "m.notice";
+}
+
 export function isRoomMessageImageEvent(event: IRoomEvent): event is IRoomMessageEvent<IRoomMessageImageContent> {
     return event.type === "m.room.message" && event.content.msgtype === "m.image";
 }

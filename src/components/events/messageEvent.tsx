@@ -1,5 +1,5 @@
 import { memo, useContext, useEffect, useState } from "react";
-import { IRoomEvent, isRoomMessageAudioEvent, isRoomMessageImageEvent, isRoomMessageTextEvent } from "../../app/sdk/api/apiTypes";
+import { IRoomEvent, isRoomMessageAudioEvent, isRoomMessageImageEvent, isRoomMessageNoticeEvent, isRoomMessageTextEvent } from "../../app/sdk/api/apiTypes";
 import { FC } from "react";
 import Avatar from "../avatar/avatar";
 import { MatrixContext, useRoom } from "../../app/sdk/client";
@@ -38,105 +38,16 @@ const linkifyOptions = {
     className: "text-blue-500 hover:text-blue-700 active:text-blue-700 visited:text-blue-500"
 }
 
-const MessageEvent: FC<MessageEventProps> = memo(({ event, roomID, hasPreviousEvent }) => {
+const MessageEvent: FC<MessageEventProps> = memo(({ event, roomID, hasPreviousEvent, reactions }) => {
     const client = useContext(MatrixContext);
     const room = useRoom(roomID);
 
 
     const renderCorrectMessage = (event: IRoomEvent) => {
         if (isRoomMessageTextEvent(event)) {
-            if (event.content.format === "org.matrix.custom.html") {
-                let sanitized = DOMPurify.sanitize(event.content.formatted_body!, {
-                    ADD_TAGS: [
-                        "font",
-                        "del",
-                        "h1",
-                        "h2",
-                        "h3",
-                        "h4",
-                        "h5",
-                        "h6",
-                        "blockquote",
-                        "p",
-                        "a",
-                        "ul",
-                        "ol",
-                        "sup",
-                        "sub",
-                        "li",
-                        "b",
-                        "i",
-                        "u",
-                        "strong",
-                        "em",
-                        "strike",
-                        "code",
-                        "hr",
-                        "br",
-                        "div",
-                        "table",
-                        "thead",
-                        "tbody",
-                        "tr",
-                        "th",
-                        "td",
-                        "caption",
-                        "pre",
-                        "span",
-                        "img",
-                        "details",
-                        "summary"
-                    ]
-                })
-                // Extract code and language from the html
-                const codeRegex = /<pre><code (?:class="language-(?<language>.*?)")?.*?>(?<code>[\s\S]*?)<\/code><\/pre>/;
-                const code = codeRegex.exec(sanitized);
-
-                if (code?.groups?.["code"]) {
-                    if (code.groups?.["language"]) {
-                        // Highlight the code
-                        const highlighted = hljs.highlight(code.groups?.["code"], { language: code.groups?.["language"] }).value;
-                        sanitized = sanitized.replace(code.groups?.["code"], `${highlighted}`);
-                    } else {
-                        // Highlight the code
-                        const highlighted = hljs.highlightAuto(code.groups?.["code"]).value;
-                        sanitized = sanitized.replace(code[0], `${highlighted}`);
-                    }
-                }
-                const linkified = linkifyHtml(sanitized, linkifyOptions);
-                // TODO: sanitize the attributes allowed by matrix spec
-
-                return (
-                    <div className={!hasPreviousEvent ? "flex flex-row gap-4 p-2 pb-1 hover:bg-gray-200 rounded-md duration-200 ease-in-out items-start" : "flex flex-row p-2 pb-1 pt-0 hover:bg-gray-200 rounded-md duration-200 ease-in-out"}>
-                        {!hasPreviousEvent && <Avatar
-                            displayname={room?.getMemberName(event.sender) || event.sender}
-                            avatarUrl={room?.getMemberAvatar(event.sender)}
-                            online={room?.isOnline() || false}
-                            dm={room?.isDM() || false}
-                        />}
-                        <div className={!hasPreviousEvent ? "flex flex-col gap-1" : "ml-[3.7rem]"}>
-                            {!hasPreviousEvent && <h2 className="text-sm font-medium text-red-500 whitespace-pre-wrap">{room?.getMemberName(event.sender) || event.sender}</h2>}
-                            {/* TODO: Fixme */}
-                            <p className="whitespace-pre-wrap text-black text-base font-normal" dangerouslySetInnerHTML={{ __html: linkified }}></p>
-                        </div>
-                    </div>
-                )
-            } else {
-                return (
-                    <div className={!hasPreviousEvent ? "flex flex-row gap-4 p-2 pb-1 hover:bg-gray-200 rounded-md duration-200 ease-in-out items-start" : "flex flex-row p-2 pb-1 pt-0 hover:bg-gray-200 rounded-md duration-200 ease-in-out"}>
-                        {!hasPreviousEvent && <Avatar
-                            displayname={room?.getMemberName(event.sender) || event.sender}
-                            avatarUrl={room?.getMemberAvatar(event.sender)}
-                            online={room?.isOnline() || false}
-                            dm={room?.isDM() || false}
-                        />}
-                        <div className={!hasPreviousEvent ? "flex flex-col gap-1" : "ml-[3.7rem]"}>
-                            {!hasPreviousEvent && <h2 className="text-sm font-medium text-red-500 whitespace-pre-wrap">{room?.getMemberName(event.sender) || event.sender}</h2>}
-                            <Linkify options={linkifyOptions} as='p' className="whitespace-pre-wrap text-black text-base font-normal">{event.content.body}</Linkify>
-                        </div>
-                    </div>
-                )
-            }
+            return (<TextMessage event={event} roomID={roomID} hasPreviousEvent={hasPreviousEvent} reactions={reactions} />)
+        } else if (isRoomMessageNoticeEvent(event)) {
+            return (<TextMessage event={event} roomID={roomID} hasPreviousEvent={hasPreviousEvent} reactions={reactions} message_type={MessageType.Notice} />)
         } else if (isRoomMessageImageEvent(event)) {
             const [url, setUrl] = useState<string | undefined>(undefined);
             const [unableToDecrypt, setUnableToDecrypt] = useState<boolean>(event.content.file !== undefined);
@@ -309,6 +220,121 @@ const MessageEvent: FC<MessageEventProps> = memo(({ event, roomID, hasPreviousEv
 });
 
 export default MessageEvent;
+
+enum MessageType {
+    Text,
+    Notice,
+    Emote
+}
+
+interface TextMessage extends MessageEventProps {
+    /**
+     * Which type the message is
+     */
+    message_type?: MessageType;
+}
+
+const TextMessage: FC<TextMessage> = memo(({ event, roomID, hasPreviousEvent, message_type = MessageType.Text }) => {
+    const room = useRoom(roomID);
+
+    let text_color = "text-black";
+    if (message_type === MessageType.Notice) {
+        text_color = "text-slate-500"
+    }
+
+    if (event.content.format === "org.matrix.custom.html") {
+        let sanitized = DOMPurify.sanitize(event.content.formatted_body!, {
+            ADD_TAGS: [
+                "font",
+                "del",
+                "h1",
+                "h2",
+                "h3",
+                "h4",
+                "h5",
+                "h6",
+                "blockquote",
+                "p",
+                "a",
+                "ul",
+                "ol",
+                "sup",
+                "sub",
+                "li",
+                "b",
+                "i",
+                "u",
+                "strong",
+                "em",
+                "strike",
+                "code",
+                "hr",
+                "br",
+                "div",
+                "table",
+                "thead",
+                "tbody",
+                "tr",
+                "th",
+                "td",
+                "caption",
+                "pre",
+                "span",
+                "img",
+                "details",
+                "summary"
+            ]
+        })
+        // Extract code and language from the html
+        const codeRegex = /<pre><code (?:class="language-(?<language>.*?)")?.*?>(?<code>[\s\S]*?)<\/code><\/pre>/;
+        const code = codeRegex.exec(sanitized);
+
+        if (code?.groups?.["code"]) {
+            if (code.groups?.["language"]) {
+                // Highlight the code
+                const highlighted = hljs.highlight(code.groups?.["code"], { language: code.groups?.["language"] }).value;
+                sanitized = sanitized.replace(code.groups?.["code"], `${highlighted}`);
+            } else {
+                // Highlight the code
+                const highlighted = hljs.highlightAuto(code.groups?.["code"]).value;
+                sanitized = sanitized.replace(code[0], `${highlighted}`);
+            }
+        }
+        const linkified = linkifyHtml(sanitized, linkifyOptions);
+        // TODO: sanitize the attributes allowed by matrix spec
+
+        return (
+            <div className={!hasPreviousEvent ? "flex flex-row gap-4 p-2 pb-1 hover:bg-gray-200 rounded-md duration-200 ease-in-out items-start" : "flex flex-row p-2 pb-1 pt-0 hover:bg-gray-200 rounded-md duration-200 ease-in-out"}>
+                {!hasPreviousEvent && <Avatar
+                    displayname={room?.getMemberName(event.sender) || event.sender}
+                    avatarUrl={room?.getMemberAvatar(event.sender)}
+                    online={room?.isOnline() || false}
+                    dm={room?.isDM() || false}
+                />}
+                <div className={!hasPreviousEvent ? "flex flex-col gap-1" : "ml-[3.7rem]"}>
+                    {!hasPreviousEvent && <h2 className="text-sm font-medium text-red-500 whitespace-pre-wrap">{room?.getMemberName(event.sender) || event.sender}</h2>}
+                    {/* TODO: Fixme */}
+                    <p className={`whitespace-pre-wrap ${text_color} text-base font-normal`} dangerouslySetInnerHTML={{ __html: linkified }}></p>
+                </div>
+            </div>
+        )
+    } else {
+        return (
+            <div className={!hasPreviousEvent ? "flex flex-row gap-4 p-2 pb-1 hover:bg-gray-200 rounded-md duration-200 ease-in-out items-start" : "flex flex-row p-2 pb-1 pt-0 hover:bg-gray-200 rounded-md duration-200 ease-in-out"}>
+                {!hasPreviousEvent && <Avatar
+                    displayname={room?.getMemberName(event.sender) || event.sender}
+                    avatarUrl={room?.getMemberAvatar(event.sender)}
+                    online={room?.isOnline() || false}
+                    dm={room?.isDM() || false}
+                />}
+                <div className={!hasPreviousEvent ? "flex flex-col gap-1" : "ml-[3.7rem]"}>
+                    {!hasPreviousEvent && <h2 className="text-sm font-medium text-red-500 whitespace-pre-wrap">{room?.getMemberName(event.sender) || event.sender}</h2>}
+                    <Linkify options={linkifyOptions} as='p' className={`whitespace-pre-wrap ${text_color} text-base font-normal`}>{event.content.body}</Linkify>
+                </div>
+            </div>
+        )
+    }
+})
 
 
 // WARNING: We have to be very careful about what mime-types we allow into blobs,
