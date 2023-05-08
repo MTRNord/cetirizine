@@ -4,7 +4,6 @@ import { InitialConfigType, LexicalComposer } from '@lexical/react/LexicalCompos
 import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin';
 import { ContentEditable } from '@lexical/react/LexicalContentEditable';
 import { HistoryPlugin } from '@lexical/react/LexicalHistoryPlugin';
-import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin';
 import LexicalErrorBoundary from '@lexical/react/LexicalErrorBoundary';
 import { LinkPlugin } from '@lexical/react/LexicalLinkPlugin';
 import { HeadingNode, QuoteNode } from "@lexical/rich-text";
@@ -292,14 +291,6 @@ const ChatInput: FC<ChatInputProps> = memo(({ namespace, roomID }: ChatInputProp
                             placeholder={<Placeholder />}
                             ErrorBoundary={LexicalErrorBoundary}
                         />
-                        <OnChangePlugin onChange={(editorState, editor) => {
-                            // Convert editor state to both html and markdown.
-                            // If there is no formatting then just use the plain text.
-                            editorState.read(() => {
-
-                            });
-                            // TODO: we need some send button
-                        }} />
                         <HistoryPlugin />
                         <LinkPlugin />
                         <CodeHighlightPlugin />
