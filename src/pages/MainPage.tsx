@@ -45,7 +45,10 @@ const ChatView: FC<ChatViewProps> = memo(({ roomID, scrollRef }) => {
         }).sort((a, b) => {
             return a.origin_server_ts - b.origin_server_ts;
         })
-        const no_relations = dedupedEvents.filter(event => event.type !== "m.reaction" && event.type !== "m.room.redaction" && !event.content["m.relates_to"]);
+        const no_relations = dedupedEvents.filter(event => event.type !== "m.reaction" &&
+            event.type !== "m.room.redaction" &&
+            event.content["m.relates_to"]?.["rel_type"] !== "m.replace"
+        );
 
 
         Promise.all(no_relations?.map(async (event, index) => {

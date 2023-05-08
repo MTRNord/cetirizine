@@ -298,6 +298,7 @@ export interface IRoomEvent<Content = any> {
     sender: string;
     type: string;
     unsigned?: any;
+    "m.relates.to"?: any;
     [key: string]: any;
 }
 
