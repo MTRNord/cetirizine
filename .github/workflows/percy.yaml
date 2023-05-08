@@ -27,6 +27,7 @@ jobs:
       - run: |
           export NODE_OPTIONS="--max_old_space_size=4096"
           npm run storybook -- --no-open &
+          sleep 60
           npm run percy
         env:
           PERCY_TOKEN: ${{ secrets.PERCY_TOKEN }}
