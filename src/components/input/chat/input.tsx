@@ -175,7 +175,7 @@ const SendButton: FC<SendButtonProps> = memo(({ roomID, onStartSending, onStopSe
                 })
             }
         })
-    }, [roomID, editor]);
+    }, [room, roomID, editor]);
 
     useEffect(() => {
         editor.registerCommand<KeyboardEvent | null>(
