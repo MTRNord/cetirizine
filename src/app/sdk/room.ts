@@ -247,7 +247,8 @@ export class Room extends EventEmitter {
             return json.event_id;
         } else {
             console.log("Sending encrypted message");
-            await this.client.shareKeys();
+            await this.client.getMissingSessions();
+            await this.client.shareKeysForRoom(this);
             const encrypted = await this.client.olmMachine?.encryptRoomEvent(
                 new RoomId(this.roomID),
                 "m.room.message",
@@ -294,7 +295,8 @@ export class Room extends EventEmitter {
             return json.event_id;
         } else {
             console.log("Sending encrypted message2");
-            await this.client.shareKeys();
+            await this.client.getMissingSessions();
+            await this.client.shareKeysForRoom(this);
             const encrypted = await this.client.olmMachine?.encryptRoomEvent(
                 new RoomId(this.roomID),
                 "m.room.message",

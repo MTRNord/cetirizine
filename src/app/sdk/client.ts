@@ -391,11 +391,30 @@ export class MatrixClient extends EventEmitter {
             await this.processRequest(request);
         }
 
-        await this.shareKeys();
+        await this.getMissingSessions();
         this.outgoingRequestsBeingProcessed = false;
     }
 
-    public async shareKeys() {
+    public async shareKeysForRoom(room: Room) {
+        if (!this.isLoggedIn) {
+            throw Error("Not logged in");
+        }
+        if (!this.slidingSyncHostname) {
+            throw Error("Hostname must be set first");
+        }
+        if (!this.olmMachine) {
+            throw Error("Olm machine must be set first");
+        }
+        const encryptionSettings = room.getEncryptionSettings();
+        if (encryptionSettings) {
+            const requests = await this.olmMachine.shareRoomKey(new RoomId(room.roomID), room.getJoinedMemberIDs().map(id => new UserId(id)), encryptionSettings);
+            for (const request of requests) {
+                await this.processRequest(request);
+            }
+        }
+    }
+
+    public async getMissingSessions() {
         if (!this.isLoggedIn) {
             throw Error("Not logged in");
         }
@@ -416,17 +435,6 @@ export class MatrixClient extends EventEmitter {
         const request = await this.olmMachine?.getMissingSessions(users);
         if (request) {
             await this.processRequest(request);
-        }
-
-        // TODO: This only should be done on sending a message in the room
-        for (const room of encryptedRooms) {
-            const encryptionSettings = room.getEncryptionSettings();
-            if (encryptionSettings) {
-                const requests = await this.olmMachine.shareRoomKey(new RoomId(room.roomID), room.getJoinedMemberIDs().map(id => new UserId(id)), encryptionSettings);
-                for (const request of requests) {
-                    await this.processRequest(request);
-                }
-            }
         }
 
         this.missingSessionsBeingRequested = false;
@@ -677,6 +685,7 @@ export class MatrixClient extends EventEmitter {
                     lists_ranges[list] = [[Math.max(minimum - 10, 0), maximum + 10]];
                 }
             }
+            lists_ranges["e2ee"] = lists_ranges["overview"];
         }
 
 
