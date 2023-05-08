@@ -1,4 +1,4 @@
-import { $applyNodeReplacement, $getRoot, DOMExportOutput, LexicalEditor, ParagraphNode, SerializedElementNode } from "lexical";
+import { $applyNodeReplacement, $getRoot, DOMExportOutput, LexicalEditor, ParagraphNode, SerializedElementNode, SerializedParagraphNode } from "lexical";
 
 export class CustomParagraphNode extends ParagraphNode {
     static getType(): string {
@@ -37,6 +37,10 @@ export class CustomParagraphNode extends ParagraphNode {
         const node = super.exportJSON();
         node.type = "custom-paragraph";
         return node;
+    }
+
+    static importJSON(node: SerializedParagraphNode): CustomParagraphNode {
+        return super.importJSON(node);
     }
 }
 

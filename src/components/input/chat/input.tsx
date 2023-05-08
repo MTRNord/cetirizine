@@ -28,8 +28,50 @@ import { FC, memo, useEffect, useState } from 'react';
 import { Send } from 'lucide-react';
 import { useRoom } from '../../../app/sdk/client';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
-import { CLEAR_EDITOR_COMMAND, CLEAR_HISTORY_COMMAND, ParagraphNode } from 'lexical';
+import { $getSelection, $isRangeSelection, CLEAR_EDITOR_COMMAND, CLEAR_HISTORY_COMMAND, COMMAND_PRIORITY_CRITICAL, INSERT_PARAGRAPH_COMMAND, KEY_ENTER_COMMAND, ParagraphNode } from 'lexical';
 import { useLocation } from 'react-router-dom';
+
+export const CAN_USE_DOM: boolean =
+    typeof window !== 'undefined' &&
+    typeof window.document !== 'undefined' &&
+    typeof window.document.createElement !== 'undefined';
+
+
+declare global {
+    interface Document {
+        documentMode?: unknown;
+    }
+
+    interface Window {
+        MSStream?: unknown;
+    }
+}
+
+const documentMode =
+    CAN_USE_DOM && 'documentMode' in document ? document.documentMode : null;
+
+export const CAN_USE_BEFORE_INPUT: boolean =
+    CAN_USE_DOM && 'InputEvent' in window && !documentMode
+        ? 'getTargetRanges' in new window.InputEvent('input')
+        : false;
+
+export const IS_SAFARI: boolean =
+    CAN_USE_DOM && /Version\/[\d.]+.*Safari/.test(navigator.userAgent);
+
+export const IS_IOS: boolean =
+    CAN_USE_DOM &&
+    /iPad|iPhone|iPod/.test(navigator.userAgent) &&
+    !window.MSStream;
+
+
+// Keep these in case we need to use them in the future.
+// export const IS_WINDOWS: boolean = CAN_USE_DOM && /Win/.test(navigator.platform);
+export const IS_CHROME: boolean =
+    CAN_USE_DOM && /^(?=.*Chrome).*/i.test(navigator.userAgent);
+// export const canUseTextInputEvent: boolean = CAN_USE_DOM && 'TextEvent' in window && !documentMode;
+
+export const IS_APPLE_WEBKIT =
+    CAN_USE_DOM && /AppleWebKit\/[\d.]+/.test(navigator.userAgent) && !IS_CHROME;
 
 type ChatInputProps = {
     /**
@@ -51,14 +93,6 @@ type SendButtonProps = {
      * The current Room
      */
     roomID?: string
-    /** 
-     * The HTML message
-     */
-    htmlMessage: string
-    /**
-     * The plain text message
-     */
-    plainMessage: string
     /**
      * Callback when sending starts
      */
@@ -69,16 +103,49 @@ type SendButtonProps = {
     onStopSending: () => void
 };
 
-const SendButton: FC<SendButtonProps> = memo(({ roomID, htmlMessage, plainMessage, onStartSending, onStopSending }: SendButtonProps) => {
+const SendButton: FC<SendButtonProps> = memo(({ roomID, onStartSending, onStopSending }: SendButtonProps) => {
     const room = useRoom(roomID || "");
     const [editor] = useLexicalComposerContext();
 
-    return <Send size={45} stroke='unset' className='stroke-slate-600 rounded m-4 hover:bg-slate-300 hover:stroke-slate-500 p-2 cursor-pointer' onClick={async () => {
+    const sendMessage = async () => {
         // TODO: Sanitize the html and send message to room
         if (!room) {
             return;
         }
 
+        let htmlMessage = $generateHtmlFromNodes(editor);
+        // TODO: Make sure that we strip any non matrix stuff
+        const codeRegex = /(?<all><code .* (?:data-highlight-language="(?<language>.*?)")(?: .*?)?>(?<code>[\s\S]*?)<\/code>)/;
+        let matched = codeRegex.exec(htmlMessage);
+        while (matched !== null) {
+            if (matched) {
+                const { groups } = matched;
+                if (groups) {
+                    let { all, language, code } = groups;
+
+                    const spanRegex = /<span(?: class=".*?")?>(?<content>.*?)<\/span>/;
+                    let matchedspans = spanRegex.exec(code);
+                    while (matchedspans !== null) {
+                        if (matchedspans) {
+                            const { groups } = matchedspans;
+                            if (groups) {
+                                const { content } = groups;
+
+                                code = code.replaceAll(matchedspans[0], content)
+                            }
+                        }
+                        matchedspans = spanRegex.exec(code)
+                    }
+
+                    code = code.replaceAll("<br>", "\n")
+                    htmlMessage = htmlMessage.replace(all, `<pre><code class="language-${language}">${code}</code></pre>`)
+                }
+            }
+            matched = codeRegex.exec(htmlMessage)
+        }
+        const plainMessage = $convertToMarkdownString(TRANSFORMERS);
+
+        console.log(htmlMessage)
         // TODO: local echo
         if ((htmlMessage === "" && plainMessage === "") || htmlMessage === '<p class="editor-paragraph"><br></p>') {
             return;
@@ -106,7 +173,47 @@ const SendButton: FC<SendButtonProps> = memo(({ roomID, htmlMessage, plainMessag
             }
         }
         onStopSending();
-    }} />
+    }
+
+    useEffect(() => {
+        editor.registerCommand<KeyboardEvent | null>(
+            KEY_ENTER_COMMAND,
+            (event) => {
+                const selection = $getSelection();
+                if (!$isRangeSelection(selection)) {
+                    return false;
+                }
+                if (event !== null) {
+                    // If we have beforeinput, then we can avoid blocking
+                    // the default behavior. This ensures that the iOS can
+                    // intercept that we're actually inserting a paragraph,
+                    // and autocomplete, autocapitalize etc work as intended.
+                    // This can also cause a strange performance issue in
+                    // Safari, where there is a noticeable pause due to
+                    // preventing the key down of enter.
+                    if (
+                        (IS_IOS || IS_SAFARI || IS_APPLE_WEBKIT) &&
+                        CAN_USE_BEFORE_INPUT
+                    ) {
+                        return false;
+                    }
+                    event.preventDefault();
+                    if (event.shiftKey) {
+                        return editor.dispatchCommand(INSERT_PARAGRAPH_COMMAND, undefined);
+                    }
+                }
+                sendMessage();
+                return editor.dispatchCommand(INSERT_PARAGRAPH_COMMAND, undefined);
+            },
+            COMMAND_PRIORITY_CRITICAL,
+        )
+    }, [editor])
+
+    return <Send
+        size={45}
+        stroke='unset'
+        className='stroke-slate-600 rounded m-4 hover:bg-slate-300 hover:stroke-slate-500 p-2 cursor-pointer'
+        onClick={sendMessage} />
 });
 
 
@@ -146,8 +253,6 @@ const RoomChangePlugin: FC<RoomChangeProps> = ({ roomID }) => {
 }
 
 const ChatInput: FC<ChatInputProps> = memo(({ namespace, roomID }: ChatInputProps) => {
-    const [htmlMessage, setHtmlMessage] = useState<string>("");
-    const [plainMessage, setPlainMessage] = useState<string>("");
     const [sending, setSending] = useState(false);
 
     const initialConfig: InitialConfigType = {
@@ -191,41 +296,7 @@ const ChatInput: FC<ChatInputProps> = memo(({ namespace, roomID }: ChatInputProp
                             // Convert editor state to both html and markdown.
                             // If there is no formatting then just use the plain text.
                             editorState.read(() => {
-                                let html = $generateHtmlFromNodes(editor);
-                                // TODO: Make sure that we strip any non matrix stuff
-                                const codeRegex = /(?<all><code .* (?:data-highlight-language="(?<language>.*?)")(?: .*?)?>(?<code>[\s\S]*?)<\/code>)/;
-                                let matched = codeRegex.exec(html);
-                                while (matched !== null) {
-                                    if (matched) {
-                                        const { groups } = matched;
-                                        if (groups) {
-                                            let { all, language, code } = groups;
 
-                                            const spanRegex = /<span(?: class=".*?")?>(?<content>.*?)<\/span>/;
-                                            let matchedspans = spanRegex.exec(code);
-                                            while (matchedspans !== null) {
-                                                if (matchedspans) {
-                                                    const { groups } = matchedspans;
-                                                    if (groups) {
-                                                        const { content } = groups;
-
-                                                        code = code.replaceAll(matchedspans[0], content)
-                                                    }
-                                                }
-                                                matchedspans = spanRegex.exec(code)
-                                            }
-
-                                            code = code.replaceAll("<br>", "\n")
-                                            html = html.replace(all, `<pre><code class="language-${language}">${code}</code></pre>`)
-
-
-                                        }
-                                    }
-                                    matched = codeRegex.exec(html)
-                                }
-                                setHtmlMessage(html);
-                                const markdown = $convertToMarkdownString(TRANSFORMERS);
-                                setPlainMessage(markdown);
                             });
                             // TODO: we need some send button
                         }} />
@@ -239,7 +310,7 @@ const ChatInput: FC<ChatInputProps> = memo(({ namespace, roomID }: ChatInputProp
                         {/*<TreeViewPlugin />*/}
                     </div>
                 </div>
-                <SendButton roomID={roomID} htmlMessage={htmlMessage} plainMessage={plainMessage} onStartSending={() => { console.log("Sending"); setSending(true) }} onStopSending={() => { setSending(false) }} />
+                <SendButton roomID={roomID} onStartSending={() => { console.log("Sending"); setSending(true) }} onStopSending={() => { setSending(false) }} />
             </LexicalComposer>
 
         </div>

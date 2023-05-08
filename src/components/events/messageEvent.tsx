@@ -46,7 +46,7 @@ const MessageEvent: FC<MessageEventProps> = memo(({ event, roomID, hasPreviousEv
     const renderCorrectMessage = (event: IRoomEvent) => {
         if (isRoomMessageTextEvent(event)) {
             if (event.content.format === "org.matrix.custom.html") {
-                const sanitized = DOMPurify.sanitize(event.content.formatted_body!, {
+                let sanitized = DOMPurify.sanitize(event.content.formatted_body!, {
                     ADD_TAGS: [
                         "font",
                         "del",
@@ -88,22 +88,22 @@ const MessageEvent: FC<MessageEventProps> = memo(({ event, roomID, hasPreviousEv
                         "summary"
                     ]
                 })
-                let linkified = linkifyHtml(sanitized, linkifyOptions);
                 // Extract code and language from the html
                 const codeRegex = /<pre><code (?:class="language-(?<language>.*?)")?.*?>(?<code>[\s\S]*?)<\/code><\/pre>/;
-                const code = codeRegex.exec(linkified);
+                const code = codeRegex.exec(sanitized);
 
                 if (code?.groups?.["code"]) {
                     if (code.groups?.["language"]) {
                         // Highlight the code
                         const highlighted = hljs.highlight(code.groups?.["code"], { language: code.groups?.["language"] }).value;
-                        linkified = linkified.replace(code.groups?.["code"], `${highlighted}`);
+                        sanitized = sanitized.replace(code.groups?.["code"], `${highlighted}`);
                     } else {
                         // Highlight the code
                         const highlighted = hljs.highlightAuto(code.groups?.["code"]).value;
-                        linkified = linkified.replace(code[0], `${highlighted}`);
+                        sanitized = sanitized.replace(code[0], `${highlighted}`);
                     }
                 }
+                const linkified = linkifyHtml(sanitized, linkifyOptions);
                 // TODO: sanitize the attributes allowed by matrix spec
 
                 return (
