@@ -418,6 +418,7 @@ export class MatrixClient extends EventEmitter {
             await this.processRequest(request);
         }
 
+        // TODO: This only should be done on sending a message in the room
         for (const room of encryptedRooms) {
             const encryptionSettings = room.getEncryptionSettings();
             if (encryptionSettings) {
@@ -764,6 +765,30 @@ export class MatrixClient extends EventEmitter {
                     timeline_limit: timeline_limit,
                     filters: {
                         not_room_types: ["m.space"],
+                    }
+                },
+                "e2ee": {
+                    ranges: this.lastRanges["overview"],
+                    sort: ["by_notification_level", "by_recency", "by_name"],
+                    required_state: [
+                        // needed to build sections
+                        ["m.space.child", "*"],
+                        ["m.space.parent", "*"],
+                        ["m.room.create", ""],
+                        ["m.room.tombstone", ""],
+                        // Room Avatar
+                        ["m.room.avatar", "*"],
+                        // Room Topic
+                        ["m.room.topic", "*"],
+                        ["m.room.member", "*"],
+                        // E2EE
+                        ["m.room.encryption", ""],
+                        ["m.room.history_visibility", ""],
+                    ],
+                    timeline_limit: timeline_limit,
+                    filters: {
+                        not_room_types: ["m.space"],
+                        is_encrypted: true,
                     }
                 },
             },
@@ -1121,7 +1146,7 @@ export class MatrixClient extends EventEmitter {
                 roomObj.addStateEvents(state_events);
             }
             if (required_state || state_events) {
-                if (roomObj.isEncrypted()) {
+                if (roomObj.isEncrypted() && roomObj.isJoined()) {
                     const joinEvents = [...(required_state || []), ...(state_events || [])]
                         .filter(event => event.type === "m.room.member" && event.content.membership === "join");
                     const memberIds = joinEvents.map(event => new UserId(event.state_key));

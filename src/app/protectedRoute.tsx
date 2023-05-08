@@ -6,7 +6,7 @@ export const ProtectedRoute = ({ children }: { children: ReactElement<any, any> 
     const matrixClient = useContext(MatrixContext);
     if (!matrixClient.isLoggedIn) {
         // user is not authenticated
-        return <Navigate to="login" />;
+        return <Navigate to="/login" />;
     }
     return children;
 };

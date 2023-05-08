@@ -356,6 +356,16 @@ export class Room extends EventEmitter {
         }
         return settings;
     }
+
+    public isJoined(): boolean {
+        let isJoined: boolean = false;
+        this.stateEvents.forEach((event) => {
+            if (event.type === "m.room.member" && event.state_key === this.client.mxid) {
+                isJoined = event.content.membership === "join";
+            }
+        });
+        return isJoined;
+    }
 }
 
 export function useEvents(room?: Room) {
