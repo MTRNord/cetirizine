@@ -23,7 +23,7 @@ import CodeHighlightPlugin from './plugins/CodeHighlightPlugin';
 import EditorTheme from './theme';
 
 import './input.scss';
-import { FC, memo, useEffect, useState } from 'react';
+import { FC, memo, useCallback, useEffect, useState } from 'react';
 import { Send } from 'lucide-react';
 import { useRoom } from '../../../app/sdk/client';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
@@ -106,73 +106,76 @@ const SendButton: FC<SendButtonProps> = memo(({ roomID, onStartSending, onStopSe
     const room = useRoom(roomID || "");
     const [editor] = useLexicalComposerContext();
 
-    const sendMessage = async () => {
+    const sendMessage = useCallback(() => {
         // TODO: Sanitize the html and send message to room
         if (!room) {
             return;
         }
 
-        let htmlMessage = $generateHtmlFromNodes(editor);
-        // TODO: Make sure that we strip any non matrix stuff
-        const codeRegex = /(?<all><code .* (?:data-highlight-language="(?<language>.*?)")(?: .*?)?>(?<code>[\s\S]*?)<\/code>)/;
-        let matched = codeRegex.exec(htmlMessage);
-        while (matched !== null) {
-            if (matched) {
-                const { groups } = matched;
-                if (groups) {
-                    let { all, language, code } = groups;
+        editor.getEditorState().read(() => {
+            let htmlMessage = $generateHtmlFromNodes(editor);
+            // TODO: Make sure that we strip any non matrix stuff
+            const codeRegex = /(?<all><code .* (?:data-highlight-language="(?<language>.*?)")(?: .*?)?>(?<code>[\s\S]*?)<\/code>)/;
+            let matched = codeRegex.exec(htmlMessage);
+            while (matched !== null) {
+                if (matched) {
+                    const { groups } = matched;
+                    if (groups) {
+                        let { all, language, code } = groups;
 
-                    const spanRegex = /<span(?: class=".*?")?>(?<content>.*?)<\/span>/;
-                    let matchedspans = spanRegex.exec(code);
-                    while (matchedspans !== null) {
-                        if (matchedspans) {
-                            const { groups } = matchedspans;
-                            if (groups) {
-                                const { content } = groups;
+                        const spanRegex = /<span(?: class=".*?")?>(?<content>.*?)<\/span>/;
+                        let matchedspans = spanRegex.exec(code);
+                        while (matchedspans !== null) {
+                            if (matchedspans) {
+                                const { groups } = matchedspans;
+                                if (groups) {
+                                    const { content } = groups;
 
-                                code = code.replaceAll(matchedspans[0], content)
+                                    code = code.replaceAll(matchedspans[0], content)
+                                }
                             }
+                            matchedspans = spanRegex.exec(code)
                         }
-                        matchedspans = spanRegex.exec(code)
+
+                        code = code.replaceAll("<br>", "\n")
+                        htmlMessage = htmlMessage.replace(all, `<pre><code class="language-${language}">${code}</code></pre>`)
                     }
-
-                    code = code.replaceAll("<br>", "\n")
-                    htmlMessage = htmlMessage.replace(all, `<pre><code class="language-${language}">${code}</code></pre>`)
                 }
+                matched = codeRegex.exec(htmlMessage)
             }
-            matched = codeRegex.exec(htmlMessage)
-        }
-        const plainMessage = $convertToMarkdownString(TRANSFORMERS);
+            const plainMessage = $convertToMarkdownString(TRANSFORMERS);
 
-        console.log(htmlMessage)
-        // TODO: local echo
-        if ((htmlMessage === "" && plainMessage === "") || htmlMessage === '<p class="editor-paragraph"><br></p>') {
-            return;
-        }
-        onStartSending();
-        console.log("Sending message to: ", roomID)
+            console.log(htmlMessage)
+            // TODO: local echo
+            if ((htmlMessage === "" && plainMessage === "") || htmlMessage === '<p class="editor-paragraph"><br></p>') {
+                return;
+            }
+            onStartSending();
+            console.log("Sending message to: ", roomID)
 
-        if (htmlMessage !== '<p class="editor-paragraph"><br></p>') {
-            try {
-                await room.sendHtmlMessage(htmlMessage, plainMessage);
-                editor.dispatchCommand(CLEAR_EDITOR_COMMAND, undefined);
-                editor.dispatchCommand(CLEAR_HISTORY_COMMAND, undefined);
-                localStorage.removeItem(`editor-${roomID}`);
-            } catch (e: any) {
-                console.log(e);
+            if (htmlMessage !== '<p class="editor-paragraph"><br></p>') {
+                room.sendHtmlMessage(htmlMessage, plainMessage).then(() => {
+                    editor.dispatchCommand(CLEAR_EDITOR_COMMAND, undefined);
+                    editor.dispatchCommand(CLEAR_HISTORY_COMMAND, undefined);
+                    localStorage.removeItem(`editor-${roomID}`);
+                    onStopSending();
+                }).catch((e) => {
+                    console.log(e);
+                    onStopSending();
+                })
+            } else {
+                room.sendTextMessage(plainMessage).then(() => {
+                    editor.dispatchCommand(CLEAR_EDITOR_COMMAND, undefined);
+                    editor.dispatchCommand(CLEAR_HISTORY_COMMAND, undefined);
+                    localStorage.removeItem(`editor-${roomID}`);
+                    onStopSending();
+                }).catch((e) => {
+                    console.log(e);
+                    onStopSending();
+                })
             }
-        } else {
-            try {
-                await room.sendTextMessage(plainMessage);
-                editor.dispatchCommand(CLEAR_EDITOR_COMMAND, undefined);
-                editor.dispatchCommand(CLEAR_HISTORY_COMMAND, undefined);
-                localStorage.removeItem(`editor-${roomID}`);
-            } catch (e: any) {
-                console.log(e);
-            }
-        }
-        onStopSending();
-    }
+        })
+    }, [roomID, editor]);
 
     useEffect(() => {
         editor.registerCommand<KeyboardEvent | null>(

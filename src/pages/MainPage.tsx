@@ -62,7 +62,7 @@ const ChatView: FC<ChatViewProps> = memo(({ roomID, scrollRef }) => {
             });
 
             // Check if event is redacted
-            const redaction = no_relations?.find((e) => {
+            const redaction = dedupedEvents?.find((e) => {
                 return e.type === "m.room.redaction" && e.redacts === event.event_id;
             });
             const redacted = redaction !== undefined;
