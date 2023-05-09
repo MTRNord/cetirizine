@@ -7,6 +7,7 @@ export interface IRoomEvent<Content = any> {
     type: string;
     unsigned?: {
         transaction_id?: string;
+        age?: number;
     };
     "m.relates.to"?: any;
     [key: string]: any;
