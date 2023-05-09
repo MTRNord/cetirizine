@@ -14,6 +14,7 @@ import MemberEvent from '../components/events/memberEvent';
 import { IRoomEvent, IRoomMemberEvent } from '../app/sdk/api/apiTypes';
 import Linkify from 'linkify-react';
 import { RoomId } from '@mtrnord/matrix-sdk-crypto-js';
+import { OnlineState } from '../app/sdk/api/otherEnums';
 
 type ChatViewProps = {
     /**
@@ -266,7 +267,7 @@ const MainPage = memo(() => {
                 displayname: room.getName(),
                 avatarUrl: room.getAvatarURL(),
                 dm: room.isDM(),
-                online: room.isOnline(),
+                online: room.presence,
             }
         });
 
@@ -279,7 +280,7 @@ const MainPage = memo(() => {
                         displayname: room.getName(),
                         avatarUrl: room.getAvatarURL(),
                         dm: room.isDM(),
-                        online: room.isOnline(),
+                        online: room.presence,
                     }
                 });
 
@@ -313,7 +314,7 @@ const MainPage = memo(() => {
             displayname: room.getName(),
             avatarUrl: room.getAvatarURL(),
             dm: room.isDM(),
-            online: room.isOnline(),
+            online: room.presence,
         }
     });
 
@@ -334,7 +335,7 @@ const MainPage = memo(() => {
     return <div className='flex flex-row gap-2 min-h-screen h-screen'>
         <div className='flex flex-col bg-gradient-to-br from-slate-100 via-gray-200 to-orange-200 border-r-[1px] border-slate-300'>
             <div className='flex flex-row gap-2 m-2 p-1 items-center border-b-2'>
-                <Avatar displayname={profile.displayname || client.mxid!} avatarUrl={profile?.avatar_url} dm={false} online={false} />
+                <Avatar displayname={profile.displayname || client.mxid!} avatarUrl={profile?.avatar_url} dm={false} online={OnlineState.Unknown} />
                 <div className='flex flex-row justify-between items-center w-full'>
                     <span className='text-base font-semibold'>{profile?.displayname}</span>
                     <Settings size={28} stroke='unset' className='stroke-slate-600 rounded-full hover:bg-slate-300 p-1 cursor-pointer' />
@@ -345,7 +346,7 @@ const MainPage = memo(() => {
         {
             room && <div className='flex-1 flex flex-col'>
                 <div className='pb-2 flex flex-row items-center border-b-2 mt-4 ml-2'>
-                    <Avatar displayname={room.getName()} avatarUrl={room.getAvatarURL()} dm={room.isDM()} online={room.isOnline()} />
+                    <Avatar displayname={room.getName()} avatarUrl={room.getAvatarURL()} dm={room.isDM()} online={room.presence} />
                     <div className='flex flex-row items-start'>
                         <h1 className='text-black font-semibold text-lg flex-shrink-0'>{room.getName()}</h1>
                         <Linkify options={linkifyOptions} as='p' className="ml-4 text-slate-700 font-normal text-base line-clamp-2 text-ellipsis">{room.getTopic()}</Linkify>

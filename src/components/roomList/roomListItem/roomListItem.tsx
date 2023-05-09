@@ -2,6 +2,7 @@ import { useInView } from "react-intersection-observer";
 import Avatar from "../../avatar/avatar";
 import { FC, memo, useContext } from "react";
 import { MatrixContext } from "../../../app/sdk/client";
+import { OnlineState } from "../../../app/sdk/api/otherEnums";
 
 type RoomListItemProps = {
     /**
@@ -23,7 +24,7 @@ type RoomListItemProps = {
     /**
      * Wether the user is online. Only used if dm is true.
      */
-    online: boolean
+    online: OnlineState
     /**
      * Wether the current room is selected
      */
@@ -38,7 +39,7 @@ type RoomListItemProps = {
     hidden: boolean
 };
 
-const RoomListItem: FC<RoomListItemProps> = memo(({ roomId, avatarUrl, displayname, dm = false, online = false, active = false, onClick, hidden }: RoomListItemProps) => {
+const RoomListItem: FC<RoomListItemProps> = memo(({ roomId, avatarUrl, displayname, dm = false, online = OnlineState.Unknown, active = false, onClick, hidden }: RoomListItemProps) => {
     const matrixClient = useContext(MatrixContext);
     const { ref, inView } = useInView({
         triggerOnce: true,

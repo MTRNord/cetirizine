@@ -1,5 +1,6 @@
 import { Meta, StoryObj } from '@storybook/react';
 import Avatar from './avatar';
+import { OnlineState } from '../../app/sdk/api/otherEnums';
 
 const meta: Meta<typeof Avatar> = {
     title: 'Chat/Avatar',
@@ -39,7 +40,7 @@ export const Fallback: Story = {
     args: {
         displayname: "test",
         dm: false,
-        online: false,
+        online: OnlineState.Unknown,
         avatarUrl: ""
     }
 };
@@ -49,7 +50,7 @@ export const Image: Story = {
         displayname: "test",
         avatarUrl: "https://randomuser.me/api/portraits/men/62.jpg",
         dm: false,
-        online: false,
+        online: OnlineState.Unknown,
     }
 };
 
@@ -58,7 +59,17 @@ export const DMOffline: Story = {
         displayname: "test",
         avatarUrl: "https://randomuser.me/api/portraits/men/62.jpg",
         dm: true,
-        online: false,
+        online: OnlineState.Offline,
+    }
+};
+
+
+export const DMUnknown: Story = {
+    args: {
+        displayname: "test",
+        avatarUrl: "https://randomuser.me/api/portraits/men/62.jpg",
+        dm: true,
+        online: OnlineState.Unknown,
     }
 };
 
@@ -67,7 +78,7 @@ export const DMOnline: Story = {
         displayname: "test",
         avatarUrl: "https://randomuser.me/api/portraits/men/62.jpg",
         dm: true,
-        online: true,
+        online: OnlineState.Online,
     }
 };
 
@@ -76,7 +87,16 @@ export const DMNoAvatarOffline: Story = {
         displayname: "test",
         avatarUrl: "",
         dm: true,
-        online: false,
+        online: OnlineState.Offline,
+    }
+};
+
+export const DMNoAvatarUnknown: Story = {
+    args: {
+        displayname: "test",
+        avatarUrl: "",
+        dm: true,
+        online: OnlineState.Unknown,
     }
 };
 
@@ -85,6 +105,6 @@ export const DMNoAvatarOnline: Story = {
         displayname: "test",
         avatarUrl: "",
         dm: true,
-        online: true,
+        online: OnlineState.Online,
     }
 };

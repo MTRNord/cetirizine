@@ -4,6 +4,7 @@ import { FC } from "react";
 import { useRoom } from "../../app/sdk/client";
 import Linkify from "linkify-react";
 import Avatar from "../avatar/avatar";
+import { OnlineState } from "../../app/sdk/api/otherEnums";
 
 type UnknownEventProps = {
     /**
@@ -35,7 +36,7 @@ const UnknownEvent: FC<UnknownEventProps> = memo(({ event, roomID, hasPreviousEv
             {!hasPreviousEvent && <Avatar
                 displayname={room?.getMemberName(event.sender) || event.sender}
                 avatarUrl={room?.getMemberAvatar(event.sender)}
-                online={room?.isOnline() || false}
+                online={room?.presence || OnlineState.Unknown}
                 dm={room?.isDM() || false}
             />}
             <div className={!hasPreviousEvent ? "flex flex-col gap-1" : "ml-[3.7rem]"}>
@@ -71,7 +72,7 @@ export const UndecryptableEvent: FC<UndecryptableEventProps> = memo(({ event, ro
             {!hasPreviousEvent && <Avatar
                 displayname={room?.getMemberName(event.sender) || event.sender}
                 avatarUrl={room?.getMemberAvatar(event.sender)}
-                online={room?.isOnline() || false}
+                online={room?.presence || OnlineState.Unknown}
                 dm={room?.isDM() || false}
             />}
             <div className={!hasPreviousEvent ? "flex flex-col gap-1" : "ml-[3.7rem]"}>
@@ -109,7 +110,7 @@ export const RedactedEvent: FC<RedactedEventProps> = memo(({ event, redacted_bec
             {!hasPreviousEvent && <Avatar
                 displayname={room?.getMemberName(event.sender) || event.sender}
                 avatarUrl={room?.getMemberAvatar(event.sender)}
-                online={room?.isOnline() || false}
+                online={room?.presence || OnlineState.Unknown}
                 dm={room?.isDM() || false}
             />}
             <div className={!hasPreviousEvent ? "flex flex-col gap-1" : "ml-[3.7rem]"}>

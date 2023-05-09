@@ -5,6 +5,7 @@ import './roomList.scss';
 import { useNavigate } from "react-router-dom";
 import { MatrixContext } from "../../app/sdk/client";
 import { useInView } from "react-intersection-observer";
+import { OnlineState } from "../../app/sdk/api/otherEnums";
 
 type Room = {
     /**
@@ -22,7 +23,7 @@ type Room = {
     /**
      * Wether the user is online. Only used if dm is true.
      */
-    online: boolean
+    online: OnlineState
     /**
      * The roomid of the Room
      */

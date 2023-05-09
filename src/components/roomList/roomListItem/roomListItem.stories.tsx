@@ -1,5 +1,6 @@
 import { Meta, StoryObj } from '@storybook/react';
 import RoomListItem from './roomListItem';
+import { OnlineState } from '../../../app/sdk/api/otherEnums';
 
 const meta: Meta<typeof RoomListItem> = {
     title: 'Chat/RoomList/Item',
@@ -46,7 +47,7 @@ export const Fallback: Story = {
     args: {
         displayname: "test",
         dm: false,
-        online: false,
+        online: OnlineState.Unknown,
         avatarUrl: "",
         active: false,
     }
@@ -56,7 +57,7 @@ export const FallbackActive: Story = {
     args: {
         displayname: "test",
         dm: false,
-        online: false,
+        online: OnlineState.Unknown,
         avatarUrl: "",
         active: true,
     }
@@ -68,7 +69,7 @@ export const Image: Story = {
         displayname: "test",
         avatarUrl: "https://randomuser.me/api/portraits/men/62.jpg",
         dm: false,
-        online: false,
+        online: OnlineState.Unknown,
         active: false,
     }
 };
@@ -79,7 +80,7 @@ export const ImageActive: Story = {
         displayname: "test",
         avatarUrl: "https://randomuser.me/api/portraits/men/62.jpg",
         dm: false,
-        online: false,
+        online: OnlineState.Unknown,
         active: true,
     }
 };
@@ -89,7 +90,7 @@ export const DMOffline: Story = {
         displayname: "test",
         avatarUrl: "https://randomuser.me/api/portraits/men/62.jpg",
         dm: true,
-        online: false,
+        online: OnlineState.Offline,
         active: false,
     }
 };
@@ -99,17 +100,38 @@ export const DMOfflineActive: Story = {
         displayname: "test",
         avatarUrl: "https://randomuser.me/api/portraits/men/62.jpg",
         dm: true,
-        online: false,
+        online: OnlineState.Online,
         active: true,
     }
 };
+
+export const DMUnknown: Story = {
+    args: {
+        displayname: "test",
+        avatarUrl: "https://randomuser.me/api/portraits/men/62.jpg",
+        dm: true,
+        online: OnlineState.Unknown,
+        active: false,
+    }
+};
+
+export const DMUnknownActive: Story = {
+    args: {
+        displayname: "test",
+        avatarUrl: "https://randomuser.me/api/portraits/men/62.jpg",
+        dm: true,
+        online: OnlineState.Unknown,
+        active: true,
+    }
+};
+
 
 export const DMOnline: Story = {
     args: {
         displayname: "test",
         avatarUrl: "https://randomuser.me/api/portraits/men/62.jpg",
         dm: true,
-        online: true,
+        online: OnlineState.Online,
         active: false,
     }
 };
@@ -119,7 +141,7 @@ export const DMOnlineActive: Story = {
         displayname: "test",
         avatarUrl: "https://randomuser.me/api/portraits/men/62.jpg",
         dm: true,
-        online: true,
+        online: OnlineState.Online,
         active: true,
     }
 };
@@ -129,7 +151,7 @@ export const DMNoAvatarOffline: Story = {
         displayname: "test",
         avatarUrl: "",
         dm: true,
-        online: false,
+        online: OnlineState.Offline,
         active: false,
     }
 };
@@ -139,7 +161,7 @@ export const DMNoAvatarOnline: Story = {
         displayname: "test",
         avatarUrl: "",
         dm: true,
-        online: true,
+        online: OnlineState.Online,
         active: false,
     }
 };

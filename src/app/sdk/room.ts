@@ -3,6 +3,7 @@ import { IRoomEvent, IRoomStateEvent, isRoomAvatarEvent, isRoomCreateEvent, isRo
 import { MatrixClient } from "./client";
 import { useEffect, useState } from "react";
 import { EncryptionAlgorithm, EncryptionSettings, RoomId } from "@mtrnord/matrix-sdk-crypto-js";
+import { OnlineState } from "./api/otherEnums";
 
 export interface RoomEvents {
     // Used to notify about changes to the event list
@@ -179,9 +180,9 @@ export class Room extends EventEmitter {
         return this.is_dm;
     }
 
-    public isOnline(): boolean {
+    public get presence(): OnlineState {
         // TODO: Implement this
-        return false;
+        return OnlineState.Unknown;
     }
 
     public getEvents(): IRoomEvent[] {

@@ -11,6 +11,7 @@ import { decryptAttachment } from "matrix-encrypt-attachment";
 import Waveform from './helpers/Waveform';
 import hljs from 'highlight.js';
 import 'highlight.js/styles/base16/solarized-dark.css';
+import { OnlineState } from "../../app/sdk/api/otherEnums";
 
 type MessageEventProps = {
     /**
@@ -111,7 +112,7 @@ const MessageEvent: FC<MessageEventProps> = memo(({ event, roomID, hasPreviousEv
                     {!hasPreviousEvent && <Avatar
                         displayname={room?.getMemberName(event.sender) || event.sender}
                         avatarUrl={room?.getMemberAvatar(event.sender)}
-                        online={room?.isOnline() || false}
+                        online={room?.presence || OnlineState.Unknown}
                         dm={room?.isDM() || false}
                     />}
                     <div className={!hasPreviousEvent ? "flex flex-col gap-1" : "ml-[3.7rem]"}>
@@ -189,7 +190,7 @@ const MessageEvent: FC<MessageEventProps> = memo(({ event, roomID, hasPreviousEv
                     {!hasPreviousEvent && <Avatar
                         displayname={room?.getMemberName(event.sender) || event.sender}
                         avatarUrl={room?.getMemberAvatar(event.sender)}
-                        online={room?.isOnline() || false}
+                        online={room?.presence || OnlineState.Unknown}
                         dm={room?.isDM() || false}
                     />}
                     <div className={!hasPreviousEvent ? "flex flex-col gap-1" : "flex-1 ml-[3.7rem]"}>
@@ -204,7 +205,7 @@ const MessageEvent: FC<MessageEventProps> = memo(({ event, roomID, hasPreviousEv
                     {!hasPreviousEvent && <Avatar
                         displayname={room?.getMemberName(event.sender) || event.sender}
                         avatarUrl={room?.getMemberAvatar(event.sender)}
-                        online={room?.isOnline() || false}
+                        online={room?.presence || OnlineState.Unknown}
                         dm={room?.isDM() || false}
                     />}
                     <div className={!hasPreviousEvent ? "flex flex-col gap-1" : "ml-[3.7rem]"}>
@@ -308,7 +309,7 @@ const TextMessage: FC<TextMessage> = memo(({ event, roomID, hasPreviousEvent, me
                 {!hasPreviousEvent && <Avatar
                     displayname={room?.getMemberName(event.sender) || event.sender}
                     avatarUrl={room?.getMemberAvatar(event.sender)}
-                    online={room?.isOnline() || false}
+                    online={room?.presence || OnlineState.Unknown}
                     dm={room?.isDM() || false}
                 />}
                 <div className={!hasPreviousEvent ? "flex flex-col gap-1" : "ml-[3.7rem]"}>
@@ -324,7 +325,7 @@ const TextMessage: FC<TextMessage> = memo(({ event, roomID, hasPreviousEvent, me
                 {!hasPreviousEvent && <Avatar
                     displayname={room?.getMemberName(event.sender) || event.sender}
                     avatarUrl={room?.getMemberAvatar(event.sender)}
-                    online={room?.isOnline() || false}
+                    online={room?.presence || OnlineState.Unknown}
                     dm={room?.isDM() || false}
                 />}
                 <div className={!hasPreviousEvent ? "flex flex-col gap-1" : "ml-[3.7rem]"}>

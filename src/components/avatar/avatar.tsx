@@ -1,4 +1,5 @@
 import { FC, memo, useState } from "react";
+import { OnlineState } from "../../app/sdk/api/otherEnums";
 
 type AvatarProps = {
     /**
@@ -16,10 +17,10 @@ type AvatarProps = {
     /**
      * Wether the user is online. Only used if dm is true.
      */
-    online: boolean
+    online: OnlineState
 };
 
-const Avatar: FC<AvatarProps> = memo(({ avatarUrl, displayname, dm = false, online = false }: AvatarProps) => {
+const Avatar: FC<AvatarProps> = memo(({ avatarUrl, displayname, dm = false, online = OnlineState.Unknown }: AvatarProps) => {
     const [error, setError] = useState(false);
 
     if (avatarUrl && !error) {
@@ -29,9 +30,10 @@ const Avatar: FC<AvatarProps> = memo(({ avatarUrl, displayname, dm = false, onli
                 {
                     dm ?
                         (
-                            online ?
+                            online === OnlineState.Online ?
                                 <div className="bg-green-500 rounded-full w-3 h-3 absolute right-0 bottom-0"></div> :
-                                <div className="bg-red-500 rounded-full w-3 h-3 absolute right-0 bottom-0"></div>
+                                (online === OnlineState.Offline ? <div className="bg-red-500 rounded-full w-3 h-3 absolute right-0 bottom-0"></div> :
+                                    <div className="bg-gray-500 rounded-full w-3 h-3 absolute right-0 bottom-0"></div>)
                         ) :
                         <></>
                 }
@@ -44,9 +46,10 @@ const Avatar: FC<AvatarProps> = memo(({ avatarUrl, displayname, dm = false, onli
             {
                 dm ?
                     (
-                        online ?
-                            <div className="bg-green-500 rounded-full w-3 h-3 absolute bottom-0 right-0"></div> :
-                            <div className="bg-red-500 rounded-full w-3 h-3 absolute bottom-0 right-0"></div>
+                        online === OnlineState.Online ?
+                            <div className="bg-green-500 rounded-full w-3 h-3 absolute right-0 bottom-0"></div> :
+                            (online === OnlineState.Offline ? <div className="bg-red-500 rounded-full w-3 h-3 absolute right-0 bottom-0"></div> :
+                                <div className="bg-gray-500 rounded-full w-3 h-3 absolute right-0 bottom-0"></div>)
                     ) :
                     <></>
             }
