@@ -32,6 +32,7 @@ export declare interface Room {
 
 export class Room extends EventEmitter {
     private events: IRoomEvent[] = [];
+    private pendingEvents: IRoomEvent[] = [];
     private stateEvents: IRoomStateEvent[] = [];
     private name?: string;
 
@@ -52,10 +53,16 @@ export class Room extends EventEmitter {
 
     public addEvents(events: IRoomEvent[]) {
         events.forEach((newEvent) => {
+            console.log("newEvent", newEvent)
+            if (newEvent.unsigned?.transaction_id) {
+                console.log("Found transaction id. Trying to remove pending event")
+                this.pendingEvents = this.pendingEvents.filter((event) => event.unsigned?.transaction_id !== newEvent.unsigned?.transaction_id);
+            }
+
             this.events.push(newEvent);
         });
 
-        this.emit("events", this.events);
+        this.emit("events", this.getEvents());
     }
 
     public addStateEvents(state: IRoomStateEvent[]) {
@@ -195,6 +202,10 @@ export class Room extends EventEmitter {
     }
 
     public getEvents(): IRoomEvent[] {
+        return [...this.events, ...this.pendingEvents];
+    }
+
+    public getPureEvents(): IRoomEvent[] {
         return this.events;
     }
 
@@ -235,25 +246,47 @@ export class Room extends EventEmitter {
         return isEncrypted;
     }
 
-    public async sendHtmlMessage(html: string, plainText: string): Promise<string> {
+    // TODO: Workaround since txn id doesnt come down sync
+    private deletePendingByEventID(eventID: string) {
+        this.pendingEvents = this.pendingEvents.filter((event) => event.eventID !== eventID);
+    }
+
+    public async sendHtmlMessage(html: string, plainText: string, callbackLocalEcho: () => void): Promise<string> {
+        const txn_id = Date.now().toString();
+        // @ts-ignore: Intentionally incomplete
+        const event = {
+            type: "m.room.message",
+            unsigned: {
+                transaction_id: txn_id
+            },
+            origin_server_ts: txn_id,
+            sender: this.client.mxid,
+            event_id: txn_id,
+            content: {
+                "msgtype": "m.text",
+                "body": plainText,
+                "format": "org.matrix.custom.html",
+                "formatted_body": html
+            }
+        } as IRoomEvent;
+        this.pendingEvents.push(event);
+        this.emit("events", this.getEvents());
+        callbackLocalEcho();
+
         if (!this.isEncrypted()) {
-            const resp = await fetch(`${this.hostname}/_matrix/client/v3/rooms/${this.roomID}/send/m.room.message/${Date.now().toString()}`, {
+            const resp = await fetch(`${this.hostname}/_matrix/client/v3/rooms/${this.roomID}/send/m.room.message/${event.unsigned?.transaction_id}`, {
                 method: "PUT",
                 headers: {
                     "Content-Type": "application/json",
                     "Authorization": `Bearer ${this.client.accessToken}`
                 },
-                body: JSON.stringify({
-                    "msgtype": "m.text",
-                    "body": plainText,
-                    "format": "org.matrix.custom.html",
-                    "formatted_body": html
-                })
+                body: JSON.stringify(event.content)
             });
             if (!resp.ok) {
                 throw new Error(`Failed to send message: ${resp.status} ${resp.statusText}`);
             }
             const json = await resp.json();
+            this.deletePendingByEventID(event.event_id);
             return json.event_id;
         } else {
             console.log("Sending encrypted message");
@@ -262,14 +295,9 @@ export class Room extends EventEmitter {
             const encrypted = await this.e2ee.encryptRoomEvent(
                 new RoomId(this.roomID),
                 "m.room.message",
-                JSON.stringify({
-                    "msgtype": "m.text",
-                    "body": plainText,
-                    "format": "org.matrix.custom.html",
-                    "formatted_body": html
-                })
+                JSON.stringify(event.content)
             );
-            const resp = await fetch(`${this.hostname}/_matrix/client/v3/rooms/${this.roomID}/send/m.room.encrypted/${Date.now().toString()}`, {
+            const resp = await fetch(`${this.hostname}/_matrix/client/v3/rooms/${this.roomID}/send/m.room.encrypted/${event.unsigned?.transaction_id}`, {
                 method: "PUT",
                 headers: {
                     "Content-Type": "application/json",
@@ -281,27 +309,45 @@ export class Room extends EventEmitter {
                 throw new Error(`Failed to send message: ${resp.status} ${resp.statusText}`);
             }
             const json = await resp.json();
+            this.deletePendingByEventID(event.event_id);
             return json.event_id;
         }
     }
 
-    public async sendTextMessage(text: string): Promise<string> {
+    public async sendTextMessage(text: string, callbackLocalEcho: () => void): Promise<string> {
+        const txn_id = Date.now().toString();
+        // @ts-ignore: Intentionally incomplete
+        const event = {
+            type: "m.room.message",
+            unsigned: {
+                transaction_id: txn_id
+            },
+            origin_server_ts: txn_id,
+            event_id: txn_id,
+            sender: this.client.mxid,
+            content: {
+                "msgtype": "m.text",
+                "body": text,
+            }
+        } as IRoomEvent;
+        this.pendingEvents.push(event);
+        this.emit("events", this.getEvents());
+        callbackLocalEcho();
+
         if (!this.isEncrypted()) {
-            const resp = await fetch(`${this.hostname}/_matrix/client/v3/rooms/${this.roomID}/send/m.room.message/${Date.now().toString()}`, {
+            const resp = await fetch(`${this.hostname}/_matrix/client/v3/rooms/${this.roomID}/send/m.room.message/${event.unsigned?.transaction_id}`, {
                 method: "PUT",
                 headers: {
                     "Content-Type": "application/json",
                     "Authorization": `Bearer ${this.client.accessToken}`
                 },
-                body: JSON.stringify({
-                    "msgtype": "m.text",
-                    "body": text
-                })
+                body: JSON.stringify(event.content)
             });
             if (!resp.ok) {
                 throw new Error(`Failed to send message: ${resp.status} ${resp.statusText}`);
             }
             const json = await resp.json();
+            this.deletePendingByEventID(event.event_id);
             return json.event_id;
         } else {
             console.log("Sending encrypted message2");
@@ -310,12 +356,9 @@ export class Room extends EventEmitter {
             const encrypted = await this.e2ee.encryptRoomEvent(
                 new RoomId(this.roomID),
                 "m.room.message",
-                JSON.stringify({
-                    "msgtype": "m.text",
-                    "body": text
-                })
+                JSON.stringify(event.content)
             );
-            const resp = await fetch(`${this.hostname}/_matrix/client/v3/rooms/${this.roomID}/send/m.room.encrypted/${Date.now().toString()}`, {
+            const resp = await fetch(`${this.hostname}/_matrix/client/v3/rooms/${this.roomID}/send/m.room.encrypted/${event.unsigned?.transaction_id}`, {
                 method: "PUT",
                 headers: {
                     "Content-Type": "application/json",
@@ -327,6 +370,7 @@ export class Room extends EventEmitter {
                 throw new Error(`Failed to send message: ${resp.status} ${resp.statusText}`);
             }
             const json = await resp.json();
+            this.deletePendingByEventID(event.event_id);
             return json.event_id;
         }
     }
@@ -388,7 +432,7 @@ export function useEvents(room?: Room) {
             setEvents(room?.getEvents() || []);
             // Listen for event updates
             const listenForEvents = (events: IRoomEvent[]) => {
-                setEvents([...events]);
+                setEvents(events);
             };
             room.on("events", listenForEvents);
             return () => {

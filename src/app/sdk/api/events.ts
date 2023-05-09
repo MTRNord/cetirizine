@@ -5,7 +5,9 @@ export interface IRoomEvent<Content = any> {
     origin_server_ts: number;
     sender: string;
     type: string;
-    unsigned?: any;
+    unsigned?: {
+        transaction_id?: string;
+    };
     "m.relates.to"?: any;
     [key: string]: any;
 }

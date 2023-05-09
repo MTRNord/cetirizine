@@ -19,7 +19,8 @@ export class OwnUser {
     // TODO: call logout endpoint on logout
     public async logout() {
         if (!this.mxid) {
-            throw Error("Not logged in");
+            console.log("Not logged in");
+            return;
         }
         if (!this.access_token) {
             throw Error("Not logged in");

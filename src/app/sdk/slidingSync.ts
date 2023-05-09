@@ -175,7 +175,8 @@ export class MatrixSlidingSync extends EventEmitter {
             throw Error("Hostname must be set first");
         }
 
-        await this.user.e2ee.sendIdentifyAndOneTimeKeys();
+        // TODO: This might cause future issues
+        Promise.all([this.user.e2ee.sendIdentifyAndOneTimeKeys()]);
 
         // This is the initial sync case for each list
         let lists_ranges: {
@@ -710,7 +711,7 @@ export class MatrixSlidingSync extends EventEmitter {
                 highlight_count: roomObj.getNotificationHighlightCount(),
                 joined_count: roomObj.getJoinedCount(),
                 invited_count: roomObj.getInvitedCount(),
-                events: roomObj.getEvents(),
+                events: roomObj.getPureEvents(),
                 stateEvents: roomObj.getStateEvents(),
                 avatarUrl: roomObj.getAvatarURL(),
                 isSpace: roomObj.isSpace(),

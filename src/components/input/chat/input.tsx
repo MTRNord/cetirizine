@@ -154,7 +154,7 @@ const SendButton: FC<SendButtonProps> = memo(({ roomID, onStartSending, onStopSe
             console.log("Sending message to: ", roomID)
 
             if (htmlMessage !== '<p class="editor-paragraph"><br></p>') {
-                room.sendHtmlMessage(htmlMessage, plainMessage).then(() => {
+                room.sendHtmlMessage(htmlMessage, plainMessage, () => {
                     editor.dispatchCommand(CLEAR_EDITOR_COMMAND, undefined);
                     editor.dispatchCommand(CLEAR_HISTORY_COMMAND, undefined);
                     localStorage.removeItem(`editor-${roomID}`);
@@ -164,7 +164,7 @@ const SendButton: FC<SendButtonProps> = memo(({ roomID, onStartSending, onStopSe
                     onStopSending();
                 })
             } else {
-                room.sendTextMessage(plainMessage).then(() => {
+                room.sendTextMessage(plainMessage, () => {
                     editor.dispatchCommand(CLEAR_EDITOR_COMMAND, undefined);
                     editor.dispatchCommand(CLEAR_HISTORY_COMMAND, undefined);
                     localStorage.removeItem(`editor-${roomID}`);
