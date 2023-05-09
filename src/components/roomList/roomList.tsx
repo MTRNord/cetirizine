@@ -58,6 +58,10 @@ type RoomListProps = {
      * Rooms outside of any Sections
      */
     rooms: Room[]
+    /**
+     * Rooms outside of any Sections and DM
+     */
+    dmRooms: Room[]
 };
 
 type RoomListRoomsProps = {
@@ -160,12 +164,25 @@ const RoomSection: FC<{ section: Section, onRoomClick: (roomID: string) => void,
     );
 })
 
-const RoomList: FC<RoomListProps> = memo(({ sections, rooms }: RoomListProps) => {
+const RoomList: FC<RoomListProps> = memo(({ sections, rooms, dmRooms }: RoomListProps) => {
     const [activeRoom, setActiveRoom] = useState<string | undefined>(undefined);
     const navigate = useNavigate();
 
     return (
         <div className="flex flex-col gap-1 flex-1 p-2 min-w-[30ch] overflow-y-auto overflow-x-hidden scrollbarSmall max-w-[33ch]">
+            <RoomSection
+                section={{
+                    sectionName: "DMs",
+                    roomID: "dms",
+                    subsections: [],
+                    rooms: dmRooms
+                }}
+                onRoomClick={(roomID: string) => {
+                    setActiveRoom(roomID);
+                    navigate(`/${encodeURIComponent(roomID)}`);
+                }}
+                activeRoom={activeRoom}
+            />
             {
                 sections.map(section => {
                     return (

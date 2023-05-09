@@ -189,6 +189,7 @@ export class MatrixSlidingSync extends EventEmitter {
         };
         for (const space of this.client.spaceOpen) {
             if (space === "other") { continue }
+            if (space === "dm") { continue }
             lists_ranges[space] = [[0, 20]];
         }
 
@@ -358,6 +359,7 @@ export class MatrixSlidingSync extends EventEmitter {
 
         for (const space of this.client.spaceOpen) {
             if (space === "other") { continue }
+            if (space === "dm") { continue }
             if (!body.lists) {
                 body.lists = {};
             }

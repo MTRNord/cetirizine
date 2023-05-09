@@ -241,7 +241,7 @@ const MainPage = memo(() => {
     // The toplevel section "Other" is always present.
     // The toplevel section "Other" is always the last section.
     const sections = toplevelSpaces.map(space => {
-        const rooms = [...space.children].filter(room => !room.isSpace() && !room.isTombstoned()).sort((a, b) => {
+        const rooms = [...space.children].filter(room => !room.isSpace() && !room.isTombstoned() && !room.isDM()).sort((a, b) => {
             // Sort rooms by sliding sync list order of the spaces list,
 
             // Get the index of the room in the sync list.
@@ -273,7 +273,7 @@ const MainPage = memo(() => {
         const generateSubsections = (subspace: Room): Section | undefined => {
             const subspaceMeta = [...spacesWithRooms].find(space => space.spaceRoom.roomID === subspace.roomID);
             if (subspaceMeta) {
-                const rooms = [...subspaceMeta?.children].filter(room => !room.isSpace() && !room.isTombstoned()).map(room => {
+                const rooms = [...subspaceMeta?.children].filter(room => !room.isSpace() && !room.isTombstoned() && !room.isDM()).map(room => {
                     return {
                         roomID: room.roomID,
                         displayname: room.getName(),
@@ -307,7 +307,7 @@ const MainPage = memo(() => {
     });
 
     // Add the toplevel section "Other" to the end of the list.
-    const otherRooms = leftOverRooms.filter(room => !room.isSpace()).map(room => {
+    const otherRooms = leftOverRooms.filter(room => !room.isSpace() && !room.isDM()).map(room => {
         return {
             roomID: room.roomID,
             displayname: room.getName(),
@@ -316,6 +316,17 @@ const MainPage = memo(() => {
             online: room.presence,
         }
     });
+
+    const dmRooms = leftOverRooms.filter(room => !room.isSpace() && room.isDM()).map(room => {
+        return {
+            roomID: room.roomID,
+            displayname: room.getName(),
+            avatarUrl: room.getAvatarURL(),
+            dm: room.isDM(),
+            online: room.presence,
+        }
+    });
+
 
     // Check and print if otherRooms has duplicates.
     const otherRoomsIDs = otherRooms.map(room => room.roomID);
@@ -340,7 +351,7 @@ const MainPage = memo(() => {
                     <Settings size={28} stroke='unset' className='stroke-slate-600 rounded-full hover:bg-slate-300 p-1 cursor-pointer' />
                 </div>
             </div>
-            <RoomList sections={sections} rooms={otherRooms} />
+            <RoomList sections={sections} rooms={otherRooms} dmRooms={dmRooms} />
         </div>
         {
             room && <div className='flex-1 flex flex-col' id='room-wrapper'>
