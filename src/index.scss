@@ -8,6 +8,26 @@ html {
   font-size: 15px;
 }
 
+a {
+  --tw-text-opacity: 1;
+  color: rgb(59 130 246 / var(--tw-text-opacity)) !important;
+
+  &:hover {
+    --tw-text-opacity: 1;
+    color: rgb(29 78 216 / var(--tw-text-opacity)) !important;
+  }
+
+  &:active {
+    --tw-text-opacity: 1;
+    color: rgb(29 78 216 / var(--tw-text-opacity)) !important;
+  }
+
+  &:visited {
+    --tw-text-opacity: 1;
+    color: rgb(59 130 246 / var(--tw-text-opacity)) !important;
+  }
+}
+
 code {
   @apply rounded font-normal text-red-500 bg-slate-100 p-0.5;
 }
