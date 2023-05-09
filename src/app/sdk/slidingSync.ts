@@ -344,6 +344,14 @@ export class MatrixSlidingSync extends EventEmitter {
                 to_device: {
                     enabled: true,
                     since: this.to_device_since
+                },
+                typing: {
+                    enabled: true,
+                    lists: ["overview", "e2ee"],
+                },
+                receipts: {
+                    enabled: true,
+                    lists: ["overview", "e2ee"],
                 }
             },
         };

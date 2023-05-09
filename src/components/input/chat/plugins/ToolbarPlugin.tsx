@@ -297,6 +297,11 @@ const BlockOptionsDropdownList = memo(({
         const toolbar = toolbarRef.current;
 
         if (dropDown !== null && toolbar !== null) {
+            const editorContainer = document.getElementsByClassName("editor-container")[0];
+            if (editorContainer) {
+                dropDown.style.bottom = `${editorContainer.clientHeight}px`;
+            }
+
             const handle = (event: MouseEvent) => {
                 const target = event.target;
 
@@ -559,12 +564,12 @@ const ToolbarPlugin = memo(() => {
 
     const [portalContainer, setPortalContainer] = useState<HTMLDivElement | null>(null);
     useEffect(() => {
-        const container = document.getElementsByClassName("editor-container")[0];
+        const container = document.getElementById("room-wrapper");
         const portalContainer = document.createElement('div');
-        container.prepend(portalContainer)
+        container?.prepend(portalContainer)
         setPortalContainer(portalContainer)
         return () => {
-            container.removeChild(portalContainer)
+            container?.removeChild(portalContainer)
         }
     }, [])
 

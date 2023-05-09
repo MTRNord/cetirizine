@@ -343,7 +343,7 @@ const MainPage = memo(() => {
             <RoomList sections={sections} rooms={otherRooms} />
         </div>
         {
-            room && <div className='flex-1 flex flex-col'>
+            room && <div className='flex-1 flex flex-col' id='room-wrapper'>
                 <div className='pb-2 flex flex-row items-center border-b-2 mt-4 ml-2'>
                     <Avatar displayname={room.getName()} avatarUrl={room.getAvatarURL()} dm={room.isDM()} online={room.presence} />
                     <div className='flex flex-row items-start'>
