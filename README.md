@@ -4,6 +4,8 @@
 
 A Matrix client using sliding sync build for MTRNords spepcific workflow.
 
+![Screenshot of Cetirizine](/.github/screenshot.png)
+
 ## Feature support/Issues
 
 This client is meant to be the personal client for MTRNord. Features are added
