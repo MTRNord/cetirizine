@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { IRoomEvent } from "../../app/sdk/api/apiTypes";
+import { IRoomEvent } from "../../app/sdk/api/events";
 import { FC } from "react";
 import { useRoom } from "../../app/sdk/client";
 import Linkify from "linkify-react";

@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { IRoomMemberEvent } from "../../app/sdk/api/apiTypes";
+import { IRoomMemberEvent } from "../../app/sdk/api/events";
 import { FC } from "react";
 
 type MemberEventProps = {

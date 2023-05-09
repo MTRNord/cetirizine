@@ -11,9 +11,8 @@ import { useLocation, useParams } from 'react-router-dom';
 import MessageEvent from '../components/events/messageEvent';
 import UnknownEvent, { RedactedEvent, UndecryptableEvent } from '../components/events/unknownEvent';
 import MemberEvent from '../components/events/memberEvent';
-import { IRoomEvent, IRoomMemberEvent } from '../app/sdk/api/apiTypes';
+import { IRoomEvent, IRoomMemberEvent } from '../app/sdk/api/events';
 import Linkify from 'linkify-react';
-import { RoomId } from '@mtrnord/matrix-sdk-crypto-js';
 import { OnlineState } from '../app/sdk/api/otherEnums';
 
 type ChatViewProps = {
@@ -96,9 +95,9 @@ const ChatView: FC<ChatViewProps> = memo(({ roomID, scrollRef }) => {
 
 
             // Decrypt the event if it is encrypte
-            if (event.type === "m.room.encrypted") {
+            if (event.type === "m.room.encrypted" && roomID) {
                 try {
-                    const decrypted_event = await client.olmMachine?.decryptRoomEvent(JSON.stringify(event), new RoomId(roomID || ""));
+                    const decrypted_event = await client.decryptRoomEvent(roomID, event);
                     if (decrypted_event) {
                         event = JSON.parse(decrypted_event.event) as IRoomEvent;
                         if (event.content["m.new_content"]) {
@@ -122,9 +121,9 @@ const ChatView: FC<ChatViewProps> = memo(({ roomID, scrollRef }) => {
             }
 
             // Decrypt previousEvent if it is encrypted
-            if (previousEvent?.type === "m.room.encrypted") {
+            if (previousEvent?.type === "m.room.encrypted" && roomID) {
                 try {
-                    const decrypted_event = await client.olmMachine?.decryptRoomEvent(JSON.stringify(previousEvent), new RoomId(roomID || ""));
+                    const decrypted_event = await client.decryptRoomEvent(roomID, event);
                     if (decrypted_event) {
                         previousEvent = JSON.parse(decrypted_event.event) as IRoomEvent;
                         previousEventType = previousEvent.type;

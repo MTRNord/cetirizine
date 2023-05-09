@@ -1,9 +1,18 @@
 import EventEmitter from "events";
-import { IRoomEvent, IRoomStateEvent, isRoomAvatarEvent, isRoomCreateEvent, isRoomTopicEvent, isSpaceChildEvent, isSpaceParentEvent } from "./api/apiTypes";
+import {
+    IRoomEvent,
+    IRoomStateEvent,
+    isRoomAvatarEvent,
+    isRoomCreateEvent,
+    isRoomTopicEvent,
+    isSpaceChildEvent,
+    isSpaceParentEvent
+} from "./api/events";
 import { MatrixClient } from "./client";
 import { useEffect, useState } from "react";
 import { EncryptionAlgorithm, EncryptionSettings, RoomId } from "@mtrnord/matrix-sdk-crypto-js";
 import { OnlineState } from "./api/otherEnums";
+import { MatrixE2EE } from "./e2ee";
 
 export interface RoomEvents {
     // Used to notify about changes to the event list
@@ -37,7 +46,7 @@ export class Room extends EventEmitter {
     } = {}
 
 
-    constructor(public roomID: string, private hostname: string, private client: MatrixClient) {
+    constructor(public roomID: string, private hostname: string, private client: MatrixClient, private e2ee: MatrixE2EE) {
         super();
     }
 
@@ -248,9 +257,9 @@ export class Room extends EventEmitter {
             return json.event_id;
         } else {
             console.log("Sending encrypted message");
-            await this.client.getMissingSessions();
-            await this.client.shareKeysForRoom(this);
-            const encrypted = await this.client.olmMachine?.encryptRoomEvent(
+            await this.e2ee.getMissingSessions();
+            await this.e2ee.shareKeysForRoom(this);
+            const encrypted = await this.e2ee.encryptRoomEvent(
                 new RoomId(this.roomID),
                 "m.room.message",
                 JSON.stringify({
@@ -296,9 +305,9 @@ export class Room extends EventEmitter {
             return json.event_id;
         } else {
             console.log("Sending encrypted message2");
-            await this.client.getMissingSessions();
-            await this.client.shareKeysForRoom(this);
-            const encrypted = await this.client.olmMachine?.encryptRoomEvent(
+            await this.e2ee.getMissingSessions();
+            await this.e2ee.shareKeysForRoom(this);
+            const encrypted = await this.e2ee.encryptRoomEvent(
                 new RoomId(this.roomID),
                 "m.room.message",
                 JSON.stringify({

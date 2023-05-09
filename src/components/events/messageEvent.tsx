@@ -1,8 +1,8 @@
 import { memo, useContext, useEffect, useState } from "react";
-import { IRoomEvent, isRoomMessageAudioEvent, isRoomMessageImageEvent, isRoomMessageNoticeEvent, isRoomMessageTextEvent } from "../../app/sdk/api/apiTypes";
+import { IRoomEvent, isRoomMessageAudioEvent, isRoomMessageImageEvent, isRoomMessageNoticeEvent, isRoomMessageTextEvent } from "../../app/sdk/api/events";
 import { FC } from "react";
 import Avatar from "../avatar/avatar";
-import { MatrixContext, useRoom } from "../../app/sdk/client";
+import { MatrixClient, MatrixContext, useRoom } from "../../app/sdk/client";
 import Linkify from "linkify-react";
 import linkifyHtml from 'linkify-html';
 import DOMPurify from "dompurify";
@@ -39,6 +39,43 @@ const linkifyOptions = {
     className: "text-blue-500 hover:text-blue-700 active:text-blue-700 visited:text-blue-500"
 }
 
+const decryptMedia = (client: MatrixClient, event: IRoomEvent, decryptedCallback: (url: string) => void, failureCallback: (error: string) => void) => {
+    console.log("Downloading media:", event.event_id);
+    fetch(client.convertMXC(event.content.file.url), {
+        headers: {
+            Authorization: `Bearer ${client.accessToken}`
+        }
+    }).then((response) => {
+        if (!response.ok) {
+            // TODO: display error?
+            console.log("Unable to decrypt media:", response.text());
+            return;
+        }
+        console.log("Downloaded media:", event.event_id);
+        response.arrayBuffer().then((responseData) => {
+            // Decrypt the array buffer using the information taken from the event content.
+            decryptAttachment(responseData, event.content.file).then((dataArray) => {
+                // Turn the array into a Blob and give it the correct MIME-type.
+
+                // IMPORTANT: we must not allow scriptable mime-types into Blobs otherwise
+                // they introduce XSS attacks if the Blob URI is viewed directly in the
+                // browser (e.g. by copying the URI into a new tab or window.)
+                // See warning at top of file.
+                let mimetype = event.content.info?.mimetype ? event.content.info.mimetype.split(";")[0].trim() : "";
+                mimetype = getBlobSafeMimeType(mimetype);
+
+                const blob = new Blob([dataArray], { type: mimetype });
+                // TODO: Cache media in indexeddb
+                decryptedCallback(URL.createObjectURL(blob));
+                console.log("Decrypted media:", event.event_id);
+            }).catch((e: any) => {
+                console.log("Unable to decrypt media due to decryption error:", e);
+                failureCallback(`Unable to decrypt media due to decryption error: ${e}`);
+            });
+        });
+    });
+}
+
 const MessageEvent: FC<MessageEventProps> = memo(({ event, roomID, hasPreviousEvent, reactions }) => {
     const client = useContext(MatrixContext);
     const room = useRoom(roomID);
@@ -53,43 +90,6 @@ const MessageEvent: FC<MessageEventProps> = memo(({ event, roomID, hasPreviousEv
             const [url, setUrl] = useState<string | undefined>(undefined);
             const [unableToDecrypt, setUnableToDecrypt] = useState<boolean>(event.content.file !== undefined);
 
-            const decryptImage = (event: IRoomEvent) => {
-                console.log("Downloading image:", event.event_id);
-                fetch(client.convertMXC(event.content.file.url), {
-                    headers: {
-                        Authorization: `Bearer ${client.accessToken}`
-                    }
-                }).then((response) => {
-                    if (!response.ok) {
-                        // TODO: display error?
-                        console.log("Unable to decrypt image:", response.text());
-                        return;
-                    }
-                    console.log("Downloaded image:", event.event_id);
-                    response.arrayBuffer().then((responseData) => {
-                        // Decrypt the array buffer using the information taken from the event content.
-                        decryptAttachment(responseData, event.content.file).then((dataArray) => {
-                            // Turn the array into a Blob and give it the correct MIME-type.
-
-                            // IMPORTANT: we must not allow scriptable mime-types into Blobs otherwise
-                            // they introduce XSS attacks if the Blob URI is viewed directly in the
-                            // browser (e.g. by copying the URI into a new tab or window.)
-                            // See warning at top of file.
-                            let mimetype = event.content.info?.mimetype ? event.content.info.mimetype.split(";")[0].trim() : "";
-                            mimetype = getBlobSafeMimeType(mimetype);
-
-                            const blob = new Blob([dataArray], { type: mimetype });
-                            setUrl(URL.createObjectURL(blob));
-                            setUnableToDecrypt(false);
-                            console.log("Decrypted image:", event.event_id);
-                        }).catch((e: any) => {
-                            console.log("Unable to decrypt image due to decryption error:", e);
-                            setUnableToDecrypt(true);
-                        });
-                    });
-                });
-            }
-
             useEffect(() => {
                 if (isRoomMessageImageEvent(event)) {
                     if (event.content.url) {
@@ -97,7 +97,17 @@ const MessageEvent: FC<MessageEventProps> = memo(({ event, roomID, hasPreviousEv
                     } else {
                         // Image is encrypted and we need to download and decrypt it
                         if (event.content.file) {
-                            decryptImage(event);
+                            decryptMedia(
+                                client,
+                                event,
+                                (url) => {
+                                    setUrl(url);
+                                    setUnableToDecrypt(false);
+                                },
+                                (_error) => {
+                                    setUnableToDecrypt(true);
+                                }
+                            );
                         }
                     }
                 }
@@ -131,42 +141,6 @@ const MessageEvent: FC<MessageEventProps> = memo(({ event, roomID, hasPreviousEv
             const [url, setUrl] = useState<string | undefined>(undefined);
             const [unableToDecrypt, setUnableToDecrypt] = useState<boolean>(event.content.file !== undefined);
 
-            const decryptAudio = (event: IRoomEvent) => {
-                console.log("Downloading audio file:", event.event_id);
-                fetch(client.convertMXC(event.content.file.url), {
-                    headers: {
-                        Authorization: `Bearer ${client.accessToken}`
-                    }
-                }).then((response) => {
-                    if (!response.ok) {
-                        // TODO: display error?
-                        console.log("Unable to decrypt audio file:", response.text());
-                        return;
-                    }
-                    console.log("Downloaded audio file:", event.event_id);
-                    response.arrayBuffer().then((responseData) => {
-                        // Decrypt the array buffer using the information taken from the event content.
-                        decryptAttachment(responseData, event.content.file).then((dataArray) => {
-                            // Turn the array into a Blob and give it the correct MIME-type.
-
-                            // IMPORTANT: we must not allow scriptable mime-types into Blobs otherwise
-                            // they introduce XSS attacks if the Blob URI is viewed directly in the
-                            // browser (e.g. by copying the URI into a new tab or window.)
-                            // See warning at top of file.
-                            let mimetype = event.content.info?.mimetype ? event.content.info.mimetype.split(";")[0].trim() : "";
-                            mimetype = getBlobSafeMimeType(mimetype);
-
-                            const blob = new Blob([dataArray], { type: mimetype });
-                            setUrl(URL.createObjectURL(blob));
-                            setUnableToDecrypt(false);
-                            console.log("Decrypted audio file:", event.event_id);
-                        }).catch((e: any) => {
-                            console.log("Unable to decrypt audio file due to decryption error:", e);
-                            setUnableToDecrypt(true);
-                        });
-                    });
-                });
-            }
 
             useEffect(() => {
                 if (isRoomMessageAudioEvent(event)) {
@@ -175,7 +149,17 @@ const MessageEvent: FC<MessageEventProps> = memo(({ event, roomID, hasPreviousEv
                     } else {
                         // Audio is encrypted and we need to download and decrypt it
                         if (event.content.file) {
-                            decryptAudio(event);
+                            decryptMedia(
+                                client,
+                                event,
+                                (url) => {
+                                    setUrl(url);
+                                    setUnableToDecrypt(false);
+                                },
+                                (_error) => {
+                                    setUnableToDecrypt(true);
+                                }
+                            );
                         }
                     }
                 }
