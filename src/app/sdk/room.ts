@@ -220,14 +220,14 @@ export class Room extends EventEmitter {
         return name;
     }
 
-    public getMemberAvatar(userID: string): string | undefined {
+    public getMemberAvatar(userID: string, size: number = 32): string | undefined {
         let avatarURL: string | undefined = undefined;
         this.stateEvents.forEach((event) => {
             if (event.type === "m.room.member") {
                 if (event.state_key === userID && event.content.membership == "join") {
                     const rawAvatarURL = event.content.avatar_url;
                     if (rawAvatarURL?.startsWith("mxc://")) {
-                        avatarURL = this.client.convertMXC(rawAvatarURL);
+                        avatarURL = this.client.convertMXC(rawAvatarURL, size);
                     }
                 }
             }

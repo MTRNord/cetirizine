@@ -119,8 +119,11 @@ export class MatrixClient extends EventEmitter {
         this.sync.on("rooms", (rooms) => this.onSyncRooms(rooms));
     }
 
-    public convertMXC(url: string): string {
-        return `${this.user.hostname}/_matrix/media/r0/download/${url.substring(6)}`;
+    public convertMXC(url: string, size?: number): string {
+        if (size) {
+            return `${this.user.hostname}/_matrix/media/v3/thumbnail/${url.substring(6)}?width=${size}&height=${size}&method=scale`;
+        }
+        return `${this.user.hostname}/_matrix/media/v3/download/${url.substring(6)}`;
     }
 
     public setCurrentRoom(roomID?: string) {
