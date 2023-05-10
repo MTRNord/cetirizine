@@ -68,7 +68,7 @@ const Waveform: FC<WaveformProps> = memo(({ src_url }) => {
 
     return (
         <div className="flex w-[min-content] flex-row h-full items-start justify-start gap-3 bg-slate-200 rounded border-2 border-slate-500 p-1">
-            <button className="text-center flex justify-center items-center w-12 h-12 min-w-12 min-h-12 rounded-full outline-none cursor-pointer pb-1 bg-orange-500 border-orange-600 border hover:bg-orange-600 group" onClick={handlePlay}>
+            <button aria-label={!playing ? "Play" : "Pause"} className="text-center flex justify-center items-center w-12 h-12 min-w-12 min-h-12 rounded-full outline-none cursor-pointer pb-1 bg-orange-500 border-orange-600 border hover:bg-orange-600 group" onClick={handlePlay}>
                 {!playing ? <Play viewBox="0 0 21 24" className="stroke-slate-50 group-hover:stroke-slate-100" /> : <Pause size={24} className="stroke-slate-700 group-hover:stroke-slate-600" />}
             </button>
             <div className="flex flex-col w-96 gap-2 justify-between">
