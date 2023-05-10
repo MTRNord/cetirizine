@@ -131,7 +131,7 @@ const MessageEvent: FC<MessageEventProps> = memo(({ event, room, hasPreviousEven
                             src={url}
                             alt={event.content.body}
                             title={event.content.body}
-                            className="rounded-md object-cover border-slate-400 border-2 max-h-[23.333rem] max-w-[23.333rem] h-[unset]"
+                            className="rounded-md object-cover border-slate-400 border-2 max-h-[50rem] max-w-[50rem] h-[unset]"
                         />
                     </div>
                 </div>
@@ -193,7 +193,7 @@ const MessageEvent: FC<MessageEventProps> = memo(({ event, room, hasPreviousEven
                     />}
                     <div className={!hasPreviousEvent ? "flex flex-col gap-1" : "ml-[3.7rem]"}>
                         {!hasPreviousEvent && <h2 className="text-sm font-medium text-red-500 whitespace-pre-wrap">{room?.getMemberName(event.sender) || event.sender}</h2>}
-                        <Linkify options={linkifyOptions} as='p' className="whitespace-pre-wrap text-black text-base font-normal">{event.content.body}</Linkify>
+                        <Linkify options={linkifyOptions} as='p' className="text-black text-base font-normal">{event.content.body}</Linkify>
                     </div>
                 </div>
             )
@@ -296,7 +296,7 @@ const TextMessage: FC<TextMessage> = memo(({ event, room, hasPreviousEvent, mess
                 <div className={!hasPreviousEvent ? "flex flex-col gap-1" : "ml-[3.7rem]"}>
                     {!hasPreviousEvent && <h2 className="text-sm font-medium text-red-500 whitespace-pre-wrap">{room?.getMemberName(event.sender) || event.sender}</h2>}
                     {/* TODO: Fixme */}
-                    <p className={`whitespace-pre-wrap ${text_color} text-base font-normal`} dangerouslySetInnerHTML={{ __html: linkified }}></p>
+                    <p className={`${text_color} text-base font-normal`} dangerouslySetInnerHTML={{ __html: linkified }}></p>
                 </div>
             </div>
         )
@@ -311,7 +311,7 @@ const TextMessage: FC<TextMessage> = memo(({ event, room, hasPreviousEvent, mess
                 />}
                 <div className={!hasPreviousEvent ? "flex flex-col gap-1" : "ml-[3.7rem]"}>
                     {!hasPreviousEvent && <h2 className="text-sm font-medium text-red-500 whitespace-pre-wrap">{room?.getMemberName(event.sender) || event.sender}</h2>}
-                    <Linkify options={linkifyOptions} as='p' className={`whitespace-pre-wrap ${text_color} text-base font-normal`}>{event.content.body}</Linkify>
+                    <Linkify options={linkifyOptions} as='p' className={`${text_color} text-base font-normal`}>{event.content.body}</Linkify>
                 </div>
             </div>
         )
