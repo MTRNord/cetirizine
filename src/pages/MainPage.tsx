@@ -24,15 +24,14 @@ type ChatViewProps = {
      * If the roomID is valid, but the room is not joined, the ChatView will display a placeholder
      * If the roomID is valid, but the room is not loaded, the ChatView will display a placeholder
      */
-    roomID?: string
+    room?: Room
     /**
      * Ref of the Scroll Container
      */
     scrollRef: React.RefObject<HTMLDivElement>
 };
 
-const ChatView: FC<ChatViewProps> = memo(({ roomID, scrollRef }) => {
-    const room = useRoom(decodeURIComponent(roomID || ""));
+const ChatView: FC<ChatViewProps> = memo(({ room, scrollRef }) => {
     const client = useContext(MatrixContext);
     const events = useEvents(room);
     const { pathname } = useLocation();
@@ -50,7 +49,7 @@ const ChatView: FC<ChatViewProps> = memo(({ roomID, scrollRef }) => {
             event.content["m.relates_to"]?.["rel_type"] !== "m.replace"
         );
 
-
+        // TODO: Make decrypt run in parallel
         Promise.all(no_relations?.map(async (event, index) => {
             let previousEvent = no_relations?.[index - 1];
             const previousEventIsFromSameSender = previousEvent?.sender === event.sender;
@@ -95,9 +94,9 @@ const ChatView: FC<ChatViewProps> = memo(({ roomID, scrollRef }) => {
 
 
             // Decrypt the event if it is encrypte
-            if (event.type === "m.room.encrypted" && roomID) {
+            if (event.type === "m.room.encrypted" && room?.roomID) {
                 try {
-                    const decrypted_event = await client.decryptRoomEvent(roomID, event);
+                    const decrypted_event = await client.decryptRoomEvent(room.roomID, event);
                     if (decrypted_event) {
                         event = JSON.parse(decrypted_event.event) as IRoomEvent;
                         if (event.content["m.new_content"]) {
@@ -107,23 +106,23 @@ const ChatView: FC<ChatViewProps> = memo(({ roomID, scrollRef }) => {
                         }
                     } else {
                         if (redacted) {
-                            return (<RedactedEvent event={event} redacted_because={redacted_because} key={redaction_id} roomID={roomID} hasPreviousEvent={previousEventIsFromSameSender} />)
+                            return (<RedactedEvent event={event} redacted_because={redacted_because} key={redaction_id} room={room} hasPreviousEvent={previousEventIsFromSameSender} />)
                         }
-                        return (<UndecryptableEvent key={event.event_id} event={event} hasPreviousEvent={previousEventIsFromSameSender} roomID={roomID}></UndecryptableEvent>)
+                        return (<UndecryptableEvent key={event.event_id} event={event} hasPreviousEvent={previousEventIsFromSameSender} room={room}></UndecryptableEvent>)
                     }
                 } catch (e: any) {
-                    console.error(e);
+                    console.error(e, event);
                     if (redacted) {
-                        return (<RedactedEvent event={event} redacted_because={redacted_because} key={redaction_id} roomID={roomID} hasPreviousEvent={previousEventIsFromSameSender} />)
+                        return (<RedactedEvent event={event} redacted_because={redacted_because} key={redaction_id} room={room} hasPreviousEvent={previousEventIsFromSameSender} />)
                     }
-                    return (<UndecryptableEvent key={event.event_id} event={event} hasPreviousEvent={previousEventIsFromSameSender} roomID={roomID}></UndecryptableEvent>)
+                    return (<UndecryptableEvent key={event.event_id} event={event} hasPreviousEvent={previousEventIsFromSameSender} room={room}></UndecryptableEvent>)
                 }
             }
 
             // Decrypt previousEvent if it is encrypted
-            if (previousEvent?.type === "m.room.encrypted" && roomID) {
+            if (previousEvent?.type === "m.room.encrypted" && room?.roomID) {
                 try {
-                    const decrypted_event = await client.decryptRoomEvent(roomID, event);
+                    const decrypted_event = await client.decryptRoomEvent(room.roomID, previousEvent);
                     if (decrypted_event) {
                         previousEvent = JSON.parse(decrypted_event.event) as IRoomEvent;
                         previousEventType = previousEvent.type;
@@ -134,7 +133,7 @@ const ChatView: FC<ChatViewProps> = memo(({ roomID, scrollRef }) => {
                         }
                     }
                 } catch (e: any) {
-                    console.error(e);
+                    console.error(e, event);
                 }
             }
 
@@ -157,11 +156,11 @@ const ChatView: FC<ChatViewProps> = memo(({ roomID, scrollRef }) => {
     // Render events based on the event type and content
     const renderEvent = (event: IRoomEvent, previousEventIsFromSameSender: boolean, previousEventType: string, reactions: IRoomEvent[], redacted: boolean, redacted_because: string, redaction_id?: string) => {
         if (redacted) {
-            return (<RedactedEvent event={event} redacted_because={redacted_because} roomID={roomID} hasPreviousEvent={previousEventIsFromSameSender} key={redaction_id} />)
+            return (<RedactedEvent event={event} redacted_because={redacted_because} room={room} hasPreviousEvent={previousEventIsFromSameSender} key={redaction_id} />)
         }
         switch (event.type) {
             case "m.room.message":
-                return <MessageEvent reactions={reactions} event={event} roomID={roomID} key={event.event_id} hasPreviousEvent={previousEventIsFromSameSender && previousEventType === "m.room.message"} />
+                return <MessageEvent reactions={reactions} event={event} room={room} key={event.event_id} hasPreviousEvent={previousEventIsFromSameSender && previousEventType === "m.room.message"} />
             case "m.room.member":
                 return <MemberEvent event={event as IRoomMemberEvent} key={event.event_id} />
             default:
@@ -363,9 +362,9 @@ const MainPage = memo(() => {
                     </div>
                 </div>
                 <div ref={scrollRef} className='overflow-y-auto overflow-x-hidden scrollbarSmall mr-2 my-1 flex-1 w-full flex flex-col-reverse'>
-                    <ChatView roomID={params.roomIdOrAlias} scrollRef={scrollRef} />
+                    <ChatView room={room} scrollRef={scrollRef} />
                 </div>
-                <ChatInput namespace='Editor' roomID={decodeURIComponent(params.roomIdOrAlias || "")} />
+                <ChatInput namespace='Editor' room={room} />
             </div>
         }
     </div >

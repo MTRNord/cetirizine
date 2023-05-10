@@ -2,7 +2,7 @@ import { memo, useContext, useEffect, useState } from "react";
 import { IRoomEvent, isRoomMessageAudioEvent, isRoomMessageImageEvent, isRoomMessageNoticeEvent, isRoomMessageTextEvent } from "../../app/sdk/api/events";
 import { FC } from "react";
 import Avatar from "../avatar/avatar";
-import { MatrixClient, MatrixContext, useRoom } from "../../app/sdk/client";
+import { MatrixClient, MatrixContext } from "../../app/sdk/client";
 import Linkify from "linkify-react";
 import linkifyHtml from 'linkify-html';
 import DOMPurify from "dompurify";
@@ -12,6 +12,7 @@ import Waveform from './helpers/Waveform';
 import hljs from 'highlight.js';
 import 'highlight.js/styles/base16/solarized-dark.css';
 import { OnlineState } from "../../app/sdk/api/otherEnums";
+import { Room } from "../../app/sdk/room";
 
 type MessageEventProps = {
     /**
@@ -19,9 +20,9 @@ type MessageEventProps = {
      */
     event: IRoomEvent;
     /**
-     * The roomID of the event to display
+     * The room of the event to display
      */
-    roomID?: string;
+    room?: Room;
     /**
      * If the previous event was sent by the same user
      */
@@ -76,16 +77,14 @@ const decryptMedia = (client: MatrixClient, event: IRoomEvent, decryptedCallback
     });
 }
 
-const MessageEvent: FC<MessageEventProps> = memo(({ event, roomID, hasPreviousEvent, reactions }) => {
+const MessageEvent: FC<MessageEventProps> = memo(({ event, room, hasPreviousEvent, reactions }) => {
     const client = useContext(MatrixContext);
-    const room = useRoom(roomID);
-
 
     const renderCorrectMessage = (event: IRoomEvent) => {
         if (isRoomMessageTextEvent(event)) {
-            return (<TextMessage event={event} roomID={roomID} hasPreviousEvent={hasPreviousEvent} reactions={reactions} />)
+            return (<TextMessage event={event} room={room} hasPreviousEvent={hasPreviousEvent} reactions={reactions} />)
         } else if (isRoomMessageNoticeEvent(event)) {
-            return (<TextMessage event={event} roomID={roomID} hasPreviousEvent={hasPreviousEvent} reactions={reactions} message_type={MessageType.Notice} />)
+            return (<TextMessage event={event} room={room} hasPreviousEvent={hasPreviousEvent} reactions={reactions} message_type={MessageType.Notice} />)
         } else if (isRoomMessageImageEvent(event)) {
             const [url, setUrl] = useState<string | undefined>(undefined);
             const [unableToDecrypt, setUnableToDecrypt] = useState<boolean>(event.content.file !== undefined);
@@ -114,7 +113,7 @@ const MessageEvent: FC<MessageEventProps> = memo(({ event, roomID, hasPreviousEv
             }, [event])
 
             if (unableToDecrypt) {
-                return (<UndecryptableEvent event={event} roomID={roomID} hasPreviousEvent={hasPreviousEvent} />)
+                return (<UndecryptableEvent event={event} room={room} hasPreviousEvent={hasPreviousEvent} />)
             }
 
             return (
@@ -166,7 +165,7 @@ const MessageEvent: FC<MessageEventProps> = memo(({ event, roomID, hasPreviousEv
             }, [event])
 
             if (unableToDecrypt) {
-                return (<UndecryptableEvent event={event} roomID={roomID} hasPreviousEvent={hasPreviousEvent} />)
+                return (<UndecryptableEvent event={event} room={room} hasPreviousEvent={hasPreviousEvent} />)
             }
 
             return (
@@ -219,9 +218,7 @@ interface TextMessage extends MessageEventProps {
     message_type?: MessageType;
 }
 
-const TextMessage: FC<TextMessage> = memo(({ event, roomID, hasPreviousEvent, message_type = MessageType.Text }) => {
-    const room = useRoom(roomID);
-
+const TextMessage: FC<TextMessage> = memo(({ event, room, hasPreviousEvent, message_type = MessageType.Text }) => {
     let text_color = "text-black";
     if (message_type === MessageType.Notice) {
         text_color = "text-slate-500"

@@ -1,10 +1,10 @@
 import { memo } from "react";
 import { IRoomEvent } from "../../app/sdk/api/events";
 import { FC } from "react";
-import { useRoom } from "../../app/sdk/client";
 import Linkify from "linkify-react";
 import Avatar from "../avatar/avatar";
 import { OnlineState } from "../../app/sdk/api/otherEnums";
+import { Room } from "../../app/sdk/room";
 
 type UnknownEventProps = {
     /**
@@ -12,9 +12,9 @@ type UnknownEventProps = {
      */
     event: IRoomEvent;
     /**
-     * The roomID of the event to display
+     * The room of the event to display
      */
-    roomID?: string;
+    room?: Room;
     /**
      * If the previous event was sent by the same user
      */
@@ -28,9 +28,7 @@ const linkifyOptions = {
     className: "text-blue-500 hover:text-blue-700 active:text-blue-700 visited:text-blue-500"
 }
 
-const UnknownEvent: FC<UnknownEventProps> = memo(({ event, roomID, hasPreviousEvent }) => {
-    const room = useRoom(roomID);
-
+const UnknownEvent: FC<UnknownEventProps> = memo(({ event, room, hasPreviousEvent }) => {
     return (
         <div className={!hasPreviousEvent ? "flex flex-row gap-4 p-2 pb-1 hover:bg-gray-200 rounded-md duration-200 ease-in-out items-start" : "flex flex-row p-2 pb-1 pt-0 hover:bg-gray-200 rounded-md duration-200 ease-in-out"}>
             {!hasPreviousEvent && <Avatar
@@ -55,18 +53,16 @@ type UndecryptableEventProps = {
      */
     event: IRoomEvent;
     /**
-     * The roomID of the event to display
+     * The room of the event to display
      */
-    roomID?: string;
+    room?: Room;
     /**
      * If the previous event was sent by the same user
      */
     hasPreviousEvent?: boolean;
 };
 
-export const UndecryptableEvent: FC<UndecryptableEventProps> = memo(({ event, roomID, hasPreviousEvent }) => {
-    const room = useRoom(roomID);
-
+export const UndecryptableEvent: FC<UndecryptableEventProps> = memo(({ event, room, hasPreviousEvent }) => {
     return (
         <div className={!hasPreviousEvent ? "flex flex-row gap-4 p-2 pb-1 hover:bg-gray-200 rounded-md duration-200 ease-in-out items-start" : "flex flex-row p-2 pb-1 pt-0 hover:bg-gray-200 rounded-md duration-200 ease-in-out"}>
             {!hasPreviousEvent && <Avatar
@@ -93,18 +89,16 @@ type RedactedEventProps = {
      */
     redacted_because?: string;
     /**
-     * The roomID of the event to display
+     * The room of the event to display
      */
-    roomID?: string;
+    room?: Room;
     /**
      * If the previous event was sent by the same user
      */
     hasPreviousEvent?: boolean;
 };
 
-export const RedactedEvent: FC<RedactedEventProps> = memo(({ event, redacted_because, roomID, hasPreviousEvent }) => {
-    const room = useRoom(roomID);
-
+export const RedactedEvent: FC<RedactedEventProps> = memo(({ event, redacted_because, room, hasPreviousEvent }) => {
     return (
         <div className={!hasPreviousEvent ? "flex flex-row gap-4 p-2 pb-1 hover:bg-gray-200 rounded-md duration-200 ease-in-out items-start" : "flex flex-row p-2 pb-1 pt-0 hover:bg-gray-200 rounded-md duration-200 ease-in-out"}>
             {!hasPreviousEvent && <Avatar

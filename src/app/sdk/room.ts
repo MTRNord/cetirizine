@@ -51,11 +51,10 @@ export class Room extends EventEmitter {
         super();
     }
 
-    public addEvents(events: IRoomEvent[]) {
+    public addEvents(events: IRoomEvent[]): void {
+        console.log("Adding events")
         events.forEach((newEvent) => {
-            console.log("newEvent", newEvent)
             if (newEvent.unsigned?.transaction_id) {
-                console.log("Found transaction id. Trying to remove pending event")
                 this.pendingEvents = this.pendingEvents.filter((event) => event.unsigned?.transaction_id !== newEvent.unsigned?.transaction_id);
             }
 
@@ -65,7 +64,7 @@ export class Room extends EventEmitter {
         this.emit("events", this.getEvents());
     }
 
-    public addStateEvents(state: IRoomStateEvent[]) {
+    public addStateEvents(state: IRoomStateEvent[]): void {
         // if the state event id is already known then we update the event instead of pushing it on to the Array
         state.forEach((newEvent) => {
             const index = this.stateEvents.findIndex((oldEvent) => oldEvent.state_key === newEvent.state_key && oldEvent.type === newEvent.type);
@@ -115,7 +114,7 @@ export class Room extends EventEmitter {
         return isSpace;
     }
 
-    public setName(name: string) {
+    public setName(name: string): void {
         this.name = name;
     }
 
@@ -136,7 +135,7 @@ export class Room extends EventEmitter {
         return topic;
     }
 
-    public setNotificationCount(count: number) {
+    public setNotificationCount(count: number): void {
         this.notification_count = count;
     }
 
@@ -144,7 +143,7 @@ export class Room extends EventEmitter {
         return this.notification_count;
     }
 
-    public setNotificationHighlightCount(count: number) {
+    public setNotificationHighlightCount(count: number): void {
         this.notification_highlight_count = count;
     }
 
@@ -152,7 +151,7 @@ export class Room extends EventEmitter {
         return this.notification_highlight_count;
     }
 
-    public setJoinedCount(count: number) {
+    public setJoinedCount(count: number): void {
         this.joined_count = count;
     }
 
@@ -160,7 +159,7 @@ export class Room extends EventEmitter {
         return this.joined_count;
     }
 
-    public setInvitedCount(count: number) {
+    public setInvitedCount(count: number): void {
         this.invited_count = count;
     }
 
@@ -188,7 +187,7 @@ export class Room extends EventEmitter {
         return parents;
     }
 
-    public setDM(isDM: boolean) {
+    public setDM(isDM: boolean): void {
         this.is_dm = isDM;
     }
 
@@ -247,8 +246,9 @@ export class Room extends EventEmitter {
     }
 
     // TODO: Workaround since txn id doesnt come down sync
-    private deletePendingByEventID(eventID: string) {
+    private deletePendingByEventID(eventID: string): void {
         this.pendingEvents = this.pendingEvents.filter((event) => event.eventID !== eventID);
+        this.emit("events", this.getEvents());
     }
 
     public async sendHtmlMessage(html: string, plainText: string, callbackLocalEcho: () => void): Promise<string> {
@@ -283,6 +283,7 @@ export class Room extends EventEmitter {
                 body: JSON.stringify(event.content)
             });
             if (!resp.ok) {
+                this.deletePendingByEventID(event.event_id);
                 throw new Error(`Failed to send message: ${resp.status} ${resp.statusText}`);
             }
             const json = await resp.json();
@@ -306,6 +307,7 @@ export class Room extends EventEmitter {
                 body: encrypted
             });
             if (!resp.ok) {
+                this.deletePendingByEventID(event.event_id);
                 throw new Error(`Failed to send message: ${resp.status} ${resp.statusText}`);
             }
             const json = await resp.json();
@@ -344,6 +346,7 @@ export class Room extends EventEmitter {
                 body: JSON.stringify(event.content)
             });
             if (!resp.ok) {
+                this.deletePendingByEventID(event.event_id);
                 throw new Error(`Failed to send message: ${resp.status} ${resp.statusText}`);
             }
             const json = await resp.json();
@@ -367,6 +370,7 @@ export class Room extends EventEmitter {
                 body: encrypted
             });
             if (!resp.ok) {
+                this.deletePendingByEventID(event.event_id);
                 throw new Error(`Failed to send message: ${resp.status} ${resp.statusText}`);
             }
             const json = await resp.json();
@@ -436,7 +440,7 @@ export function useEvents(room?: Room) {
             };
             room.on("events", listenForEvents);
             return () => {
-                room.removeListener("events", listenForEvents);
+                room.off("events", listenForEvents);
             }
         } else {
             setEvents([]);
@@ -457,7 +461,7 @@ export function useStateEvents(room?: Room) {
             };
             room.on("state_events", listenForStateEvents);
             return () => {
-                room.removeListener("state_events", listenForStateEvents);
+                room.off("state_events", listenForStateEvents);
             }
         } else {
             setEvents([]);

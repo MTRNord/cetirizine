@@ -23,12 +23,12 @@ import CodeHighlightPlugin from './plugins/CodeHighlightPlugin';
 import EditorTheme from './theme';
 
 import './input.scss';
-import { FC, memo, useCallback, useEffect, useState } from 'react';
+import { FC, memo, useEffect, useState } from 'react';
 import { Send } from 'lucide-react';
-import { useRoom } from '../../../app/sdk/client';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import { $getSelection, $isRangeSelection, CLEAR_EDITOR_COMMAND, CLEAR_HISTORY_COMMAND, COMMAND_PRIORITY_CRITICAL, INSERT_PARAGRAPH_COMMAND, KEY_ENTER_COMMAND, ParagraphNode } from 'lexical';
-import { useLocation } from 'react-router-dom';
+import { useLocation, } from 'react-router-dom';
+import { Room } from '../../../app/sdk/room';
 
 export const CAN_USE_DOM: boolean =
     typeof window !== 'undefined' &&
@@ -80,7 +80,7 @@ type ChatInputProps = {
     /**
      * The current Room
      */
-    roomID?: string
+    room: Room
 };
 
 function Placeholder() {
@@ -89,10 +89,6 @@ function Placeholder() {
 
 type SendButtonProps = {
     /**
-     * The current Room
-     */
-    roomID?: string
-    /**
      * Callback when sending starts
      */
     onStartSending: () => void
@@ -100,15 +96,20 @@ type SendButtonProps = {
      * Callback when sending stops
      */
     onStopSending: () => void
+    /**
+     * The current Room
+     */
+    room: Room
 };
 
-const SendButton: FC<SendButtonProps> = memo(({ roomID, onStartSending, onStopSending }: SendButtonProps) => {
-    const room = useRoom(roomID || "");
+const SendButton: FC<SendButtonProps> = ({ onStartSending, onStopSending, room }: SendButtonProps) => {
     const [editor] = useLexicalComposerContext();
 
-    const sendMessage = useCallback(() => {
+    //TODO: Room change fails
+    const sendMessage = (room?: Room) => {
         // TODO: Sanitize the html and send message to room
         if (!room) {
+            console.warn("Got no room")
             return;
         }
 
@@ -151,13 +152,13 @@ const SendButton: FC<SendButtonProps> = memo(({ roomID, onStartSending, onStopSe
                 return;
             }
             onStartSending();
-            console.log("Sending message to: ", roomID)
+            console.log("Sending message to: ", room.roomID)
 
             if (htmlMessage !== '<p class="editor-paragraph"><br></p>') {
                 room.sendHtmlMessage(htmlMessage, plainMessage, () => {
                     editor.dispatchCommand(CLEAR_EDITOR_COMMAND, undefined);
                     editor.dispatchCommand(CLEAR_HISTORY_COMMAND, undefined);
-                    localStorage.removeItem(`editor-${roomID}`);
+                    localStorage.removeItem(`editor-${room.roomID}`);
                     onStopSending();
                 }).catch((e) => {
                     console.log(e);
@@ -167,7 +168,7 @@ const SendButton: FC<SendButtonProps> = memo(({ roomID, onStartSending, onStopSe
                 room.sendTextMessage(plainMessage, () => {
                     editor.dispatchCommand(CLEAR_EDITOR_COMMAND, undefined);
                     editor.dispatchCommand(CLEAR_HISTORY_COMMAND, undefined);
-                    localStorage.removeItem(`editor-${roomID}`);
+                    localStorage.removeItem(`editor-${room.roomID}`);
                     onStopSending();
                 }).catch((e) => {
                     console.log(e);
@@ -175,17 +176,21 @@ const SendButton: FC<SendButtonProps> = memo(({ roomID, onStartSending, onStopSe
                 })
             }
         })
-    }, [room, roomID, editor]);
+    };
 
     useEffect(() => {
-        editor.registerCommand<KeyboardEvent | null>(
+        if (!room) {
+            return;
+        }
+        const removeCommand = editor.registerCommand<KeyboardEvent | null>(
             KEY_ENTER_COMMAND,
-            (event) => {
+            (event: KeyboardEvent | null): boolean => {
+                console.log("Room changed", room.roomID)
                 const selection = $getSelection();
                 if (!$isRangeSelection(selection)) {
                     return false;
                 }
-                if (event !== null) {
+                if (event !== null && event !== undefined) {
                     // If we have beforeinput, then we can avoid blocking
                     // the default behavior. This ensures that the iOS can
                     // intercept that we're actually inserting a paragraph,
@@ -203,36 +208,41 @@ const SendButton: FC<SendButtonProps> = memo(({ roomID, onStartSending, onStopSe
                     if (event.shiftKey) {
                         return editor.dispatchCommand(INSERT_PARAGRAPH_COMMAND, undefined);
                     }
+                    sendMessage(room);
                 }
-                sendMessage();
                 return editor.dispatchCommand(INSERT_PARAGRAPH_COMMAND, undefined);
             },
             COMMAND_PRIORITY_CRITICAL,
         )
-    }, [editor])
+        return () => {
+            console.log("Removing command since room or editor changed")
+            removeCommand()
+        }
+    }, [editor, room])
 
     return <Send
         size={45}
         stroke='unset'
         className='stroke-slate-600 rounded m-4 hover:bg-slate-300 hover:stroke-slate-500 p-2 cursor-pointer'
-        onClick={sendMessage} />
-});
+        onClick={() => { sendMessage(room) }} />
+};
 
 
 type RoomChangeProps = {
     /**
      * The current Room
      */
-    roomID?: string
+    room: Room
 };
 
-const RoomChangePlugin: FC<RoomChangeProps> = ({ roomID }) => {
+const RoomChangePlugin: FC<RoomChangeProps> = ({ room }) => {
     const [editor] = useLexicalComposerContext();
     const { pathname } = useLocation();
     const [prevRoom, setPrevRoom] = useState<string | undefined>(undefined);
 
     useEffect(() => {
-        if (roomID) {
+        if (room) {
+            const roomID = room.roomID;
             if (roomID !== prevRoom) {
                 console.log("Saving editor state")
                 // Save the editor state to local storage
@@ -249,12 +259,12 @@ const RoomChangePlugin: FC<RoomChangeProps> = ({ roomID }) => {
                 editor.dispatchCommand(CLEAR_HISTORY_COMMAND, undefined);
             }
         }
-    }, [pathname, roomID]);
+    }, [pathname, room]);
 
     return <></>
 }
 
-const ChatInput: FC<ChatInputProps> = memo(({ namespace, roomID }: ChatInputProps) => {
+const ChatInput: FC<ChatInputProps> = memo(({ namespace, room }: ChatInputProps) => {
     const [sending, setSending] = useState(false);
 
     const initialConfig: InitialConfigType = {
@@ -300,11 +310,11 @@ const ChatInput: FC<ChatInputProps> = memo(({ namespace, roomID }: ChatInputProp
                         <AutoLinkPlugin />
                         <MarkdownShortcutPlugin transformers={TRANSFORMERS} />
                         <ClearEditorPlugin />
-                        <RoomChangePlugin roomID={roomID} />
+                        <RoomChangePlugin room={room} />
                         {/*<TreeViewPlugin />*/}
                     </div>
                 </div>
-                <SendButton roomID={roomID} onStartSending={() => { console.log("Sending"); setSending(true) }} onStopSending={() => { setSending(false) }} />
+                <SendButton room={room} onStartSending={() => { console.log("Sending"); setSending(true) }} onStopSending={() => { setSending(false) }} />
             </LexicalComposer>
 
         </div>

@@ -110,8 +110,13 @@ export class MatrixClient extends EventEmitter {
         return this.user.mxid;
     }
 
+    private onSyncRooms(rooms: Set<Room>) {
+        this.emit("rooms", rooms);
+    }
+
     public async passwordLogin(username: string, password: string) {
         await this.user.passwordLogin(username, password);
+        this.sync.on("rooms", (rooms) => this.onSyncRooms(rooms));
     }
 
     public convertMXC(url: string): string {
@@ -191,9 +196,8 @@ export class MatrixClient extends EventEmitter {
                     instance.emit("rooms", instance.sync.rooms);
                 }
             }
-            instance.sync.on("rooms", (rooms) => {
-                instance.emit("rooms", rooms);
-            });
+            instance.setMaxListeners(60);
+            instance.sync.on("rooms", (rooms) => instance.onSyncRooms(rooms));
         }
 
 
@@ -231,6 +235,7 @@ export class MatrixClient extends EventEmitter {
 
     public async logout() {
         this.sync.logout();
+        this.sync.off("rooms", this.onSyncRooms);
         await this.user.logout();
         this.user.e2ee.logoutE2ee();
         if (this.user.mxid) {
@@ -435,15 +440,16 @@ export function useRooms() {
         // This is a no-op if there is already a sync
         client.startSync();
         return () => {
-            client.removeListener("rooms", listenForRooms);
+            client.off("rooms", listenForRooms);
         }
     }, [])
     return rooms;
 }
 
 export function useRoom(roomID?: string): Room | undefined {
-    const client = useContext(MatrixContext);
-    return [...client.getRooms()].find(room => room.roomID === roomID);
+    const rooms = useRooms();
+
+    return [...rooms].find(room => room.roomID === roomID);
 }
 
 export function useSpaces() {
@@ -461,7 +467,7 @@ export function useSpaces() {
         // This is a no-op if there is already a sync
         client.startSync();
         return () => {
-            client.removeListener("rooms", listenForRooms);
+            client.off("rooms", listenForRooms);
         }
     }, [])
     return spacesWithRooms;

@@ -25,7 +25,7 @@ export class MatrixE2EE {
 
     constructor(private client: MatrixClient, private user: OwnUser) { }
 
-    public async decryptRoomEvent(roomID: string, event: IRoomEvent<any>) {
+    public async decryptRoomEvent(roomID: string, event: IRoomEvent<any>): Promise<any> {
         return await this.olmMachine?.decryptRoomEvent(JSON.stringify(event), new RoomId(roomID));
     }
 
@@ -34,8 +34,8 @@ export class MatrixE2EE {
         changed_devices: DeviceLists,
         one_time_key_counts: Map<any, any>,
         unused_fallback_keys?: Set<any>
-    ) {
-        await this.olmMachine?.receiveSyncChanges(
+    ): Promise<any> {
+        return await this.olmMachine?.receiveSyncChanges(
             to_device_events,
             changed_devices,
             one_time_key_counts,
@@ -43,32 +43,29 @@ export class MatrixE2EE {
         );
     }
 
-    public async encryptRoomEvent(roomID: RoomId, type: string, content: any): Promise<any> {
+    public async encryptRoomEvent(roomID: RoomId, type: string, content: string): Promise<any> {
         if (!this.client.isLoggedIn) {
             throw Error("Not logged in");
-        }
-        if (!this.user.hostname) {
-            throw Error("Hostname must be set first");
         }
         if (!this.olmMachine) {
             throw Error("Olm machine must be set first");
         }
-        await this.olmMachine?.encryptRoomEvent(roomID, type, content);
+        return await this.olmMachine?.encryptRoomEvent(roomID, type, content);
     }
 
-    public async initOlmMachine(userID: UserId, deviceID: DeviceId, storePassphrase?: string) {
+    public async initOlmMachine(userID: UserId, deviceID: DeviceId, storePassphrase?: string): Promise<void> {
         this.olmMachine = await OlmMachine.initialize(userID, deviceID, "cetirizine-crypto", storePassphrase);
     }
 
-    public async updateTrackedUsers(users: any[]) {
+    public async updateTrackedUsers(users: any[]): Promise<void> {
         await this.olmMachine?.updateTrackedUsers(users);
     }
 
-    public async sendIdentifyAndOneTimeKeys() {
+    public async sendIdentifyAndOneTimeKeys(): Promise<void> {
         if (!this.client.isLoggedIn) {
             throw Error("Not logged in");
         }
-        if (!this.user.slidingSyncHostname) {
+        if (!this.user.hostname) {
             throw Error("Hostname must be set first");
         }
         if (!this.olmMachine) {
@@ -90,11 +87,11 @@ export class MatrixE2EE {
         this.outgoingRequestsBeingProcessed = false;
     }
 
-    public async shareKeysForRoom(room: Room) {
+    public async shareKeysForRoom(room: Room): Promise<void> {
         if (!this.client.isLoggedIn) {
             throw Error("Not logged in");
         }
-        if (!this.user.slidingSyncHostname) {
+        if (!this.user.hostname) {
             throw Error("Hostname must be set first");
         }
         if (!this.olmMachine) {
@@ -109,11 +106,11 @@ export class MatrixE2EE {
         }
     }
 
-    public async getMissingSessions() {
+    public async getMissingSessions(): Promise<void> {
         if (!this.client.isLoggedIn) {
             throw Error("Not logged in");
         }
-        if (!this.user.slidingSyncHostname) {
+        if (!this.user.hostname) {
             throw Error("Hostname must be set first");
         }
         if (!this.olmMachine) {
@@ -135,11 +132,11 @@ export class MatrixE2EE {
         this.missingSessionsBeingRequested = false;
     }
 
-    private async processRequest(request: any) {
+    private async processRequest(request: any): Promise<void> {
         if (!this.client.isLoggedIn) {
             throw Error("Not logged in");
         }
-        if (!this.user.slidingSyncHostname) {
+        if (!this.user.hostname) {
             throw Error("Hostname must be set first");
         }
         if (!this.olmMachine) {
@@ -304,7 +301,7 @@ export class MatrixE2EE {
         }
     }
 
-    public logoutE2ee() {
+    public logoutE2ee(): void {
         this.missingSessionsBeingRequested = false;
         this.outgoingRequestsBeingProcessed = false;
     }

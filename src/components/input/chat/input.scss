@@ -1,15 +1,11 @@
 .editor-container {
-    color: #000;
-    position: relative;
+    @apply text-black relative font-normal;
     line-height: 20px;
-    font-weight: 400;
     text-align: left;
 }
 
 .editor-inner {
-    background: #fff;
-    position: relative;
-    overflow-y: auto;
+    @apply bg-white relative overflow-y-auto;
     scrollbar-width: thin;
     max-height: 50lvh;
 }
