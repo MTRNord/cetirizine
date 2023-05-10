@@ -1,4 +1,4 @@
-import{r as G,j as D,a as cu,g as n_,b as up,d as pa}from"./vendor-9ff4cf4d.js";import{M as Gn,O as vt,i as zC,a as KC,b as _p,c as pp,u as QC,d as XC,e as ZC,f as jC,g as JC}from"./client-49778dae.js";/**
+import{r as G,j as D,a as cu,g as n_,b as up,d as pa}from"./vendor-9ff4cf4d.js";import{M as Gn,O as vt,i as zC,a as KC,b as _p,c as pp,u as QC,d as XC,e as ZC,f as jC,g as JC}from"./client-695ef6b7.js";/**
  * @remix-run/router v1.6.1
  *
  * Copyright (c) Remix Software Inc.
