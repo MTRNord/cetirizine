@@ -5,7 +5,7 @@ import RoomList, { Section } from '../components/roomList/roomList';
 import './MainPage.scss';
 import { useProfile, useRoom, useRooms, useSpaces } from '../app/sdk/client';
 import { Room } from '../app/sdk/room';
-import { FC, Ref, memo, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { FC, memo, useCallback, useContext, useEffect, useState } from 'react';
 import { MatrixContext } from '../app/sdk/client';
 import { useLocation, useParams } from 'react-router-dom';
 import MessageEvent from '../components/events/messageEvent';
@@ -14,7 +14,7 @@ import MemberEvent from '../components/events/memberEvent';
 import { IRoomEvent, IRoomMemberEvent } from '../app/sdk/api/events';
 import Linkify from 'linkify-react';
 import { OnlineState } from '../app/sdk/api/otherEnums';
-import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
+import { Virtuoso } from 'react-virtuoso';
 
 type ChatViewProps = {
     /**
@@ -35,7 +35,6 @@ const ChatView: FC<ChatViewProps> = memo(({ room, }) => {
     const { pathname } = useLocation();
     const [previousPathname, setPreviousPathname] = useState<string | undefined>(undefined);
     const [firstItemIndex, setFirstItemIndex] = useState<number | undefined>(undefined)
-    const scrollRef = useRef<VirtuosoHandle>();
 
     const decryptEvents = async (index: number, event: IRoomEvent, eventsFull: IRoomEvent[]) => {
         let previousEvent = eventsFull?.[index - 1];
@@ -134,15 +133,15 @@ const ChatView: FC<ChatViewProps> = memo(({ room, }) => {
             Promise.all(eventsAll.map(async (event, index) => {
                 return await decryptEvents(index, event, eventsAll);
             })).then((eventsRaw: IRoomEvent[]) => {
-                const eventsDecrypted = eventsRaw.slice(eventsRaw.length - 20, eventsRaw.length);
-                if (eventsDecrypted.length > 0) {
-                    const no_relations = eventsDecrypted.filter(event => event.type !== "m.reaction" &&
-                        event.type !== "m.room.redaction" &&
-                        event.content["m.relates_to"]?.["rel_type"] !== "m.replace"
-                    );
-                    setEvents(() => [...no_relations, ...events]);
+                const no_relations = eventsRaw.filter(event => event.type !== "m.reaction" &&
+                    event.type !== "m.room.redaction" &&
+                    event.content["m.relates_to"]?.["rel_type"] !== "m.replace"
+                );
+                if (no_relations.length > 0) {
+                    const events = [...no_relations];
                     setEventsFull(() => [...eventsRaw]);
-                    setFirstItemIndex(eventsRaw.length - 20);
+                    setEvents(() => events);
+                    setFirstItemIndex(0);
                 }
             })
         }
@@ -158,21 +157,19 @@ const ChatView: FC<ChatViewProps> = memo(({ room, }) => {
                 }).sort((a, b) => {
                     return b.origin_server_ts - a.origin_server_ts;
                 }).reverse();
-                let newEvents = eventsAll.filter(x => !eventsFull.includes(x));
-                if (newEvents.length === 0) { return }
 
-                Promise.all(newEvents.map(async (event) => {
-                    return await decryptEvents(eventsAll.findIndex((eventAllEvent) => eventAllEvent.event_id == event.event_id), event, eventsAll);
+                Promise.all(eventsAll.map(async (event, index) => {
+                    return await decryptEvents(index, event, eventsAll);
                 })).then((eventsRaw: IRoomEvent[]) => {
-                    if (eventsRaw.length > 0) {
-                        const no_relations = eventsRaw.filter(event => event.type !== "m.reaction" &&
-                            event.type !== "m.room.redaction" &&
-                            event.content["m.relates_to"]?.["rel_type"] !== "m.replace"
-                        );
-                        scrollRef.current?.scrollToIndex(firstItemIndex!)
-                        setFirstItemIndex(firstItemIndex! + eventsRaw.length);
-                        setEvents(() => [...events, ...no_relations]);
-                        setEventsFull(() => [...eventsFull, ...eventsRaw]);
+                    const no_relations = eventsRaw.filter(event => event.type !== "m.reaction" &&
+                        event.type !== "m.room.redaction" &&
+                        event.content["m.relates_to"]?.["rel_type"] !== "m.replace"
+                    );
+
+                    if (no_relations.length > 0) {
+                        const events = [...no_relations];
+                        setEventsFull(() => [...eventsRaw]);
+                        setEvents(() => events);
                     }
                 })
             };
@@ -181,36 +178,7 @@ const ChatView: FC<ChatViewProps> = memo(({ room, }) => {
                 room.off("events", listenForEvents);
             }
         }
-    }, [room, eventsFull, events, pathname])
-
-    const prependEvents = useCallback(() => {
-        const eventsAll = room?.getEvents().filter((event, index, self) => {
-            return self.findIndex(e => e.event_id === event.event_id) === index;
-        }).sort((a, b) => {
-            return b.origin_server_ts - a.origin_server_ts;
-        }).reverse() ?? [];
-
-        if (firstItemIndex! - 20 > eventsAll.length) { return false }
-        const nextFirstItemIndex = firstItemIndex! - 20;
-
-        Promise.all(eventsAll.map(async (event, index) => {
-            return await decryptEvents(index, event, eventsAll);
-        })).then((eventsRaw: IRoomEvent[]) => {
-            const eventsDecrypted = eventsRaw.slice(nextFirstItemIndex, nextFirstItemIndex + 20);
-
-            if (eventsDecrypted.length > 0) {
-                const no_relations = eventsDecrypted.filter(event => event.type !== "m.reaction" &&
-                    event.type !== "m.room.redaction" &&
-                    event.content["m.relates_to"]?.["rel_type"] !== "m.replace"
-                );
-                setEvents(() => [...no_relations, ...events]);
-                setEventsFull(() => [...eventsRaw]);
-                setFirstItemIndex(nextFirstItemIndex);
-            }
-        })
-
-        return false
-    }, [events, setEvents, eventsFull, setEventsFull, firstItemIndex, setFirstItemIndex])
+    }, [room, eventsFull, events, setEventsFull, setEvents, pathname])
 
     const renderEventPure = useCallback((index: number, event: IRoomEvent) => {
         if (event.unsigned?.redacted) {
@@ -221,9 +189,9 @@ const ChatView: FC<ChatViewProps> = memo(({ room, }) => {
             return (<UndecryptableEvent key={event.event_id} event={event} hasPreviousEvent={event.unsigned.hasPreviousEvent} room={room} />)
         }
 
-
         let previousEvent = eventsFull?.[index - 1];
         const previousEventIsFromSameSender = previousEvent?.sender === event.sender;
+
         let previousEventType = previousEvent?.type;
 
         // Make a list of events which are reactions for the current event we want to render
@@ -265,25 +233,11 @@ const ChatView: FC<ChatViewProps> = memo(({ room, }) => {
 
         return (
             <div className='max-w-[130ch]'>
-                {renderEvent(event, previousEventIsFromSameSender, previousEventType, reactions, redacted, redacted_because, redaction_id)}
+                {renderEvent(event, previousEventIsFromSameSender, previousEventType, reactions, redacted, redacted_because, redaction_id, room)}
             </div>
         )
     }, [eventsFull])
 
-    // Render events based on the event type and content
-    const renderEvent = (event: IRoomEvent, previousEventIsFromSameSender: boolean, previousEventType: string, reactions: IRoomEvent[], redacted: boolean, redacted_because: string, redaction_id?: string) => {
-        if (redacted) {
-            return (<RedactedEvent event={event} redacted_because={redacted_because} room={room} hasPreviousEvent={previousEventIsFromSameSender} key={redaction_id} />)
-        }
-        switch (event.type) {
-            case "m.room.message":
-                return <MessageEvent reactions={reactions} event={event} room={room} key={event.event_id} hasPreviousEvent={previousEventIsFromSameSender && previousEventType === "m.room.message"} />
-            case "m.room.member":
-                return <MemberEvent event={event as IRoomMemberEvent} key={event.event_id} />
-            default:
-                return <UnknownEvent event={event} key={event.event_id} />
-        }
-    }
 
     if (events?.length === 0) {
         return (
@@ -293,15 +247,20 @@ const ChatView: FC<ChatViewProps> = memo(({ room, }) => {
 
     return (
         <Virtuoso
-            ref={scrollRef as Ref<VirtuosoHandle>}
             className='flex overflow-y-auto overflow-x-hidden scrollbarSmall'
             data={events}
             firstItemIndex={firstItemIndex}
-            initialTopMostItemIndex={19}
-            startReached={prependEvents}
-            overscan={200}
+            initialTopMostItemIndex={events.length - 1}
+            overscan={10}
             itemContent={renderEventPure}
             components={{ Header }}
+            followOutput={(isAtBottom: boolean) => {
+                if (isAtBottom) {
+                    return 'smooth' // can be 'auto' or false to avoid scrolling
+                } else {
+                    return false
+                }
+            }}
         />
     );
 });
@@ -321,6 +280,20 @@ const Header = () => {
     )
 }
 
+// Render events based on the event type and content
+const renderEvent = (event: IRoomEvent, previousEventIsFromSameSender: boolean, previousEventType: string, reactions: IRoomEvent[], redacted: boolean, redacted_because: string, redaction_id?: string, room?: Room,) => {
+    if (redacted) {
+        return (<RedactedEvent event={event} redacted_because={redacted_because} room={room} hasPreviousEvent={previousEventIsFromSameSender} key={redaction_id} />)
+    }
+    switch (event.type) {
+        case "m.room.message":
+            return <MessageEvent reactions={reactions} event={event} room={room} key={event.event_id} hasPreviousEvent={previousEventIsFromSameSender && previousEventType === "m.room.message"} />
+        case "m.room.member":
+            return <MemberEvent event={event as IRoomMemberEvent} key={event.event_id} />
+        default:
+            return <UnknownEvent event={event} key={event.event_id} />
+    }
+}
 
 const MainPage = memo(() => {
     const profile = useProfile();
