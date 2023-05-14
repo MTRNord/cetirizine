@@ -189,7 +189,7 @@ const ChatView: FC<ChatViewProps> = memo(({ room, }) => {
             return (<UndecryptableEvent key={event.event_id} event={event} hasPreviousEvent={event.unsigned.hasPreviousEvent} room={room} />)
         }
 
-        let previousEvent = eventsFull?.[index - 1];
+        let previousEvent = events?.[index - 1];
         const previousEventIsFromSameSender = previousEvent?.sender === event.sender;
 
         let previousEventType = previousEvent?.type;
