@@ -161,10 +161,8 @@ const ChatView: FC<ChatViewProps> = memo(({ room, }) => {
                 let newEvents = eventsAll.filter(x => !eventsFull.includes(x));
                 if (newEvents.length === 0) { return }
 
-                const newFullEvents = [...newEvents, ...eventsFull];
-
                 Promise.all(newEvents.map(async (event) => {
-                    return await decryptEvents(eventsAll.findIndex((eventAllEvent) => eventAllEvent.event_id == event.event_id), event, newFullEvents);
+                    return await decryptEvents(eventsAll.findIndex((eventAllEvent) => eventAllEvent.event_id == event.event_id), event, eventsAll);
                 })).then((eventsRaw: IRoomEvent[]) => {
                     if (eventsRaw.length > 0) {
                         const no_relations = eventsRaw.filter(event => event.type !== "m.reaction" &&
