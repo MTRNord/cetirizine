@@ -247,6 +247,7 @@ const ChatView: FC<ChatViewProps> = memo(({ room, }) => {
 
     return (
         <Virtuoso
+            alignToBottom
             className='flex overflow-y-auto overflow-x-hidden scrollbarSmall'
             data={events}
             firstItemIndex={firstItemIndex}
