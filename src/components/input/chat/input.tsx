@@ -122,7 +122,8 @@ const SendButton: FC<SendButtonProps> = ({ onStartSending, onStopSending, room }
                 if (matched) {
                     const { groups } = matched;
                     if (groups) {
-                        let { all, language, code } = groups;
+                        const { all, language } = groups;
+                        let { code } = groups;
 
                         const spanRegex = /<span(?: class=".*?")?>(?<content>.*?)<\/span>/;
                         let matchedspans = spanRegex.exec(code);

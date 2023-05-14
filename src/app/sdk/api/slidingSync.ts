@@ -28,7 +28,7 @@ export interface ISlidingSyncReq {
             };
         };
     };
-};
+}
 
 
 export interface ISlidingSyncResp {

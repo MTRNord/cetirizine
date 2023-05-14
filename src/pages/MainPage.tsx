@@ -4,8 +4,8 @@ import ChatInput from '../components/input/chat/input';
 import RoomList, { Section } from '../components/roomList/roomList';
 import './MainPage.scss';
 import { useProfile, useRoom, useRooms, useSpaces } from '../app/sdk/client';
-import { Room, useEvents } from '../app/sdk/room';
-import { FC, memo, useContext, useEffect, useRef, useState } from 'react';
+import { Room } from '../app/sdk/room';
+import { FC, Ref, memo, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { MatrixContext } from '../app/sdk/client';
 import { useLocation, useParams } from 'react-router-dom';
 import MessageEvent from '../components/events/messageEvent';
@@ -14,6 +14,7 @@ import MemberEvent from '../components/events/memberEvent';
 import { IRoomEvent, IRoomMemberEvent } from '../app/sdk/api/events';
 import Linkify from 'linkify-react';
 import { OnlineState } from '../app/sdk/api/otherEnums';
+import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
 
 type ChatViewProps = {
     /**
@@ -25,133 +26,251 @@ type ChatViewProps = {
      * If the roomID is valid, but the room is not loaded, the ChatView will display a placeholder
      */
     room?: Room
-    /**
-     * Ref of the Scroll Container
-     */
-    scrollRef: React.RefObject<HTMLDivElement>
 };
 
-const ChatView: FC<ChatViewProps> = memo(({ room, scrollRef }) => {
+const ChatView: FC<ChatViewProps> = memo(({ room, }) => {
     const client = useContext(MatrixContext);
-    const events = useEvents(room);
+    const [events, setEvents] = useState<IRoomEvent[]>([]);
+    const [eventsFull, setEventsFull] = useState<IRoomEvent[]>([]);
     const { pathname } = useLocation();
-    const [renderedEvents, setRenderedEvents] = useState<JSX.Element[]>([]);
+    const [previousPathname, setPreviousPathname] = useState<string | undefined>(undefined);
+    const [firstItemIndex, setFirstItemIndex] = useState<number | undefined>(undefined)
+    const scrollRef = useRef<VirtuosoHandle>();
 
-    // Map events to components but also tell components if the previous event was from the same sender and which type it was
-    const renderEvents = (events: IRoomEvent[]) => {
-        const dedupedEvents = events?.filter((event, index, self) => {
-            return self.findIndex(e => e.event_id === event.event_id) === index;
-        }).sort((a, b) => {
-            return a.origin_server_ts - b.origin_server_ts;
-        })
-        const no_relations = dedupedEvents.filter(event => event.type !== "m.reaction" &&
-            event.type !== "m.room.redaction" &&
-            event.content["m.relates_to"]?.["rel_type"] !== "m.replace"
-        );
-
-        // TODO: Make decrypt run in parallel
-        Promise.all(no_relations?.map(async (event, index) => {
-            let previousEvent = no_relations?.[index - 1];
-            const previousEventIsFromSameSender = previousEvent?.sender === event.sender;
-            let previousEventType = previousEvent?.type;
-
-            // Make a list of events which are reactions for the current event we want to render
-            const reactions = dedupedEvents?.filter((e) => {
-                return e.type === "m.reaction" && e.content["m.relates_to"].event_id === event.event_id;
-            });
-
-            // Check if event is redacted
-            const redaction = dedupedEvents?.find((e) => {
-                return e.type === "m.room.redaction" && e.redacts === event.event_id;
-            });
-            const redacted = redaction !== undefined;
-            let redacted_because = undefined;
-            let redaction_id = undefined;
-            if (redacted) {
-                redaction_id = redaction?.event_id;
-                if (redaction.content.reason) {
-                    redacted_because = redaction.content.reason;
-                }
-            }
-
-            // Check if there is an edit (m.relates_to with rel_type of "m.replace")
-            const edit = dedupedEvents?.find((e) => {
-                if (!e.content["m.relates_to"]) {
-                    return false;
-                }
-                return e.content["m.relates_to"].rel_type === "m.replace" && e.content["m.relates_to"].event_id === event.event_id;
-            });
-
-            // If there is an edit, use the edited event instead of the original event
-            if (edit) {
-                event = edit;
-                if (edit.content["m.new_content"]) {
-                    event.content.body = edit.content["m.new_content"].body;
-                    event.content.formatted_body = edit.content["m.new_content"].formatted_body;
-                    event.content.format = edit.content["m.new_content"].format;
-                }
-            }
-
-
-            // Decrypt the event if it is encrypte
-            if (event.type === "m.room.encrypted" && room?.roomID) {
-                try {
-                    const decrypted_event = await client.decryptRoomEvent(room.roomID, event);
-                    if (decrypted_event) {
-                        event = JSON.parse(decrypted_event.event) as IRoomEvent;
-                        if (event.content["m.new_content"]) {
-                            event.content.body = event.content["m.new_content"].body;
-                            event.content.formatted_body = event.content["m.new_content"].formatted_body;
-                            event.content.format = event.content["m.new_content"].format;
-                        }
-                    } else {
-                        if (redacted) {
-                            return (<RedactedEvent event={event} redacted_because={redacted_because} key={redaction_id} room={room} hasPreviousEvent={previousEventIsFromSameSender} />)
-                        }
-                        return (<UndecryptableEvent key={event.event_id} event={event} hasPreviousEvent={previousEventIsFromSameSender} room={room}></UndecryptableEvent>)
-                    }
-                } catch (e: any) {
-                    console.error(e, event);
-                    if (redacted) {
-                        return (<RedactedEvent event={event} redacted_because={redacted_because} key={redaction_id} room={room} hasPreviousEvent={previousEventIsFromSameSender} />)
-                    }
-                    return (<UndecryptableEvent key={event.event_id} event={event} hasPreviousEvent={previousEventIsFromSameSender} room={room}></UndecryptableEvent>)
-                }
-            }
-
-            // Decrypt previousEvent if it is encrypted
-            if (previousEvent?.type === "m.room.encrypted" && room?.roomID) {
-                try {
-                    const decrypted_event = await client.decryptRoomEvent(room.roomID, previousEvent);
-                    if (decrypted_event) {
-                        previousEvent = JSON.parse(decrypted_event.event) as IRoomEvent;
-                        previousEventType = previousEvent.type;
-                        if (previousEvent.content["m.new_content"]) {
-                            previousEvent.content.body = previousEvent.content["m.new_content"].body;
-                            previousEvent.content.formatted_body = previousEvent.content["m.new_content"].formatted_body;
-                            previousEvent.content.format = previousEvent.content["m.new_content"].format;
-                        }
-                    }
-                } catch (e: any) {
-                    console.error(e, event);
-                }
-            }
-
-            return renderEvent(event, previousEventIsFromSameSender, previousEventType, reactions, redacted, redacted_because, redaction_id);
-        })).then((renderedEvents) => {
-            setRenderedEvents(renderedEvents);
+    const decryptEvents = async (index: number, event: IRoomEvent, eventsFull: IRoomEvent[]) => {
+        let previousEvent = eventsFull?.[index - 1];
+        const previousEventIsFromSameSender = previousEvent?.sender === event.sender;
+        // Check if event is redacted
+        const redaction = eventsFull?.find((e) => {
+            return e.type === "m.room.redaction" && e.redacts === event.event_id;
         });
+        const redacted = redaction !== undefined;
+        let redacted_because = undefined;
+        let redaction_id = undefined;
+        if (redacted) {
+            redaction_id = redaction?.event_id;
+            if (redaction.content.reason) {
+                redacted_because = redaction.content.reason;
+            }
+        }
+
+        // Decrypt the event if it is encrypted
+        if (event.type === "m.room.encrypted" && room?.roomID) {
+            try {
+                const decrypted_event = await client.decryptRoomEvent(room.roomID, event);
+                if (decrypted_event) {
+                    event = JSON.parse(decrypted_event.event) as IRoomEvent;
+                    if (event.content["m.new_content"]) {
+                        event.content.body = event.content["m.new_content"].body;
+                        event.content.formatted_body = event.content["m.new_content"].formatted_body;
+                        event.content.format = event.content["m.new_content"].format;
+                    }
+                } else {
+                    if (redacted) {
+                        return {
+                            ...event,
+                            unsigned: {
+                                ...event.unsigned,
+                                redacted: true,
+                                redacted_because: redacted_because,
+                                hasPreviousEvent: previousEventIsFromSameSender,
+                                redaction_id: redaction_id
+                            }
+                        }
+                    }
+                    return {
+                        ...event,
+                        unsigned: {
+                            ...event.unsigned,
+                            undecryptable: true,
+                            key: event.event_id,
+                            hasPreviousEvent: previousEventIsFromSameSender
+                        }
+                    }
+                }
+            } catch (e: any) {
+                if (redacted) {
+                    return {
+                        ...event,
+                        unsigned: {
+                            ...event.unsigned,
+                            redacted: true,
+                            redacted_because: redacted_because,
+                            hasPreviousEvent: previousEventIsFromSameSender,
+                            redaction_id: redaction_id
+                        }
+                    }
+                }
+                return {
+                    ...event,
+                    unsigned: {
+                        ...event.unsigned,
+                        undecryptable: true,
+                        hasPreviousEvent: previousEventIsFromSameSender
+                    }
+                }
+            }
+        }
+
+        return event;
     }
 
     useEffect(() => {
-        if (events) {
-            renderEvents(events);
+        if (previousPathname !== pathname) {
+            console.log("Resetting events because we changed rooms");
+            setEvents([]);
+            setEventsFull([]);
+            setFirstItemIndex(undefined);
+            setPreviousPathname(pathname);
         }
-    }, [events]);
+
+        if ((eventsFull.length === 0) && room) {
+            const eventsAll = room?.getEvents().filter((event, index, self) => {
+                return self.findIndex(e => e.event_id === event.event_id) === index;
+            }).sort((a, b) => {
+                return b.origin_server_ts - a.origin_server_ts;
+            }).reverse();
+
+            Promise.all(eventsAll.map(async (event, index) => {
+                return await decryptEvents(index, event, eventsAll);
+            })).then((eventsRaw: IRoomEvent[]) => {
+                const eventsDecrypted = eventsRaw.slice(eventsRaw.length - 20, eventsRaw.length);
+                if (eventsDecrypted.length > 0) {
+                    const no_relations = eventsDecrypted.filter(event => event.type !== "m.reaction" &&
+                        event.type !== "m.room.redaction" &&
+                        event.content["m.relates_to"]?.["rel_type"] !== "m.replace"
+                    );
+                    setEvents(() => [...no_relations, ...events]);
+                    setEventsFull(() => [...eventsRaw]);
+                    setFirstItemIndex(eventsRaw.length - 20);
+                }
+            })
+        }
+    }, [room, events, setEvents, eventsFull, setEventsFull, pathname, previousPathname, firstItemIndex, setFirstItemIndex])
+
 
     useEffect(() => {
-        scrollRef.current?.scrollTo(0, scrollRef.current?.scrollHeight);
-    }, [pathname]);
+        if (room) {
+            // Listen for event updates
+            const listenForEvents = (eventsListened: IRoomEvent[]) => {
+                const eventsAll = eventsListened.filter((event, index, self) => {
+                    return self.findIndex(e => e.event_id === event.event_id) === index;
+                }).sort((a, b) => {
+                    return b.origin_server_ts - a.origin_server_ts;
+                }).reverse();
+                let newEvents = eventsAll.filter(x => !eventsFull.includes(x));
+                if (newEvents.length === 0) { return }
+
+                const newFullEvents = [...newEvents, ...eventsFull];
+
+                Promise.all(newEvents.map(async (event) => {
+                    return await decryptEvents(eventsAll.findIndex((eventAllEvent) => eventAllEvent.event_id == event.event_id), event, newFullEvents);
+                })).then((eventsRaw: IRoomEvent[]) => {
+                    if (eventsRaw.length > 0) {
+                        const no_relations = eventsRaw.filter(event => event.type !== "m.reaction" &&
+                            event.type !== "m.room.redaction" &&
+                            event.content["m.relates_to"]?.["rel_type"] !== "m.replace"
+                        );
+                        scrollRef.current?.scrollToIndex(firstItemIndex!)
+                        setFirstItemIndex(firstItemIndex! + eventsRaw.length);
+                        setEvents(() => [...events, ...no_relations]);
+                        setEventsFull(() => [...eventsFull, ...eventsRaw]);
+                    }
+                })
+            };
+            room.on("events", listenForEvents);
+            return () => {
+                room.off("events", listenForEvents);
+            }
+        }
+    }, [room, eventsFull, events, pathname])
+
+    const prependEvents = useCallback(() => {
+        const eventsAll = room?.getEvents().filter((event, index, self) => {
+            return self.findIndex(e => e.event_id === event.event_id) === index;
+        }).sort((a, b) => {
+            return b.origin_server_ts - a.origin_server_ts;
+        }).reverse() ?? [];
+
+        if (firstItemIndex! - 20 > eventsAll.length) { return false }
+        const nextFirstItemIndex = firstItemIndex! - 20;
+
+        Promise.all(eventsAll.map(async (event, index) => {
+            return await decryptEvents(index, event, eventsAll);
+        })).then((eventsRaw: IRoomEvent[]) => {
+            const eventsDecrypted = eventsRaw.slice(nextFirstItemIndex, nextFirstItemIndex + 20);
+
+            if (eventsDecrypted.length > 0) {
+                const no_relations = eventsDecrypted.filter(event => event.type !== "m.reaction" &&
+                    event.type !== "m.room.redaction" &&
+                    event.content["m.relates_to"]?.["rel_type"] !== "m.replace"
+                );
+                setEvents(() => [...no_relations, ...events]);
+                setEventsFull(() => [...eventsRaw]);
+                setFirstItemIndex(nextFirstItemIndex);
+            }
+        })
+
+        return false
+    }, [events, setEvents, eventsFull, setEventsFull, firstItemIndex, setFirstItemIndex])
+
+    const renderEventPure = useCallback((index: number, event: IRoomEvent) => {
+        if (event.unsigned?.redacted) {
+            return (<RedactedEvent event={event} redacted_because={event.unsigned.redacted_because} key={event.unsigned.redaction_id} room={room} hasPreviousEvent={event.unsigned.hasPreviousEvent} />)
+        }
+
+        if (event.unsigned?.undecryptable) {
+            return (<UndecryptableEvent key={event.event_id} event={event} hasPreviousEvent={event.unsigned.hasPreviousEvent} room={room} />)
+        }
+
+
+        let previousEvent = eventsFull?.[index - 1];
+        const previousEventIsFromSameSender = previousEvent?.sender === event.sender;
+        let previousEventType = previousEvent?.type;
+
+        // Make a list of events which are reactions for the current event we want to render
+        const reactions = eventsFull?.filter((e) => {
+            return e.type === "m.reaction" && e.content["m.relates_to"].event_id === event.event_id;
+        });
+
+        // Check if event is redacted
+        const redaction = eventsFull?.find((e) => {
+            return e.type === "m.room.redaction" && e.redacts === event.event_id;
+        });
+        const redacted = redaction !== undefined;
+        let redacted_because = undefined;
+        let redaction_id = undefined;
+        if (redacted) {
+            redaction_id = redaction?.event_id;
+            if (redaction.content.reason) {
+                redacted_because = redaction.content.reason;
+            }
+        }
+
+        // Check if there is an edit (m.relates_to with rel_type of "m.replace")
+        const edit = eventsFull?.find((e) => {
+            if (!e.content["m.relates_to"]) {
+                return false;
+            }
+            return e.content["m.relates_to"].rel_type === "m.replace" && e.content["m.relates_to"].event_id === event.event_id;
+        });
+
+        // If there is an edit, use the edited event instead of the original event
+        if (edit) {
+            event = edit;
+            if (edit.content["m.new_content"]) {
+                event.content.body = edit.content["m.new_content"].body;
+                event.content.formatted_body = edit.content["m.new_content"].formatted_body;
+                event.content.format = edit.content["m.new_content"].format;
+            }
+        }
+
+        return (
+            <div className='max-w-[130ch]'>
+                {renderEvent(event, previousEventIsFromSameSender, previousEventType, reactions, redacted, redacted_because, redaction_id)}
+            </div>
+        )
+    }, [eventsFull])
 
     // Render events based on the event type and content
     const renderEvent = (event: IRoomEvent, previousEventIsFromSameSender: boolean, previousEventType: string, reactions: IRoomEvent[], redacted: boolean, redacted_because: string, redaction_id?: string) => {
@@ -168,8 +287,41 @@ const ChatView: FC<ChatViewProps> = memo(({ room, scrollRef }) => {
         }
     }
 
-    return <div className='max-w-[130ch] flex flex-col'>{renderedEvents}</div>;
+    if (events?.length === 0) {
+        return (
+            <></>
+        )
+    }
+
+    return (
+        <Virtuoso
+            ref={scrollRef as Ref<VirtuosoHandle>}
+            className='flex overflow-y-auto overflow-x-hidden scrollbarSmall'
+            data={events}
+            firstItemIndex={firstItemIndex}
+            initialTopMostItemIndex={19}
+            startReached={prependEvents}
+            overscan={200}
+            itemContent={renderEventPure}
+            components={{ Header }}
+        />
+    );
 });
+
+
+const Header = () => {
+    return (
+        <div
+            style={{
+                padding: '2rem',
+                display: 'flex',
+                justifyContent: 'center',
+            }}
+        >
+            Loading...
+        </div>
+    )
+}
 
 
 const MainPage = memo(() => {
@@ -177,11 +329,9 @@ const MainPage = memo(() => {
     const spacesWithRooms = useSpaces();
     const rooms = useRooms();
     const client = useContext(MatrixContext);
-    let params = useParams();
+    const params = useParams();
     const room = useRoom(decodeURIComponent(params.roomIdOrAlias || ""));
     client.setCurrentRoom(params.roomIdOrAlias ? decodeURIComponent(params.roomIdOrAlias) : undefined)
-
-    const scrollRef = useRef<HTMLDivElement>(null);
 
     // Filter toplevel spaces.
     // A toplevel space is a space that is not a child of another space.
@@ -353,7 +503,7 @@ const MainPage = memo(() => {
             <RoomList sections={sections} rooms={otherRooms} dmRooms={dmRooms} />
         </div>
         {
-            room && <div className='flex-1 flex flex-col' id='room-wrapper'>
+            room ? <div className='flex-1 flex flex-col' id='room-wrapper'>
                 <div className='pb-2 flex flex-row items-center border-b-2 mt-4 ml-2'>
                     <Avatar displayname={room.getName()} avatarUrl={room.getAvatarURL()} dm={room.isDM()} online={room.presence} />
                     <div className='flex flex-row items-start'>
@@ -361,13 +511,13 @@ const MainPage = memo(() => {
                         <Linkify options={linkifyOptions} as='p' className="ml-4 text-slate-700 font-normal text-base line-clamp-2 text-ellipsis">{room.getTopic()}</Linkify>
                     </div>
                 </div>
-                <div ref={scrollRef} className='overflow-y-auto overflow-x-hidden scrollbarSmall mr-2 my-1 flex-1 w-full flex flex-col-reverse'>
-                    <ChatView room={room} scrollRef={scrollRef} />
+                <div className='my-1 flex-1 flex flex-col'>
+                    <ChatView room={room} />
                 </div>
                 <ChatInput namespace='Editor' room={room} />
-            </div>
+            </div> : <></>
         }
-    </div >
+    </div>
 })
 
 export default MainPage;

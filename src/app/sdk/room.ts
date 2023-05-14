@@ -428,27 +428,6 @@ export class Room extends EventEmitter {
     }
 }
 
-export function useEvents(room?: Room) {
-    const [events, setEvents] = useState<IRoomEvent[]>(room?.getEvents() || []);
-
-    useEffect(() => {
-        if (room) {
-            setEvents(room?.getEvents() || []);
-            // Listen for event updates
-            const listenForEvents = (events: IRoomEvent[]) => {
-                setEvents(events);
-            };
-            room.on("events", listenForEvents);
-            return () => {
-                room.off("events", listenForEvents);
-            }
-        } else {
-            setEvents([]);
-        }
-    }, [room])
-    return events;
-}
-
 export function useStateEvents(room?: Room) {
     const [events, setEvents] = useState<IRoomStateEvent[]>(room?.getStateEvents() || []);
 

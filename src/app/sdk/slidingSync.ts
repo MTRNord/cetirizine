@@ -179,7 +179,7 @@ export class MatrixSlidingSync extends EventEmitter {
         Promise.all([this.user.e2ee.sendIdentifyAndOneTimeKeys()]);
 
         // This is the initial sync case for each list
-        let lists_ranges: {
+        const lists_ranges: {
             "overview": number[][];
             "spaces": number[][];
             [key: string]: number[][];
