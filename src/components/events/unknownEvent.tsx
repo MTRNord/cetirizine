@@ -38,7 +38,7 @@ const UnknownEvent: FC<UnknownEventProps> = memo(({ event, room, hasPreviousEven
                 dm={room?.isDM() || false}
             />}
             <div className={!hasPreviousEvent ? "flex flex-col gap-1" : "ml-[3.7rem]"}>
-                {!hasPreviousEvent && <h2 className="text-sm font-medium text-red-500 whitespace-pre-wrap">{room?.getMemberName(event.sender) || event.sender}</h2>}
+                {!hasPreviousEvent && <h2 className="text-xl font-medium text-red-500 whitespace-pre-wrap">{room?.getMemberName(event.sender) || event.sender}</h2>}
                 <Linkify options={linkifyOptions} as='p' className="whitespace-break-spaces text-black text-base font-normal">{JSON.stringify(event, null, 4)}</Linkify>
             </div>
         </div>
@@ -72,7 +72,7 @@ export const UndecryptableEvent: FC<UndecryptableEventProps> = memo(({ event, ro
                 dm={room?.isDM() || false}
             />}
             <div className={!hasPreviousEvent ? "flex flex-col gap-1" : "ml-[3.7rem]"}>
-                {!hasPreviousEvent && <h2 className="text-sm font-medium text-red-500 whitespace-pre-wrap">{room?.getMemberName(event.sender) || event.sender}</h2>}
+                {!hasPreviousEvent && <h2 className="text-xl font-medium text-red-500 whitespace-pre-wrap">{room?.getMemberName(event.sender) || event.sender}</h2>}
                 <Linkify options={linkifyOptions} as='p' className="whitespace-pre-wrap text-base font-normal text-orange-600">Unable to decrypt event</Linkify>
             </div>
         </div>
@@ -108,7 +108,7 @@ export const RedactedEvent: FC<RedactedEventProps> = memo(({ event, redacted_bec
                 dm={room?.isDM() || false}
             />}
             <div className={!hasPreviousEvent ? "flex flex-col gap-1" : "ml-[3.7rem]"}>
-                {!hasPreviousEvent && <h2 className="text-sm font-medium text-red-500 whitespace-pre-wrap">{room?.getMemberName(event.sender) || event.sender}</h2>}
+                {!hasPreviousEvent && <h2 className="text-xl font-medium text-red-500 whitespace-pre-wrap">{room?.getMemberName(event.sender) || event.sender}</h2>}
                 {redacted_because && <p className="whitespace-pre-wrap text-base font-normal text-blue-600 italic">Message was redacted: {redacted_because}</p>}
                 {!redacted_because && <p className="whitespace-pre-wrap text-base font-normal text-blue-600 italic">Message was redacted</p>}
             </div>

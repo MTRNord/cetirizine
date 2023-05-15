@@ -125,7 +125,7 @@ const MessageEvent: FC<MessageEventProps> = memo(({ event, room, hasPreviousEven
                         dm={room?.isDM() || false}
                     />}
                     <div className={!hasPreviousEvent ? "flex flex-col gap-1" : "ml-[3.7rem]"}>
-                        {!hasPreviousEvent && <h2 className="text-sm font-medium text-red-500 whitespace-pre-wrap">{room?.getMemberName(event.sender) || event.sender}</h2>}
+                        {!hasPreviousEvent && <h2 className="text-xl font-medium text-red-500 whitespace-pre-wrap">{room?.getMemberName(event.sender) || event.sender}</h2>}
                         {/* TODO: Loading circle while image is loading */}
                         <img
                             src={url}
@@ -177,7 +177,7 @@ const MessageEvent: FC<MessageEventProps> = memo(({ event, room, hasPreviousEven
                         dm={room?.isDM() || false}
                     />}
                     <div className={!hasPreviousEvent ? "flex flex-col gap-1" : "flex-1 ml-[3.7rem]"}>
-                        {!hasPreviousEvent && <h2 className="text-sm font-medium text-red-500 whitespace-pre-wrap">{room?.getMemberName(event.sender) || event.sender}</h2>}
+                        {!hasPreviousEvent && <h2 className="text-xl font-medium text-red-500 whitespace-pre-wrap">{room?.getMemberName(event.sender) || event.sender}</h2>}
                         {url && <Waveform src_url={url} />}
                     </div>
                 </div>
@@ -192,7 +192,7 @@ const MessageEvent: FC<MessageEventProps> = memo(({ event, room, hasPreviousEven
                         dm={room?.isDM() || false}
                     />}
                     <div className={!hasPreviousEvent ? "flex flex-col gap-1" : "ml-[3.7rem]"}>
-                        {!hasPreviousEvent && <h2 className="text-sm font-medium text-red-500 whitespace-pre-wrap">{room?.getMemberName(event.sender) || event.sender}</h2>}
+                        {!hasPreviousEvent && <h2 className="text-xl font-medium text-red-500 whitespace-pre-wrap">{room?.getMemberName(event.sender) || event.sender}</h2>}
                         <Linkify options={linkifyOptions} as='p' className="text-black text-base font-normal">{event.content.body}</Linkify>
                     </div>
                 </div>
@@ -294,7 +294,7 @@ const TextMessage: FC<TextMessage> = memo(({ event, room, hasPreviousEvent, mess
                     dm={room?.isDM() || false}
                 />}
                 <div className={!hasPreviousEvent ? "flex flex-col gap-1" : "ml-[3.7rem]"}>
-                    {!hasPreviousEvent && <h2 className="text-sm font-medium text-red-500 whitespace-pre-wrap">{room?.getMemberName(event.sender) || event.sender}</h2>}
+                    {!hasPreviousEvent && <h2 className="text-xl font-medium text-red-500 whitespace-pre-wrap">{room?.getMemberName(event.sender) || event.sender}</h2>}
                     {/* TODO: Fixme */}
                     <p className={`${text_color} text-base font-normal`} dangerouslySetInnerHTML={{ __html: linkified }}></p>
                 </div>
@@ -310,7 +310,7 @@ const TextMessage: FC<TextMessage> = memo(({ event, room, hasPreviousEvent, mess
                     dm={room?.isDM() || false}
                 />}
                 <div className={!hasPreviousEvent ? "flex flex-col gap-1" : "ml-[3.7rem]"}>
-                    {!hasPreviousEvent && <h2 className="text-sm font-medium text-red-500 whitespace-pre-wrap">{room?.getMemberName(event.sender) || event.sender}</h2>}
+                    {!hasPreviousEvent && <h2 className="text-xl font-medium text-red-500 whitespace-pre-wrap">{room?.getMemberName(event.sender) || event.sender}</h2>}
                     <Linkify options={linkifyOptions} as='p' className={`${text_color} text-base font-normal`}>{event.content.body}</Linkify>
                 </div>
             </div>

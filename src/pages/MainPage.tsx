@@ -119,7 +119,7 @@ const ChatView: FC<ChatViewProps> = memo(({ room, }) => {
             console.log("Resetting events because we changed rooms");
             setEvents([]);
             setEventsFull([]);
-            setFirstItemIndex(undefined);
+            setFirstItemIndex(0);
             setPreviousPathname(pathname);
         }
 
@@ -141,7 +141,7 @@ const ChatView: FC<ChatViewProps> = memo(({ room, }) => {
                     const events = [...no_relations];
                     setEventsFull(() => [...eventsRaw]);
                     setEvents(() => events);
-                    setFirstItemIndex(0);
+                    setFirstItemIndex(events.length);
                 }
             })
         }
@@ -166,21 +166,32 @@ const ChatView: FC<ChatViewProps> = memo(({ room, }) => {
                         event.content["m.relates_to"]?.["rel_type"] !== "m.replace"
                     );
 
-                    if (no_relations.length > 0) {
-                        const events = [...no_relations];
-                        setEventsFull(() => [...eventsRaw]);
-                        setEvents(() => events);
+
+                    // If there are no events or no changes, do nothing
+                    if (no_relations.length > 0 && events.length > 0) {
+                        const newEvents = [...no_relations];
+
+                        if (eventsRaw.length !== eventsFull.length) {
+                            setEventsFull(() => [...eventsRaw]);
+                        }
+                        // Check if newEvents is equal to events
+                        if (newEvents.length !== events.length) {
+                            setEvents(() => events);
+                        }
                     }
                 })
             };
+            console.log("Adding listener for events")
             room.on("events", listenForEvents);
             return () => {
+                console.log("Removing listener for events")
                 room.off("events", listenForEvents);
             }
         }
     }, [room, eventsFull, events, setEventsFull, setEvents, pathname])
 
-    const renderEventPure = useCallback((index: number, event: IRoomEvent) => {
+    const renderEventPure = useCallback((_index: number, event: IRoomEvent) => {
+        const index = eventsFull.findIndex(e => e.event_id === event.event_id);
         if (event.unsigned?.redacted) {
             return (<RedactedEvent event={event} redacted_because={event.unsigned.redacted_because} key={event.unsigned.redaction_id} room={room} hasPreviousEvent={event.unsigned.hasPreviousEvent} />)
         }
@@ -189,7 +200,7 @@ const ChatView: FC<ChatViewProps> = memo(({ room, }) => {
             return (<UndecryptableEvent key={event.event_id} event={event} hasPreviousEvent={event.unsigned.hasPreviousEvent} room={room} />)
         }
 
-        let previousEvent = events?.[index - 1];
+        let previousEvent = eventsFull?.[index - 1];
         const previousEventIsFromSameSender = previousEvent?.sender === event.sender;
 
         let previousEventType = previousEvent?.type;
@@ -239,7 +250,7 @@ const ChatView: FC<ChatViewProps> = memo(({ room, }) => {
     }, [eventsFull])
 
 
-    if (events?.length === 0) {
+    if (events.length === 0 || !room || eventsFull.length === 0) {
         return (
             <></>
         )
@@ -252,12 +263,12 @@ const ChatView: FC<ChatViewProps> = memo(({ room, }) => {
             data={events}
             firstItemIndex={firstItemIndex}
             initialTopMostItemIndex={events.length - 1}
-            overscan={10}
+            overscan={200}
             itemContent={renderEventPure}
             components={{ Header }}
             followOutput={(isAtBottom: boolean) => {
                 if (isAtBottom) {
-                    return 'smooth' // can be 'auto' or false to avoid scrolling
+                    return 'smooth'
                 } else {
                     return false
                 }
