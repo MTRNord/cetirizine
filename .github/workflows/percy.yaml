@@ -22,6 +22,7 @@ jobs:
       - run: |
           export NODE_OPTIONS="--max_old_space_size=4096"
           npm install
+          npm install concurrently http-server wait-on
           npx browserslist@latest --update-db
         env:
           # also other environment variable
@@ -33,7 +34,7 @@ jobs:
       - run: |
           export NODE_OPTIONS="--max_old_space_size=4096"
           npx concurrently -k -s first -n "SB,TEST" -c "magenta,blue" \
-            "npx http-server storybook-static --port 6006 --silent" \
-            "npx wait-on tcp:6006 && npm run percy"
+            "npx http-server storybook-static --port 6006" \
+            "echo \"Starting test\" && npx wait-on -l tcp:127.0.0.1:6006 && npm run percy"
         env:
           PERCY_TOKEN: ${{ secrets.PERCY_TOKEN }}

@@ -47,7 +47,7 @@ export const FormattedEvent: Story = {
 };
 
 // @ts-ignore
-defaultMatrixClient.hostname = "https://matrix.org";
+defaultMatrixClient.user.hostname = "https://matrix.org";
 
 export const ImageEvent: Story = {
     args: {

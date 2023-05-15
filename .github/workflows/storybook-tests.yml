@@ -13,7 +13,9 @@ jobs:
           node-version: "18.x"
           registry-url: https://npm.pkg.github.com/
       - name: Install dependencies
-        run: npm install
+        run: |
+          npm install
+          npm install concurrently http-server wait-on
         env:
           # also other environment variable
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -27,7 +29,7 @@ jobs:
         run: |
           export NODE_OPTIONS="--max_old_space_size=4096 --experimental-vm-modules"
           npx concurrently -k -s first -n "SB,TEST" -c "magenta,blue" \
-            "npx http-server storybook-static --port 6006 --silent" \
-            "npx wait-on tcp:6006 && npm run test-storybook -- --coverage --browsers firefox chromium"
+            "npx http-server storybook-static --port 6006" \
+            "echo \"Starting test\" && npx wait-on -l tcp:127.0.0.1:6006 && npm run test-storybook -- --coverage --browsers firefox chromium"
       - name: Build lcov.info
         run: npx nyc report --reporter=lcov -t coverage/storybook --report-dir coverage/storybook
