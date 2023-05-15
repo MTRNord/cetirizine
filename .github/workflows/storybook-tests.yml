@@ -11,8 +11,12 @@ jobs:
       - uses: actions/setup-node@v3
         with:
           node-version: "18.x"
+          registry-url: https://npm.pkg.github.com/
       - name: Install dependencies
         run: npm install
+        env:
+          # also other environment variable
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Install Playwright
         run: npx playwright install --with-deps
       - name: Build Storybook
