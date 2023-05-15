@@ -25,7 +25,7 @@ jobs:
           npm run build-storybook --quiet
       - name: Serve Storybook and run tests
         run: |
-          export NODE_OPTIONS="--max_old_space_size=4096"
+          export NODE_OPTIONS="--max_old_space_size=4096 --experimental-vm-modules"
           npx concurrently -k -s first -n "SB,TEST" -c "magenta,blue" \
             "npx http-server storybook-static --port 6006 --silent" \
             "npx wait-on tcp:6006 && npm run test-storybook -- --coverage"
