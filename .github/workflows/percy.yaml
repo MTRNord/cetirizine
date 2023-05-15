@@ -27,14 +27,10 @@ jobs:
         env:
           # also other environment variable
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build Storybook
-        run: |
-          export NODE_OPTIONS="--max_old_space_size=4096"
-          yarn build-storybook --quiet
       - run: |
           export NODE_OPTIONS="--max_old_space_size=4096"
           npx concurrently -k -s first -n "SB,TEST" -c "magenta,blue" \
-            "npx http-server storybook-static --port 6006" \
+            "npm run storybook -- --debug --no-open" \
             "echo \"Starting test\" && npx wait-on -l tcp:127.0.0.1:6006 && npm run percy"
         env:
           PERCY_TOKEN: ${{ secrets.PERCY_TOKEN }}
