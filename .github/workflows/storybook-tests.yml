@@ -18,7 +18,7 @@ jobs:
           # also other environment variable
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Install Playwright
-        run: npx playwright install --with-deps
+        run: npx playwright install chromium firefox --with-deps
       - name: Build Storybook
         run: |
           export NODE_OPTIONS="--max_old_space_size=4096"
@@ -28,6 +28,6 @@ jobs:
           export NODE_OPTIONS="--max_old_space_size=4096 --experimental-vm-modules"
           npx concurrently -k -s first -n "SB,TEST" -c "magenta,blue" \
             "npx http-server storybook-static --port 6006 --silent" \
-            "npx wait-on tcp:6006 && npm run test-storybook -- --coverage"
+            "npx wait-on tcp:6006 && npm run test-storybook -- --coverage --browsers firefox chromium"
       - name: Build lcov.info
         run: npx nyc report --reporter=lcov -t coverage/storybook --report-dir coverage/storybook
