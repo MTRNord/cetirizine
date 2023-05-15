@@ -170,13 +170,9 @@ const ChatView: FC<ChatViewProps> = memo(({ room, }) => {
                     // If there are no events or no changes, do nothing
                     if (no_relations.length > 0 && events.length > 0) {
                         const newEvents = [...no_relations];
-
-                        if (eventsRaw.length !== eventsFull.length) {
+                        if (eventsRaw.length !== eventsFull.length || newEvents.length !== events.length) {
                             setEventsFull(() => [...eventsRaw]);
-                        }
-                        // Check if newEvents is equal to events
-                        if (newEvents.length !== events.length) {
-                            setEvents(() => events);
+                            setEvents(() => newEvents);
                         }
                     }
                 })
