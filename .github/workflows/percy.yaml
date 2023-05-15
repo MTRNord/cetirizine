@@ -16,7 +16,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@v3
         with:
-          node-version: '18'
+          node-version: "18"
           registry-url: https://npm.pkg.github.com/
       - run: |
           export NODE_OPTIONS="--max_old_space_size=4096"
@@ -25,10 +25,14 @@ jobs:
         env:
           # also other environment variable
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build Storybook
+        run: |
+          export NODE_OPTIONS="--max_old_space_size=4096"
+          yarn build-storybook --quiet
       - run: |
           export NODE_OPTIONS="--max_old_space_size=4096"
-          npm run storybook -- --no-open &
-          sleep 60
-          npm run percy
+          npx concurrently -k -s first -n "SB,TEST" -c "magenta,blue" \
+            "npx http-server storybook-static --port 6006 --silent" \
+            "npx wait-on tcp:6006 && npm run percy"
         env:
           PERCY_TOKEN: ${{ secrets.PERCY_TOKEN }}
