@@ -19,7 +19,8 @@ jobs:
         with:
           node-version: "18"
           registry-url: https://npm.pkg.github.com/
-      - run: |
+      - name: Install
+        run: |
           export NODE_OPTIONS="--max_old_space_size=4096"
           npm install
           npm install concurrently http-server wait-on
@@ -27,7 +28,8 @@ jobs:
         env:
           # also other environment variable
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - run: |
+      - name: Run percy
+        run: |
           export NODE_OPTIONS="--max_old_space_size=4096"
           npx concurrently -k -s first -n "SB,TEST" -c "magenta,blue" \
             "npm run storybook -- --debug --no-open" \
