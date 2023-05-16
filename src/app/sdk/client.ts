@@ -408,7 +408,9 @@ export class MatrixClient extends EventEmitter {
             throw Error("Error fetching profile info. See console for error.");
         }
         const json = await resp.json() as IProfileInfo;
-        json.avatar_url = json.avatar_url?.replace("mxc://", `${this.user.hostname}/_matrix/media/v3/download/`);
+        if (json.avatar_url) {
+            json.avatar_url = this.convertMXC(json.avatar_url);
+        }
         this.profileInfo = json;
         const tx = this.database?.transaction('loginInfo', 'readwrite');
         await tx?.store.put({
