@@ -6,6 +6,7 @@ jobs:
   test:
     permissions:
       pull-requests: write
+      packages: read
     timeout-minutes: 60
     runs-on: ubuntu-latest
     steps:
