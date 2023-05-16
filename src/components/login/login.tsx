@@ -12,7 +12,10 @@ const Login = memo(() => {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     if (matrixClient.isLoggedIn) {
-        return <Navigate to="/" />;
+        //@ts-ignore
+        if (!globalThis.IS_STORYBOOK) {
+            return <Navigate to="/" />;
+        }
     }
     const startLogin = async () => {
         try {

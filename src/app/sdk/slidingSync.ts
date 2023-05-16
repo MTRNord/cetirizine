@@ -66,6 +66,10 @@ export class MatrixSlidingSync extends EventEmitter {
     }
 
     public async startSync() {
+        // @ts-ignore
+        if (globalThis.IS_STORYBOOK) {
+            await new Promise(r => setTimeout(r, 5000));
+        }
         if (!this.client.isLoggedIn) {
             throw Error("Not logged in");
         }
@@ -76,11 +80,21 @@ export class MatrixSlidingSync extends EventEmitter {
             return;
         }
         this.syncing = true;
+        let retries = 0;
         while (this.syncing) {
             try {
                 await this.sync();
             } catch (e) {
-                console.error(e);
+                console.error(`Error: ${e}`);
+                if (retries > 5) {
+                    console.error("Too many retries, giving up");
+                    this.stopSync();
+                    return;
+                }
+                // Sleep for 30 seconds
+                await new Promise(resolve => setTimeout(resolve, 30000));
+                console.warn("Retrying sync");
+                retries++;
             }
         }
     }
@@ -176,7 +190,9 @@ export class MatrixSlidingSync extends EventEmitter {
         }
 
         // TODO: This might cause future issues
-        Promise.all([this.user.e2ee.sendIdentifyAndOneTimeKeys()]);
+        Promise.all([this.user.e2ee.sendIdentifyAndOneTimeKeys()]).catch(e => {
+            console.error("Error sending identify and one time keys", e);
+        });
 
         // This is the initial sync case for each list
         const lists_ranges: {
@@ -447,6 +463,8 @@ export class MatrixSlidingSync extends EventEmitter {
                 await this.logout();
                 console.error(resp);
                 console.error("Error syncing. See console for error.");
+            } else {
+                throw new Error(`Error syncing. See console for error:\n\n${await resp.text()}`);
             }
         }
         const json = await resp.json() as ISlidingSyncResp;

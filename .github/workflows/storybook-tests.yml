@@ -1,0 +1,49 @@
+name: "Storybook Tests"
+on:
+  workflow_dispatch:
+  push:
+jobs:
+  test:
+    permissions:
+      pull-requests: write
+      packages: read
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: "18.x"
+          registry-url: https://npm.pkg.github.com/
+      - name: Install dependencies
+        run: |
+          npm install
+          npm install concurrently http-server wait-on
+        env:
+          # also other environment variable
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install Playwright
+        run: npx playwright install chromium firefox --with-deps
+      - name: Build Storybook
+        run: |
+          export NODE_OPTIONS="--max_old_space_size=4096"
+          npm run build-storybook --quiet
+      - name: Serve Storybook and run tests
+        run: |
+          export NODE_OPTIONS="--max_old_space_size=4096 --experimental-vm-modules"
+          npx concurrently -k -s first -n "SB,TEST" -c "magenta,blue" \
+            "npx http-server storybook-static --port 6006" \
+            "echo \"Starting test\" && npx wait-on -l tcp:127.0.0.1:6006 && npm run test-storybook -- --coverage --browsers firefox chromium"
+      - name: Build lcov.info
+        run: npx nyc report --reporter=lcov -t coverage/storybook --report-dir coverage/storybook
+      - name: Setup LCOV
+        uses: hrishikesh-kadam/setup-lcov@v1
+      - name: Report code coverage
+        uses: zgosalvez/github-actions-report-lcov@v3
+        with:
+          coverage-files: coverage/storybook/lcov.info
+          # TODO: We want to later on reach 80-90% coverage but for now we allow any coverage
+          #minimum-coverage: 90
+          artifact-name: code-coverage-report
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          update-comment: true

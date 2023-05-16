@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - main
+  pull_request:
 
 jobs:
   percy:
@@ -16,19 +17,22 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@v3
         with:
-          node-version: '18'
+          node-version: "18"
           registry-url: https://npm.pkg.github.com/
-      - run: |
+      - name: Install
+        run: |
           export NODE_OPTIONS="--max_old_space_size=4096"
           npm install
+          npm install concurrently http-server wait-on
           npx browserslist@latest --update-db
         env:
           # also other environment variable
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - run: |
+      - name: Run percy
+        run: |
           export NODE_OPTIONS="--max_old_space_size=4096"
-          npm run storybook -- --no-open &
-          sleep 60
-          npm run percy
+          npx concurrently -k -s first -n "SB,TEST" -c "magenta,blue" \
+            "npm run storybook -- --debug --no-open" \
+            "echo \"Starting test\" && npx wait-on -l tcp:127.0.0.1:6006 && npm run percy"
         env:
           PERCY_TOKEN: ${{ secrets.PERCY_TOKEN }}

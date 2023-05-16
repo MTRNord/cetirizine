@@ -379,6 +379,10 @@ export class MatrixClient extends EventEmitter {
     }
 
     public async fetchProfileInfo(userId: string): Promise<IProfileInfo> {
+        // @ts-ignore
+        if (globalThis.IS_STORYBOOK) {
+            await new Promise(r => setTimeout(r, 5000))
+        }
         if (this.profileInfo) {
             return this.profileInfo;
         }
@@ -391,7 +395,7 @@ export class MatrixClient extends EventEmitter {
         if (!this.user.access_token) {
             throw Error("Access token must be set first");
         }
-        const resp = await fetch(`${this.user.hostname}/_matrix/client/r0/profile/${userId}`, {
+        const resp = await fetch(`${this.user.hostname}/_matrix/client/v3/profile/${userId}`, {
             headers: {
                 "Authorization": `Bearer ${this.user.access_token}`
             }
@@ -404,7 +408,7 @@ export class MatrixClient extends EventEmitter {
             throw Error("Error fetching profile info. See console for error.");
         }
         const json = await resp.json() as IProfileInfo;
-        json.avatar_url = json.avatar_url?.replace("mxc://", `${this.user.hostname}/_matrix/media/r0/download/`);
+        json.avatar_url = json.avatar_url?.replace("mxc://", `${this.user.hostname}/_matrix/media/v3/download/`);
         this.profileInfo = json;
         const tx = this.database?.transaction('loginInfo', 'readwrite');
         await tx?.store.put({

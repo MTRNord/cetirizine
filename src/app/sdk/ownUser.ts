@@ -140,7 +140,7 @@ export class OwnUser {
             throw Error("Password login is not supported by this homeserver");
         }
 
-        const resp = await fetch(`${this.hostname}/_matrix/client/r0/login`, {
+        const resp = await fetch(`${this.hostname}/_matrix/client/v3/login`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json"
