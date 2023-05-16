@@ -26,6 +26,8 @@
   },
   "scripts": {
     "start": "vite",
+    "test": "npm run test-storybook",
+    "coverage": "npm run test-storybook -- --coverage",
     "build": "tsc && vite build",
     "serve": "vite preview",
     "storybook": "storybook dev -p 6006",
@@ -93,6 +95,7 @@
     "cross-env": "^7.0.3",
     "eslint": "^8.40.0",
     "eslint-plugin-react": "^7.32.2",
+    "msw": "^1.2.1",
     "postcss": "^8.4.23",
     "prop-types": "^15.8.1",
     "sass": "^1.62.1",
@@ -114,5 +117,8 @@
       "@storybook/types": "=7.0.9",
       "react-inspector": "=6.0.1"
     }
+  },
+  "msw": {
+    "workerDirectory": "public"
   }
 }

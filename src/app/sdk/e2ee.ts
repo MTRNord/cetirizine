@@ -55,6 +55,7 @@ export class MatrixE2EE {
 
     public async initOlmMachine(userID: UserId, deviceID: DeviceId, storePassphrase?: string): Promise<void> {
         this.olmMachine = await OlmMachine.initialize(userID, deviceID, "cetirizine-crypto", storePassphrase);
+        console.warn("Init olm done")
     }
 
     public async updateTrackedUsers(users: any[]): Promise<void> {

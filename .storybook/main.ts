@@ -9,7 +9,17 @@ const config: StorybookConfig = {
     "@storybook/addon-interactions",
     '@storybook/addon-a11y',
     'storybook-addon-react-router-v6',
-    '@storybook/addon-coverage'
+    {
+      name: '@storybook/addon-coverage',
+      options: {
+        istanbul: {
+          exclude: [
+            'src/mocks/*.ts'
+          ],
+          excludeNodeModules: true,
+        }
+      }
+    }
   ],
   framework: {
     name: '@storybook/react-vite',

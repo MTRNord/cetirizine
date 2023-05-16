@@ -1,10 +1,17 @@
 import { Meta, StoryObj } from '@storybook/react';
 import MessageEvent from './messageEvent';
-import { defaultMatrixClient } from '../../app/sdk/client';
 
 const meta: Meta<typeof MessageEvent> = {
     title: 'Chat/Events/MessageEvents',
     component: MessageEvent,
+    decorators: [
+        (Story) => {
+            import('../../mocks/browser').then((module) => {
+                module.worker.start();
+            });
+            return <Story />
+        }
+    ]
 };
 
 export default meta;
@@ -45,9 +52,6 @@ export const FormattedEvent: Story = {
         }
     }
 };
-
-// @ts-ignore
-defaultMatrixClient.user.hostname = "https://matrix.org";
 
 export const ImageEvent: Story = {
     args: {

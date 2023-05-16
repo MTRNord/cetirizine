@@ -2,6 +2,7 @@ import type { Preview } from "@storybook/react";
 import "../src/index.scss";
 import "./tailwindcss.scss";
 import { DEFAULT_THEME, withTailwindTheme } from "./withTailwindTheme.decorator";
+import { initAsync, start } from "@mtrnord/matrix-sdk-crypto-js";
 
 const preview: Preview = {
   parameters: {
@@ -36,8 +37,8 @@ const preview: Preview = {
     },
   },
   decorators: [
-    withTailwindTheme
-  ]
+    withTailwindTheme,
+  ],
 };
 
 export default preview;
