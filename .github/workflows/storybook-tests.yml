@@ -33,6 +33,8 @@ jobs:
             "echo \"Starting test\" && npx wait-on -l tcp:127.0.0.1:6006 && npm run test-storybook -- --coverage --browsers firefox chromium"
       - name: Build lcov.info
         run: npx nyc report --reporter=lcov -t coverage/storybook --report-dir coverage/storybook
+      - name: Setup LCOV
+        uses: hrishikesh-kadam/setup-lcov@v1
       - name: Report code coverage
         uses: zgosalvez/github-actions-report-lcov@v3
         with:
