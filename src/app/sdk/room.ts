@@ -237,7 +237,12 @@ export class Room extends EventEmitter {
         let isBot: boolean = false;
         this.stateEvents.forEach((event) => {
             if (event.type === "m.room.member" && event.state_key === userID && event.content.membership == "join") {
-                isBot = event.content.bot;
+                if (event.content["dev.nordgedanken.msc4015"]) {
+                    isBot = event.content["dev.nordgedanken.msc4015"];
+                }
+                if (event.content.bot) {
+                    isBot = event.content.bot;
+                }
             }
         });
         return isBot;
