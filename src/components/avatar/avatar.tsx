@@ -18,6 +18,11 @@ type AvatarProps = {
      * Wether the user is online. Only used if dm is true.
      */
     online: OnlineState
+    /**
+     * Wether the user is a bot
+     * @default false
+     */
+    isBot: boolean
 };
 
 const Avatar: FC<AvatarProps> = memo(({ avatarUrl, displayname, dm = false, online = OnlineState.Unknown }: AvatarProps) => {
