@@ -1,4 +1,4 @@
-import { Settings } from 'lucide-react';
+import { Search, Settings, X } from 'lucide-react';
 import Avatar from '../components/avatar/avatar';
 import ChatInput from '../components/input/chat/input';
 import RoomList, { Section } from '../components/roomList/roomList';
@@ -15,6 +15,7 @@ import { IRoomEvent, IRoomMemberEvent } from '../app/sdk/api/events';
 import Linkify from 'linkify-react';
 import { OnlineState } from '../app/sdk/api/otherEnums';
 import { Virtuoso } from 'react-virtuoso';
+import ReactModal from 'react-modal';
 
 type ChatViewProps = {
     /**
@@ -311,6 +312,7 @@ const MainPage = memo(() => {
     const params = useParams();
     const room = useRoom(decodeURIComponent(params.roomIdOrAlias || ""));
     client.setCurrentRoom(params.roomIdOrAlias ? decodeURIComponent(params.roomIdOrAlias) : undefined)
+    const [showSettings, setShowSettings] = useState(false);
 
     // Filter toplevel spaces.
     // A toplevel space is a space that is not a child of another space.
@@ -472,11 +474,19 @@ const MainPage = memo(() => {
 
     return <div className='flex flex-row gap-2 min-h-screen h-screen'>
         <div className='flex flex-col bg-gradient-to-br from-slate-100 via-gray-200 to-orange-200 border-r-[1px] border-slate-300'>
-            <div className='flex flex-row gap-2 m-2 p-1 items-center border-b-2'>
-                <Avatar displayname={profile.displayname || client.mxid!} avatarUrl={profile?.avatar_url} dm={false} online={OnlineState.Unknown} />
-                <div className='flex flex-row justify-between items-center w-full'>
-                    <span className='text-base font-semibold'>{profile?.displayname}</span>
-                    <Settings size={28} stroke='unset' className='stroke-slate-600 rounded-full hover:bg-slate-300 p-1 cursor-pointer' />
+            <div className='flex flex-col gap-2 m-2 p-1 items-center border-b-2'>
+                <div className='flex flex-row gap-2 items-center w-full'>
+                    <Avatar displayname={profile.displayname || client.mxid!} avatarUrl={profile?.avatar_url} dm={false} online={OnlineState.Unknown} />
+                    <div className='flex flex-row justify-between items-center w-full'>
+                        <span className='text-base font-semibold'>{profile?.displayname}</span>
+                        <Settings size={28} stroke='unset' className='stroke-slate-600 rounded-full hover:bg-slate-300 p-1 cursor-pointer' onClick={() => { setShowSettings(true) }} />
+                    </div>
+                </div>
+                <div className='flex flex-row gap-2 items-center w-full'>
+                    <label className='flex relative flex-row items-center justify-start bg-slate-400/25 hover:bg-slate-400/50 flex-1 rounded-lg group'>
+                        <Search size={20} stroke='unset' className='stroke-slate-600 absolute top-2 left-2' />
+                        <input className='placeholder:text-slate-600 bg-transparent py-2 rounded-lg pl-8 group-hover:outline outline-slate-700' placeholder='Search'></input>
+                    </label>
                 </div>
             </div>
             <RoomList sections={sections} rooms={otherRooms} dmRooms={dmRooms} />
@@ -496,6 +506,20 @@ const MainPage = memo(() => {
                 <ChatInput namespace='Editor' room={room} />
             </div> : <></>
         }
+        <ReactModal
+            isOpen={showSettings}
+            overlayClassName="fixed top-0 bottom-0 right-0 left-0 bg-slate-700/75"
+            className="p-5 inset-10 outline-none border-slate-400 border absolute bg-white rounded-lg overflow-auto flex flex-row justify-start items-start gap-4"
+            onRequestClose={() => { setShowSettings(false) }}
+        >
+            <X size={28} stroke='unset' className='absolute top-5 right-5 stroke-slate-600 rounded-full hover:bg-slate-300 p-1 cursor-pointer' onClick={() => { setShowSettings(false) }}>Close Modal</X>
+            <nav className='flex flex-col gap-2'>
+                <button className='rounded-md shadow p-4 bg-white min-w-[30rem]' onClick={() => { }}>Settings</button>
+            </nav>
+            <div className='flex flex-col flex-1 gap-2'>
+                <h1 className='text-xl font-bold text-black'>Settings</h1>
+            </div>
+        </ReactModal>
     </div>
 })
 
