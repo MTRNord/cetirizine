@@ -1,7 +1,6 @@
 import { memo, useContext, useEffect, useState } from "react";
 import { IRoomEvent, isRoomMessageAudioEvent, isRoomMessageImageEvent, isRoomMessageNoticeEvent, isRoomMessageTextEvent } from "../../app/sdk/api/events";
 import { FC } from "react";
-import Avatar from "../avatar/avatar";
 import { MatrixClient, MatrixContext } from "../../app/sdk/client";
 import Linkify from "linkify-react";
 import linkifyHtml from 'linkify-html';
@@ -13,6 +12,7 @@ import hljs from 'highlight.js';
 import 'highlight.js/styles/base16/solarized-dark.css';
 import { OnlineState } from "../../app/sdk/api/otherEnums";
 import { Room } from "../../app/sdk/room";
+import { MessageWrapper } from "./wrapper";
 
 type MessageEventProps = {
     /**
@@ -117,24 +117,22 @@ const MessageEvent: FC<MessageEventProps> = memo(({ event, room, hasPreviousEven
             }
 
             return (
-                <div className={!hasPreviousEvent ? "flex flex-row gap-4 p-2 pb-1 hover:bg-gray-200 rounded-md duration-200 ease-in-out items-start" : "flex flex-row p-2 pb-1 pt-1 hover:bg-gray-200 rounded-md duration-200 ease-in-out"}>
-                    {!hasPreviousEvent && <Avatar
-                        displayname={room?.getMemberName(event.sender) || event.sender}
-                        avatarUrl={room?.getMemberAvatar(event.sender)}
-                        online={room?.presence || OnlineState.Unknown}
-                        dm={room?.isDM() || false}
-                    />}
-                    <div className={!hasPreviousEvent ? "flex flex-col gap-1" : "ml-[3.7rem]"}>
-                        {!hasPreviousEvent && <h2 className="text-xl font-medium text-red-500 whitespace-pre-wrap">{room?.getMemberName(event.sender) || event.sender}</h2>}
-                        {/* TODO: Loading circle while image is loading */}
-                        <img
-                            src={url}
-                            alt={event.content.body}
-                            title={event.content.body}
-                            className="rounded-md object-cover border-slate-400 border-2 max-h-[50rem] max-w-[50rem] h-[unset]"
-                        />
-                    </div>
-                </div>
+                <MessageWrapper
+                    displayname={room?.getMemberName(event.sender) || event.sender}
+                    avatar_url={room?.getMemberAvatar(event.sender) || ""}
+                    onlineState={room?.presence || OnlineState.Unknown}
+                    isBot={room?.isBot(event.sender) || false}
+                    dm={room?.isDM() || false}
+                    hasPreviousEvent={hasPreviousEvent}
+                >
+                    {/* TODO: Loading circle while image is loading */}
+                    <img
+                        src={url}
+                        alt={event.content.body}
+                        title={event.content.body}
+                        className="rounded-md object-cover border-slate-400 border-2 max-h-[50rem] max-w-[50rem] h-[unset]"
+                    />
+                </MessageWrapper>
             )
         } else if (isRoomMessageAudioEvent(event)) {
             const [url, setUrl] = useState<string | undefined>(undefined);
@@ -169,33 +167,29 @@ const MessageEvent: FC<MessageEventProps> = memo(({ event, room, hasPreviousEven
             }
 
             return (
-                <div className={!hasPreviousEvent ? "flex flex-row gap-4 p-2 pb-1 hover:bg-gray-200 rounded-md duration-200 ease-in-out items-start" : "flex flex-row p-2 pb-1 pt-1 hover:bg-gray-200 rounded-md duration-200 ease-in-out"}>
-                    {!hasPreviousEvent && <Avatar
-                        displayname={room?.getMemberName(event.sender) || event.sender}
-                        avatarUrl={room?.getMemberAvatar(event.sender)}
-                        online={room?.presence || OnlineState.Unknown}
-                        dm={room?.isDM() || false}
-                    />}
-                    <div className={!hasPreviousEvent ? "flex flex-col gap-1" : "flex-1 ml-[3.7rem]"}>
-                        {!hasPreviousEvent && <h2 className="text-xl font-medium text-red-500 whitespace-pre-wrap">{room?.getMemberName(event.sender) || event.sender}</h2>}
-                        {url && <Waveform src_url={url} />}
-                    </div>
-                </div>
+                <MessageWrapper
+                    displayname={room?.getMemberName(event.sender) || event.sender}
+                    avatar_url={room?.getMemberAvatar(event.sender) || ""}
+                    onlineState={room?.presence || OnlineState.Unknown}
+                    isBot={room?.isBot(event.sender) || false}
+                    dm={room?.isDM() || false}
+                    hasPreviousEvent={hasPreviousEvent}
+                >
+                    {url && <Waveform src_url={url} />}
+                </MessageWrapper>
             )
         } else {
             return (
-                <div className={!hasPreviousEvent ? "flex flex-row gap-4 p-2 pb-1 hover:bg-gray-200 rounded-md duration-200 ease-in-out items-start" : "flex flex-row p-2 pb-1 pt-0 hover:bg-gray-200 rounded-md duration-200 ease-in-out"}>
-                    {!hasPreviousEvent && <Avatar
-                        displayname={room?.getMemberName(event.sender) || event.sender}
-                        avatarUrl={room?.getMemberAvatar(event.sender)}
-                        online={room?.presence || OnlineState.Unknown}
-                        dm={room?.isDM() || false}
-                    />}
-                    <div className={!hasPreviousEvent ? "flex flex-col gap-1" : "ml-[3.7rem]"}>
-                        {!hasPreviousEvent && <h2 className="text-xl font-medium text-red-500 whitespace-pre-wrap">{room?.getMemberName(event.sender) || event.sender}</h2>}
-                        <Linkify options={linkifyOptions} as='p' className="text-black text-base font-normal">{event.content.body}</Linkify>
-                    </div>
-                </div>
+                <MessageWrapper
+                    displayname={room?.getMemberName(event.sender) || event.sender}
+                    avatar_url={room?.getMemberAvatar(event.sender) || ""}
+                    onlineState={room?.presence || OnlineState.Unknown}
+                    isBot={room?.isBot(event.sender) || false}
+                    dm={room?.isDM() || false}
+                    hasPreviousEvent={hasPreviousEvent}
+                >
+                    <Linkify options={linkifyOptions} as='p' className="text-black text-base font-normal">{event.content.body}</Linkify>
+                </MessageWrapper >
             )
         }
     }
@@ -286,34 +280,30 @@ const TextMessage: FC<TextMessage> = memo(({ event, room, hasPreviousEvent, mess
         // TODO: sanitize the attributes allowed by matrix spec
 
         return (
-            <div className={!hasPreviousEvent ? "flex flex-row gap-4 p-2 pb-1 hover:bg-gray-200 rounded-md duration-200 ease-in-out items-start" : "flex flex-row p-2 pb-1 pt-0 hover:bg-gray-200 rounded-md duration-200 ease-in-out"}>
-                {!hasPreviousEvent && <Avatar
-                    displayname={room?.getMemberName(event.sender) || event.sender}
-                    avatarUrl={room?.getMemberAvatar(event.sender)}
-                    online={room?.presence || OnlineState.Unknown}
-                    dm={room?.isDM() || false}
-                />}
-                <div className={!hasPreviousEvent ? "flex flex-col gap-1" : "ml-[3.7rem]"}>
-                    {!hasPreviousEvent && <h2 className="text-xl font-medium text-red-500 whitespace-pre-wrap">{room?.getMemberName(event.sender) || event.sender}</h2>}
-                    {/* TODO: Fixme */}
-                    <p className={`${text_color} text-base font-normal`} dangerouslySetInnerHTML={{ __html: linkified }}></p>
-                </div>
-            </div>
+            <MessageWrapper
+                displayname={room?.getMemberName(event.sender) || event.sender}
+                avatar_url={room?.getMemberAvatar(event.sender) || ""}
+                onlineState={room?.presence || OnlineState.Unknown}
+                isBot={room?.isBot(event.sender) || false}
+                dm={room?.isDM() || false}
+                hasPreviousEvent={hasPreviousEvent}
+            >
+                {/* TODO: Fixme */}
+                <p className={`${text_color} text-base font-normal`} dangerouslySetInnerHTML={{ __html: linkified }}></p>
+            </MessageWrapper>
         )
     } else {
         return (
-            <div className={!hasPreviousEvent ? "flex flex-row gap-4 p-2 pb-1 hover:bg-gray-200 rounded-md duration-200 ease-in-out items-start" : "flex flex-row p-2 pb-1 pt-0 hover:bg-gray-200 rounded-md duration-200 ease-in-out"}>
-                {!hasPreviousEvent && <Avatar
-                    displayname={room?.getMemberName(event.sender) || event.sender}
-                    avatarUrl={room?.getMemberAvatar(event.sender)}
-                    online={room?.presence || OnlineState.Unknown}
-                    dm={room?.isDM() || false}
-                />}
-                <div className={!hasPreviousEvent ? "flex flex-col gap-1" : "ml-[3.7rem]"}>
-                    {!hasPreviousEvent && <h2 className="text-xl font-medium text-red-500 whitespace-pre-wrap">{room?.getMemberName(event.sender) || event.sender}</h2>}
-                    <Linkify options={linkifyOptions} as='p' className={`${text_color} text-base font-normal`}>{event.content.body}</Linkify>
-                </div>
-            </div>
+            <MessageWrapper
+                displayname={room?.getMemberName(event.sender) || event.sender}
+                avatar_url={room?.getMemberAvatar(event.sender) || ""}
+                onlineState={room?.presence || OnlineState.Unknown}
+                isBot={room?.isBot(event.sender) || false}
+                dm={room?.isDM() || false}
+                hasPreviousEvent={hasPreviousEvent}
+            >
+                <Linkify options={linkifyOptions} as='p' className={`${text_color} text-base font-normal`}>{event.content.body}</Linkify>
+            </MessageWrapper>
         )
     }
 })

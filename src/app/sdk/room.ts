@@ -223,16 +223,24 @@ export class Room extends EventEmitter {
     public getMemberAvatar(userID: string, size: number = 32): string | undefined {
         let avatarURL: string | undefined = undefined;
         this.stateEvents.forEach((event) => {
-            if (event.type === "m.room.member") {
-                if (event.state_key === userID && event.content.membership == "join") {
-                    const rawAvatarURL = event.content.avatar_url;
-                    if (rawAvatarURL?.startsWith("mxc://")) {
-                        avatarURL = this.client.convertMXC(rawAvatarURL, size);
-                    }
+            if (event.type === "m.room.member" && event.state_key === userID && event.content.membership == "join") {
+                const rawAvatarURL = event.content.avatar_url;
+                if (rawAvatarURL?.startsWith("mxc://")) {
+                    avatarURL = this.client.convertMXC(rawAvatarURL, size);
                 }
             }
         });
         return avatarURL;
+    }
+
+    public isBot(userID: string): boolean {
+        let isBot: boolean = false;
+        this.stateEvents.forEach((event) => {
+            if (event.type === "m.room.member" && event.state_key === userID && event.content.membership == "join") {
+                isBot = event.content.bot;
+            }
+        });
+        return isBot;
     }
 
     public isEncrypted(): boolean {
