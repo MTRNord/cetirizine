@@ -19,7 +19,7 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-intersection-observer": "^9.4.3",
-    "react-router-dom": "^6.11.1",
+    "react-router-dom": "^6.11.2",
     "react-spinners": "^0.13.8",
     "react-virtuoso": "^4.3.6",
     "wavesurfer.js": "^6.6.3"
