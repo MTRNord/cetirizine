@@ -488,9 +488,9 @@ const MainPage = memo(() => {
                 <div id="room-wrapper"></div>
                 <div id='room-info'>
                     <Avatar displayname={room.getName()} avatarUrl={room.getAvatarURL()} dm={room.isDM()} online={room.presence} isBot={false} />
-                    <div className='flex flex-row items-start'>
-                        <h1 className='text-black font-semibold text-lg flex-shrink-0'>{room.getName()}</h1>
-                        <Linkify options={linkifyOptions} as='p' className="ml-4 text-slate-700 font-normal text-base line-clamp-2 text-ellipsis">{room.getTopic()}</Linkify>
+                    <div className='flex mr-2'>
+                        <h1 className='text-black font-semibold text-lg'>{room.getName()}</h1>
+                        <Linkify options={linkifyOptions} as='p' className="ml-2 text-slate-700 font-normal text-base line-clamp-2 text-ellipsis">{room.getTopic()}</Linkify>
                     </div>
                 </div>
                 <ChatView id='chat-view' room={room} />
