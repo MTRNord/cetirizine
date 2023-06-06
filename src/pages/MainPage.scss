@@ -1,0 +1,64 @@
+#main-container {
+    display: grid;
+    grid-template-areas:
+        "sidebar header"
+        "sidebar main"
+        "sidebar editor";
+    grid-template-columns: 40ch 1fr;
+    grid-template-rows: 60px 2fr 1fr;
+    grid-auto-flow: column;
+    row-gap: 0.5rem;
+    column-gap: 0.1rem;
+
+    #sidebar {
+        grid-area: sidebar;
+        @apply bg-gradient-to-br from-slate-100 via-gray-200 to-orange-200 border-r-[1px] border-slate-300;
+        display: grid;
+        grid-auto-flow: column;
+        grid-template-rows: 60px 1fr;
+        grid-template-areas:
+            "user-info"
+            "roomlist";
+        height: 100vh;
+
+        #user-info {
+            @apply p-3 items-center border-b-2;
+            grid-area: user-info;
+            column-gap: 0.5rem;
+            display: grid;
+            grid-auto-flow: row;
+            grid-template-columns: minmax(0, 1fr) 7fr;
+            grid-template-areas:
+                "avatar username";
+            flex-direction: row;
+            align-items: center;
+            justify-self: flex-start;
+            width: 100%;
+
+            #username-container {
+                grid-area: username;
+                display: flex;
+                flex-direction: row;
+                align-items: center;
+                justify-content: space-between;
+            }
+        }
+    }
+
+    #room-wrapper {
+        grid-area: header / header / editor-end / editor-end;
+    }
+
+    #room-info {
+        @apply pb-2 flex flex-row items-center border-b-2 pt-4 pl-2;
+        grid-area: header;
+    }
+
+    #chat-view {
+        grid-area: main;
+    }
+
+    #chat-editor {
+        grid-area: editor;
+    }
+}

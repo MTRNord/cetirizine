@@ -135,7 +135,7 @@ const RoomSection: FC<{ section: Section, onRoomClick: (roomID: string) => void,
         }
     }, [hidden])
     return (
-        <div ref={ref} key={section.roomID} className="flex flex-col gap-1 pl-4 select-none">
+        <div ref={ref} key={section.roomID} className='room-section'>
             {
                 inView && <div className="flex flex-row gap-2 py-1 items-center justify-start cursor-pointer h-8 text-slate-600" onClick={() => setHidden(prev => !prev)}>
                     {hidden ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
@@ -169,7 +169,7 @@ const RoomList: FC<RoomListProps> = memo(({ sections, rooms, dmRooms }: RoomList
     const navigate = useNavigate();
 
     return (
-        <div className="flex flex-col gap-1 flex-1 p-2 min-w-[30ch] overflow-y-auto overflow-x-hidden scrollbarSmall max-w-[33ch]">
+        <div id='roomlist'>
             <RoomSection
                 section={{
                     sectionName: "DMs",
