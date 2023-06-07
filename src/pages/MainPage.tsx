@@ -25,10 +25,11 @@ type ChatViewProps = {
      * If the roomID is valid, but the room is not joined, the ChatView will display a placeholder
      * If the roomID is valid, but the room is not loaded, the ChatView will display a placeholder
      */
-    room?: Room
+    room?: Room,
+    id?: string
 };
 
-const ChatView: FC<ChatViewProps> = memo(({ room, }) => {
+const ChatView: FC<ChatViewProps> = memo(({ room, id }) => {
     const client = useContext(MatrixContext);
     const [events, setEvents] = useState<IRoomEvent[]>([]);
     const [eventsFull, setEventsFull] = useState<IRoomEvent[]>([]);
@@ -254,6 +255,7 @@ const ChatView: FC<ChatViewProps> = memo(({ room, }) => {
 
     return (
         <Virtuoso
+            id={id}
             alignToBottom
             className='flex overflow-y-auto overflow-x-hidden scrollbarSmall'
             data={events}
@@ -470,11 +472,11 @@ const MainPage = memo(() => {
         className: "text-blue-500 hover:text-blue-700 active:text-blue-700 visited:text-blue-500"
     }
 
-    return <div className='flex flex-row gap-2 min-h-screen h-screen'>
-        <div className='flex flex-col bg-gradient-to-br from-slate-100 via-gray-200 to-orange-200 border-r-[1px] border-slate-300'>
-            <div className='flex flex-row gap-2 m-2 p-1 items-center border-b-2'>
-                <Avatar displayname={profile.displayname || client.mxid!} avatarUrl={profile?.avatar_url} dm={false} online={OnlineState.Unknown} />
-                <div className='flex flex-row justify-between items-center w-full'>
+    return <div id='main-container'>
+        <div id='sidebar'>
+            <div id="user-info">
+                <Avatar displayname={profile.displayname || client.mxid!} avatarUrl={profile?.avatar_url} dm={false} online={OnlineState.Unknown} isBot={false} />
+                <div id='username-container'>
                     <span className='text-base font-semibold'>{profile?.displayname}</span>
                     <Settings size={28} stroke='unset' className='stroke-slate-600 rounded-full hover:bg-slate-300 p-1 cursor-pointer' />
                 </div>
@@ -482,19 +484,18 @@ const MainPage = memo(() => {
             <RoomList sections={sections} rooms={otherRooms} dmRooms={dmRooms} />
         </div>
         {
-            room ? <div className='flex-1 flex flex-col' id='room-wrapper'>
-                <div className='pb-2 flex flex-row items-center border-b-2 mt-4 ml-2'>
-                    <Avatar displayname={room.getName()} avatarUrl={room.getAvatarURL()} dm={room.isDM()} online={room.presence} />
-                    <div className='flex flex-row items-start'>
-                        <h1 className='text-black font-semibold text-lg flex-shrink-0'>{room.getName()}</h1>
-                        <Linkify options={linkifyOptions} as='p' className="ml-4 text-slate-700 font-normal text-base line-clamp-2 text-ellipsis">{room.getTopic()}</Linkify>
+            room ? <>
+                <div id="room-wrapper"></div>
+                <div id='room-info'>
+                    <Avatar displayname={room.getName()} avatarUrl={room.getAvatarURL()} dm={room.isDM()} online={room.presence} isBot={false} />
+                    <div className='flex mr-2'>
+                        <h1 className='text-black font-semibold text-lg'>{room.getName()}</h1>
+                        <Linkify options={linkifyOptions} as='p' className="ml-2 text-slate-700 font-normal text-base line-clamp-2 text-ellipsis">{room.getTopic()}</Linkify>
                     </div>
                 </div>
-                <div className='my-1 flex-1 flex flex-col'>
-                    <ChatView room={room} />
-                </div>
-                <ChatInput namespace='Editor' room={room} />
-            </div> : <></>
+                <ChatView id='chat-view' room={room} />
+                <ChatInput id='chat-editor' namespace='Editor' room={room} />
+            </> : <></>
         }
     </div>
 })

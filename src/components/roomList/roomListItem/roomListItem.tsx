@@ -58,12 +58,12 @@ const RoomListItem: FC<RoomListItemProps> = memo(({ roomId, avatarUrl, displayna
             {
                 inView && (active ? (
                     <div className="flex flex-row gap-2 p-1 bg-gray-300 hover:bg-gray-400 rounded-lg duration-200 ease-in-out items-center">
-                        <Avatar avatarUrl={avatarUrl} displayname={displayname} dm={dm} online={online} />
+                        <Avatar avatarUrl={avatarUrl} displayname={displayname} dm={dm} online={online} isBot={false} />
                         <span title={displayname} className='text-slate-900 font-normal text-base max-w-[32ch] overflow-hidden text-ellipsis w-full whitespace-nowrap'>{displayname}</span>
                     </div>
                 ) : (
                     <div className="flex flex-row gap-2 p-1 hover:bg-gray-300 rounded-lg duration-200 ease-in-out items-center">
-                        <Avatar avatarUrl={avatarUrl} displayname={displayname} dm={dm} online={online} />
+                        <Avatar avatarUrl={avatarUrl} displayname={displayname} dm={dm} online={online} isBot={false} />
                         <span title={displayname} className='text-slate-900 font-normal text-base max-w-[32ch] overflow-hidden text-ellipsis w-full whitespace-nowrap'>{displayname}</span>
                     </div>
                 ))

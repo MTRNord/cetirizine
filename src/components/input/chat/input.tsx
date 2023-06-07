@@ -81,6 +81,7 @@ type ChatInputProps = {
      * The current Room
      */
     room: Room
+    id?: string
 };
 
 function Placeholder() {
@@ -265,7 +266,7 @@ const RoomChangePlugin: FC<RoomChangeProps> = ({ room }) => {
     return <></>
 }
 
-const ChatInput: FC<ChatInputProps> = memo(({ namespace, room }: ChatInputProps) => {
+const ChatInput: FC<ChatInputProps> = memo(({ namespace, room, id }: ChatInputProps) => {
     const [sending, setSending] = useState(false);
 
     const initialConfig: InitialConfigType = {
@@ -295,7 +296,7 @@ const ChatInput: FC<ChatInputProps> = memo(({ namespace, room }: ChatInputProps)
         ]
     }
     return (
-        <div className='flex flex-row items-end'>
+        <div id={id} className='flex flex-row items-end'>
             <LexicalComposer initialConfig={initialConfig}>
                 <div className="editor-container flex-1">
                     <ToolbarPlugin />
