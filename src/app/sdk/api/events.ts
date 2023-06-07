@@ -30,6 +30,12 @@ export interface IRoomMessageImageContent extends IRoomMessageContent<"m.image">
     file?: IEncryptedFile;
 }
 
+export interface IRoomMessageVideoContent extends IRoomMessageContent<"m.video"> {
+    info?: IImageInfo;
+    url?: string;
+    file?: IEncryptedFile;
+}
+
 export interface IRoomMessageAudioContent extends IRoomMessageContent<"m.audio"> {
     info?: IAudioInfo;
     url?: string;
@@ -52,6 +58,10 @@ export function isRoomMessageNoticeEvent(event: IRoomEvent): event is IRoomMessa
 
 export function isRoomMessageImageEvent(event: IRoomEvent): event is IRoomMessageEvent<IRoomMessageImageContent> {
     return event.type === "m.room.message" && event.content.msgtype === "m.image";
+}
+
+export function isRoomMessageVideoEvent(event: IRoomEvent): event is IRoomMessageEvent<IRoomMessageVideoContent> {
+    return event.type === "m.room.message" && event.content.msgtype === "m.video";
 }
 
 export function isRoomMessageAudioEvent(event: IRoomEvent): event is IRoomMessageEvent<IRoomMessageAudioContent> {

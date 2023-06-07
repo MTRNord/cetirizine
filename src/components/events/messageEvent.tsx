@@ -1,5 +1,5 @@
 import { memo, useContext, useEffect, useState } from "react";
-import { IRoomEvent, isRoomMessageAudioEvent, isRoomMessageImageEvent, isRoomMessageNoticeEvent, isRoomMessageTextEvent } from "../../app/sdk/api/events";
+import { IRoomEvent, isRoomMessageAudioEvent, isRoomMessageImageEvent, isRoomMessageNoticeEvent, isRoomMessageTextEvent, isRoomMessageVideoEvent } from "../../app/sdk/api/events";
 import { FC } from "react";
 import { MatrixClient, MatrixContext } from "../../app/sdk/client";
 import Linkify from "linkify-react";
@@ -176,6 +176,56 @@ const MessageEvent: FC<MessageEventProps> = memo(({ event, room, hasPreviousEven
                     hasPreviousEvent={hasPreviousEvent}
                 >
                     {url && <Waveform src_url={url} />}
+                </MessageWrapper>
+            )
+        } else if (isRoomMessageVideoEvent(event)) {
+            const [url, setUrl] = useState<string | undefined>(undefined);
+            const [unableToDecrypt, setUnableToDecrypt] = useState<boolean>(event.content.file !== undefined);
+
+            useEffect(() => {
+                if (isRoomMessageVideoEvent(event)) {
+                    if (event.content.url) {
+                        setUrl(client.convertMXC(event.content.url));
+                    } else {
+                        // Image is encrypted and we need to download and decrypt it
+                        if (event.content.file) {
+                            decryptMedia(
+                                client,
+                                event,
+                                (url) => {
+                                    setUrl(url);
+                                    setUnableToDecrypt(false);
+                                },
+                                (_error) => {
+                                    setUnableToDecrypt(true);
+                                }
+                            );
+                        }
+                    }
+                }
+            }, [event])
+
+            if (unableToDecrypt) {
+                return (<UndecryptableEvent event={event} room={room} hasPreviousEvent={hasPreviousEvent} />)
+            }
+
+            return (
+                <MessageWrapper
+                    displayname={room?.getMemberName(event.sender) || event.sender}
+                    avatar_url={room?.getMemberAvatar(event.sender) || ""}
+                    onlineState={room?.presence || OnlineState.Unknown}
+                    isBot={room?.isBot(event.sender) || false}
+                    dm={room?.isDM() || false}
+                    hasPreviousEvent={hasPreviousEvent}
+                >
+                    {/* TODO: Loading circle while video is loading */}
+                    <video controls preload="metadata"
+                        title={event.content.body}
+                        className="rounded-md border-slate-400 border-2 max-h-[40rem] max-w-[40rem] h-[unset]"
+                    >
+                        <source src={url} />
+                        <meta name="description" content={event.content.body} />
+                    </video>
                 </MessageWrapper>
             )
         } else {
