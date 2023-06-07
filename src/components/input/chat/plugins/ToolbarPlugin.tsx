@@ -564,7 +564,7 @@ const ToolbarPlugin = memo(() => {
 
     const [portalContainer, setPortalContainer] = useState<HTMLDivElement | null>(null);
     useEffect(() => {
-        const container = document.getElementById("room-wrapper");
+        const container = document.getElementsByClassName("room-wrapper")[0];
         const portalContainer = document.createElement('div');
         container?.prepend(portalContainer)
         setPortalContainer(portalContainer)

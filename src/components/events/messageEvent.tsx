@@ -13,6 +13,7 @@ import 'highlight.js/styles/base16/solarized-dark.css';
 import { OnlineState } from "../../app/sdk/api/otherEnums";
 import { Room } from "../../app/sdk/room";
 import { MessageWrapper } from "./wrapper";
+import './messageEvent.scss';
 
 type MessageEventProps = {
     /**
@@ -269,6 +270,9 @@ const TextMessage: FC<TextMessage> = memo(({ event, room, hasPreviousEvent, mess
     }
 
     if (event.content.format === "org.matrix.custom.html") {
+        if (event.content.formatted_body.includes("<a")) {
+            console.log(event)
+        }
         let sanitized = DOMPurify.sanitize(event.content.formatted_body!, {
             ADD_TAGS: [
                 "font",
@@ -309,7 +313,8 @@ const TextMessage: FC<TextMessage> = memo(({ event, room, hasPreviousEvent, mess
                 "img",
                 "details",
                 "summary"
-            ]
+            ],
+            ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp|matrix):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i
         })
         // Extract code and language from the html
         const codeRegex = /<pre><code (?:class="language-(?<language>.*?)")?.*?>(?<code>[\s\S]*?)<\/code><\/pre>/;
@@ -339,7 +344,7 @@ const TextMessage: FC<TextMessage> = memo(({ event, room, hasPreviousEvent, mess
                 hasPreviousEvent={hasPreviousEvent}
             >
                 {/* TODO: Fixme */}
-                <p className={`${text_color} text-base font-normal`} dangerouslySetInnerHTML={{ __html: linkified }}></p>
+                <p id="text-event" className={`${text_color} text-base font-normal`} dangerouslySetInnerHTML={{ __html: linkified }}></p>
             </MessageWrapper>
         )
     } else {
@@ -352,7 +357,7 @@ const TextMessage: FC<TextMessage> = memo(({ event, room, hasPreviousEvent, mess
                 dm={room?.isDM() || false}
                 hasPreviousEvent={hasPreviousEvent}
             >
-                <Linkify options={linkifyOptions} as='p' className={`${text_color} text-base font-normal`}>{event.content.body}</Linkify>
+                <Linkify options={linkifyOptions} as='p' id="text-event" className={`${text_color} text-base font-normal`}>{event.content.body}</Linkify>
             </MessageWrapper>
         )
     }

@@ -102,6 +102,10 @@ export class MatrixClient extends EventEmitter {
         return this.user.access_token;
     }
 
+    public get hostname(): string | undefined {
+        return this.user.hostname;
+    }
+
     public get isLoggedIn(): boolean {
         return this.user.access_token !== undefined;
     }

@@ -45,7 +45,7 @@ export const MessageWrapper: FC<MessageWrapperProps> = memo(({ hasPreviousEvent,
                 dm={dm}
                 isBot={isBot}
             />}
-            <div className={!hasPreviousEvent ? "flex flex-col gap-1" : "ml-12"}>
+            <div className={!hasPreviousEvent ? "flex flex-col gap-1" : "ml-12"} id="event">
                 {!hasPreviousEvent && <h2 className="flex flex-row items-center gap-2 text-base font-medium text-red-500 whitespace-pre-wrap">{isBot ? <Bot size={16} /> : <></>}{displayname}</h2>}
                 {children}
             </div>

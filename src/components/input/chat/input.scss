@@ -342,22 +342,17 @@
 }
 
 .editor-heading-h1 {
-    font-size: 24px;
-    color: rgb(5, 5, 5);
-    font-weight: 400;
+    @apply text-2xl text-black font-bold;
     margin: 0;
     margin-bottom: 12px;
     padding: 0;
 }
 
 .editor-heading-h2 {
-    font-size: 15px;
-    color: rgb(101, 103, 107);
-    font-weight: 700;
+    @apply text-xl text-black font-bold;
     margin: 0;
     margin-top: 10px;
     padding: 0;
-    text-transform: uppercase;
 }
 
 .editor-listitem {
@@ -485,4 +480,117 @@
 
 .editor-tokenFunction {
     color: #dd4a68;
+}
+
+// Mentions
+.typeahead-popover {
+    background: #fff;
+    box-shadow: 0px 5px 10px rgba(0, 0, 0, 0.3);
+    border-radius: 8px;
+    margin-top: 25px;
+}
+
+.typeahead-popover ul {
+    padding: 0;
+    list-style: none;
+    margin: 0;
+    border-radius: 8px;
+    max-height: 200px;
+    overflow-y: scroll;
+}
+
+.typeahead-popover ul::-webkit-scrollbar {
+    display: none;
+}
+
+.typeahead-popover ul {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+.typeahead-popover ul li {
+    margin: 0;
+    min-width: 180px;
+    font-size: 14px;
+    outline: none;
+    cursor: pointer;
+    border-radius: 8px;
+}
+
+.typeahead-popover ul li.selected {
+    background: #eee;
+}
+
+.typeahead-popover li {
+    margin: 0 8px 0 8px;
+    padding: 8px;
+    color: #050505;
+    cursor: pointer;
+    line-height: 16px;
+    font-size: 15px;
+    display: flex;
+    align-content: center;
+    flex-direction: row;
+    flex-shrink: 0;
+    background-color: #fff;
+    border-radius: 8px;
+    border: 0;
+}
+
+.typeahead-popover li.active {
+    display: flex;
+    width: 20px;
+    height: 20px;
+    background-size: contain;
+}
+
+.typeahead-popover li:first-child {
+    border-radius: 8px 8px 0px 0px;
+}
+
+.typeahead-popover li:last-child {
+    border-radius: 0px 0px 8px 8px;
+}
+
+.typeahead-popover li:hover {
+    background-color: #eee;
+}
+
+.typeahead-popover li .text {
+    display: flex;
+    line-height: 20px;
+    flex-grow: 1;
+    min-width: 150px;
+}
+
+.typeahead-popover li .icon {
+    display: flex;
+    width: 20px;
+    height: 20px;
+    user-select: none;
+    margin-right: 8px;
+    line-height: 16px;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+.mentions-menu {
+    width: 250px;
+}
+
+.mention,
+span[data-lexical-mention] {
+    @apply rounded-md bg-slate-300 p-1 select-none;
+}
+
+
+.mention::before,
+span[data-lexical-mention]::before {
+    content: "@";
+}
+
+.mention:focus {
+    box-shadow: rgb(180 213 255) 0px 0px 0px 2px;
+    outline: none;
 }

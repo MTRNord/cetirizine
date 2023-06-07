@@ -6,10 +6,12 @@ import {
     useBasicTypeaheadTriggerMatch
 } from "@lexical/react/LexicalTypeaheadMenuPlugin";
 import { TextNode } from "lexical";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { FC, useCallback, useEffect, useMemo, useState } from "react";
 import * as ReactDOM from "react-dom";
 
 import { $createMentionNode } from "./MentionNode";
+import { Room } from "../../../../../app/sdk/room";
+import { IRoomMemberEvent } from "../../../../../app/sdk/api/events";
 
 const PUNCTUATION =
     "\\.,\\+\\*\\?\\$\\@\\|#{}\\(\\)\\^\\-\\[\\]\\\\/!%'\"~=<>_:;";
@@ -80,98 +82,23 @@ const SUGGESTION_LIST_LENGTH_LIMIT = 5;
 
 const mentionsCache = new Map();
 
-const dummyMentionsData = [
-    "Aayla Secura",
-    "Admiral Dodd Rancit",
-    "Aurra Sing",
-    "BB-8",
-    "Bo-Katan Kryze",
-    "Breha Antilles-Organa",
-    "C-3PO",
-    "Captain Quarsh Panaka",
-    "Chewbacca",
-    "Darth Tyranus",
-    "Daultay Dofine",
-    "Dexter Jettster",
-    "Ebe E. Endocott",
-    "Eli Vanto",
-    "Ezra Bridger",
-    "Faro Argyus",
-    "Finis Valorum",
-    "FN-2003",
-    'Garazeb "Zeb" Orrelios',
-    "Grand Inquisitor",
-    "Greeata Jendowanian",
-    "Hammerhead",
-    "Han Solo",
-    "Hevy",
-    "Hondo Ohnaka",
-    "Ima-Gun Di",
-    "Inquisitors",
-    "Inspector Thanoth",
-    "Jabba",
-    "Janus Greejatus",
-    "Jaxxon",
-    "K-2SO",
-    "Kanan Jarrus",
-    "Kylo Ren",
-    "L3-37",
-    "Lieutenant Kaydel Ko Connix",
-    "Luke Skywalker",
-    "Mace Windu",
-    "Maximilian Veers",
-    "Mother Talzin",
-    "Nahdar Vebb",
-    "Nahdonnis Praji",
-    "Nien Nunb",
-    "Obi-Wan Kenobi",
-    "Odd Ball",
-    "Orrimarko",
-    "Petty Officer Thanisson",
-    "Pooja Naberrie",
-    "PZ-4CO",
-    "Quarrie",
-    "Quiggold",
-    "Quinlan Vos",
-    "R2-D2",
-    "Raymus Antilles",
-    "Ree-Yees",
-    "Sana Starros",
-    "Shmi Skywalker",
-    "Shu Mai",
-    "Tallissan Lintra",
-    "Tarfful",
-    "Thane Kyrell",
-    "U9-C4",
-    "Unkar Plutt",
-    "Val Beckett",
-    "Vice Admiral Amilyn Holdo",
-    "Vober Dand",
-    "WAC-47",
-    "Wedge Antilles",
-    "Wicket W. Warrick",
-    "Xamuel Lennox",
-    "Yaddle",
-    "Yarael Poof",
-    "Yoda",
-    "Zam Wesell",
-    "Ziro the Hutt",
-    "Zuckuss"
-];
-
 const dummyLookupService = {
-    search(string: string, callback: (results: Array<string>) => void): void {
-        setTimeout(() => {
-            const results = dummyMentionsData.filter((mention) =>
-                mention.toLowerCase().includes(string.toLowerCase())
-            );
+    search(string: string, room: Room, callback: (results: IRoomMemberEvent[]) => void): void {
+        setTimeout(async () => {
+            const results = (await room.joinedMembers()).filter((member) => {
+                if (member.content.displayname) {
+                    return member.content.displayname.toLowerCase().includes(string.toLowerCase()) || member.state_key.toLowerCase().includes(string.toLowerCase());
+                } else {
+                    return member.state_key.toLowerCase().includes(string.toLowerCase());
+                }
+            });
             callback(results);
         }, 500);
     }
 };
 
-function useMentionLookupService(mentionString: string | null) {
-    const [results, setResults] = useState<Array<string>>([]);
+function useMentionLookupService(mentionString: string | null, room: Room) {
+    const [results, setResults] = useState<IRoomMemberEvent[]>([]);
 
     useEffect(() => {
         const cachedResults = mentionsCache.get(mentionString);
@@ -189,7 +116,7 @@ function useMentionLookupService(mentionString: string | null) {
         }
 
         mentionsCache.set(mentionString, null);
-        dummyLookupService.search(mentionString, (newResults) => {
+        dummyLookupService.search(mentionString, room, (newResults) => {
             mentionsCache.set(mentionString, newResults);
             setResults(newResults);
         });
@@ -252,12 +179,12 @@ function getPossibleQueryMatch(text: string): QueryMatch | null {
 }
 
 class MentionTypeaheadOption extends TypeaheadOption {
-    name: string;
+    event: IRoomMemberEvent;
     picture: JSX.Element;
 
-    constructor(name: string, picture: JSX.Element) {
-        super(name);
-        this.name = name;
+    constructor(event: IRoomMemberEvent, picture: JSX.Element) {
+        super(event.content.displayname || event.state_key);
+        this.event = event;
         this.picture = picture;
     }
 }
@@ -292,17 +219,21 @@ function MentionsTypeaheadMenuItem({
             onClick={onClick}
         >
             {option.picture}
-            <span className="text">{option.name}</span>
+            <span className="text">{option.event.content.displayname || option.event.state_key}</span>
         </li>
     );
 }
 
-export default function MentionsPlugin(): JSX.Element | null {
+export type MentionsPluginOptions = {
+    room: Room;
+}
+
+export const MentionsPlugin: FC<MentionsPluginOptions> = ({ room }): JSX.Element | null => {
     const [editor] = useLexicalComposerContext();
 
     const [queryString, setQueryString] = useState<string | null>(null);
 
-    const results = useMentionLookupService(queryString);
+    const results = useMentionLookupService(queryString, room);
 
     const checkForSlashTriggerMatch = useBasicTypeaheadTriggerMatch("/", {
         minLength: 0
@@ -323,7 +254,7 @@ export default function MentionsPlugin(): JSX.Element | null {
             closeMenu: () => void
         ) => {
             editor.update(() => {
-                const mentionNode = $createMentionNode(selectedOption.name);
+                const mentionNode = $createMentionNode(selectedOption.event);
                 if (nodeToReplace) {
                     nodeToReplace.replace(mentionNode);
                 }
@@ -345,6 +276,7 @@ export default function MentionsPlugin(): JSX.Element | null {
 
     return (
         <LexicalTypeaheadMenuPlugin<MentionTypeaheadOption>
+            anchorClassName="room-wrapper"
             onQueryChange={setQueryString}
             onSelectOption={onSelectOption}
             triggerFn={checkForMentionMatch}
@@ -352,8 +284,7 @@ export default function MentionsPlugin(): JSX.Element | null {
             menuRenderFn={(
                 anchorElementRef,
                 { selectedIndex, selectOptionAndCleanUp, setHighlightedIndex }
-            ) =>
-                anchorElementRef && results.length
+            ) => anchorElementRef && results.length
                     ? ReactDOM.createPortal(
                         <div className="typeahead-popover mentions-menu">
                             <ul>
@@ -375,9 +306,9 @@ export default function MentionsPlugin(): JSX.Element | null {
                             </ul>
                         </div>,
                         // @ts-ignore TODO: fix this
-                        anchorElementRef
+                        anchorElementRef.current
                     )
-                    : null
+                    : <></>
             }
         />
     );

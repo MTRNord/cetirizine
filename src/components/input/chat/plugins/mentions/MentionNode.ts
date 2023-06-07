@@ -10,10 +10,11 @@ import {
     SerializedTextNode,
     TextNode
 } from "lexical";
+import { IRoomMemberEvent } from "../../../../../app/sdk/api/events";
 
 export type SerializedMentionNode = Spread<
     {
-        mentionName: string;
+        mentionEvent: IRoomMemberEvent;
         type: "mention";
         version: 1;
     },
@@ -24,9 +25,15 @@ function convertMentionElement(
     domNode: HTMLElement
 ): DOMConversionOutput | null {
     const textContent = domNode.textContent;
+    const mxid = domNode.getAttribute("data-lexical-mention-mxid");
 
-    if (textContent !== null) {
-        const node = $createMentionNode(textContent);
+    if (textContent && mxid) {
+        const node = $createMentionNode({
+            state_key: mxid,
+            content: {
+                displayname: textContent,
+            }
+        } as IRoomMemberEvent);
         return {
             node
         };
@@ -35,9 +42,8 @@ function convertMentionElement(
     return null;
 }
 
-const mentionStyle = "background-color: rgba(24, 119, 232, 0.2)";
 export class MentionNode extends TextNode {
-    __mention: string;
+    __mention: IRoomMemberEvent;
 
     static getType(): string {
         return "mention";
@@ -47,7 +53,7 @@ export class MentionNode extends TextNode {
         return new MentionNode(node.__mention, node.__text, node.__key);
     }
     static importJSON(serializedNode: SerializedMentionNode): MentionNode {
-        const node = $createMentionNode(serializedNode.mentionName);
+        const node = $createMentionNode(serializedNode.mentionEvent);
         node.setTextContent(serializedNode.text);
         node.setFormat(serializedNode.format);
         node.setDetail(serializedNode.detail);
@@ -56,15 +62,15 @@ export class MentionNode extends TextNode {
         return node;
     }
 
-    constructor(mentionName: string, text?: string, key?: NodeKey) {
-        super(text ?? mentionName, key);
-        this.__mention = mentionName;
+    constructor(memberEvent: IRoomMemberEvent, text?: string, key?: NodeKey) {
+        super(text ?? (memberEvent.content.displayname || memberEvent.state_key), key);
+        this.__mention = memberEvent;
     }
 
     exportJSON(): SerializedMentionNode {
         return {
             ...super.exportJSON(),
-            mentionName: this.__mention,
+            mentionEvent: this.__mention,
             type: "mention",
             version: 1
         };
@@ -72,14 +78,15 @@ export class MentionNode extends TextNode {
 
     createDOM(config: EditorConfig): HTMLElement {
         const dom = super.createDOM(config);
-        dom.style.cssText = mentionStyle;
         dom.className = "mention";
         return dom;
     }
 
     exportDOM(): DOMExportOutput {
-        const element = document.createElement("span");
+        const element = document.createElement("a");
+        element.setAttribute("href", `matrix:u/${this.__mention.state_key.replace("@", "")}`);
         element.setAttribute("data-lexical-mention", "true");
+        element.setAttribute("data-lexical-mention-mxid", this.__mention.state_key);
         element.textContent = this.__text;
         return { element };
     }
@@ -90,8 +97,8 @@ export class MentionNode extends TextNode {
 
     static importDOM(): DOMConversionMap | null {
         return {
-            span: (domNode: HTMLElement) => {
-                if (!domNode.hasAttribute("data-lexical-mention")) {
+            a: (domNode: HTMLElement) => {
+                if (!domNode.hasAttribute("data-lexical-mention") && !domNode.hasAttribute("data-lexical-mention-mxid")) {
                     return null;
                 }
                 return {
@@ -111,8 +118,8 @@ export class MentionNode extends TextNode {
     }
 }
 
-export function $createMentionNode(mentionName: string): MentionNode {
-    const mentionNode = new MentionNode(mentionName);
+export function $createMentionNode(memberEvent: IRoomMemberEvent,): MentionNode {
+    const mentionNode = new MentionNode(memberEvent);
     mentionNode.setMode("segmented").toggleDirectionless();
     return mentionNode;
 }

@@ -485,7 +485,7 @@ const MainPage = memo(() => {
         </div>
         {
             room ? <>
-                <div id="room-wrapper"></div>
+                <div className="room-wrapper"></div>
                 <div id='room-info'>
                     <Avatar displayname={room.getName()} avatarUrl={room.getAvatarURL()} dm={room.isDM()} online={room.presence} isBot={false} />
                     <div className='flex mr-2'>

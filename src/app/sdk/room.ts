@@ -1,9 +1,11 @@
 import EventEmitter from "events";
 import {
     IRoomEvent,
+    IRoomMemberEvent,
     IRoomStateEvent,
     isRoomAvatarEvent,
     isRoomCreateEvent,
+    isRoomMemberEvent,
     isRoomTopicEvent,
     isSpaceChildEvent,
     isSpaceParentEvent
@@ -41,6 +43,7 @@ export class Room extends EventEmitter {
     private joined_count: number = 0;
     private invited_count: number = 0;
     private is_dm: boolean = false;
+    private has_all_users: boolean = false;
 
     public windowPos: {
         [list: string]: number
@@ -248,11 +251,49 @@ export class Room extends EventEmitter {
         return isBot;
     }
 
+    public async joinedMembers(): Promise<IRoomMemberEvent[]> {
+        if (!this.has_all_users) {
+            if (!this.client.hostname) {
+                throw Error("Hostname must be set first");
+            }
+            if (!this.client.accessToken) {
+                throw Error("Access token must be set first");
+            }
+            // We dont have all members so we need to fetch them
+            const resp = await fetch(`${this.client.hostname}/_matrix/client/v3/rooms/${this.roomID}/members`, {
+                headers: {
+                    "Authorization": `Bearer ${this.client.accessToken}`
+                }
+            });
+            if (!resp.ok) {
+                if (resp.status === 404 || resp.status === 403) {
+                    return this.stateEvents.filter((event) => {
+                        if (isRoomMemberEvent(event) && event.content.membership == "join") {
+                            return event;
+                        }
+                    });
+                }
+                console.error(resp);
+                throw Error("Error fetching profile info. See console for error.");
+            }
+            const json = await resp.json() as { chunk: IRoomMemberEvent[] };
+            this.stateEvents = [...this.stateEvents, ...json.chunk];
+            this.has_all_users = true;
+        }
+        return this.stateEvents.filter((event) => {
+            if (isRoomMemberEvent(event) && event.content.membership == "join") {
+                return event;
+            }
+        });
+    }
+
     public isEncrypted(): boolean {
         let isEncrypted: boolean = false;
         this.stateEvents.forEach((event) => {
             if (event.type === "m.room.encryption" && event.content.algorithm === "m.megolm.v1.aes-sha2" && event.state_key === "") {
                 isEncrypted = true;
+                // This gets called at room opening so this works for now
+                this.has_all_users = true;
             }
         });
         return isEncrypted;

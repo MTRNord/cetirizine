@@ -29,6 +29,8 @@ import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext
 import { $getSelection, $isRangeSelection, CLEAR_EDITOR_COMMAND, CLEAR_HISTORY_COMMAND, COMMAND_PRIORITY_CRITICAL, INSERT_PARAGRAPH_COMMAND, KEY_ENTER_COMMAND, ParagraphNode } from 'lexical';
 import { useLocation, } from 'react-router-dom';
 import { Room } from '../../../app/sdk/room';
+import { MentionsPlugin } from './plugins/mentions/MentionsPlugin';
+import { MentionNode } from './plugins/mentions/MentionNode';
 
 export const CAN_USE_DOM: boolean =
     typeof window !== 'undefined' &&
@@ -116,6 +118,7 @@ const SendButton: FC<SendButtonProps> = ({ onStartSending, onStopSending, room }
 
         editor.getEditorState().read(() => {
             let htmlMessage = $generateHtmlFromNodes(editor);
+            console.log("HTML Message", htmlMessage)
             // TODO: Make sure that we strip any non matrix stuff
             const codeRegex = /(?<all><code .* (?:data-highlight-language="(?<language>.*?)")(?: .*?)?>(?<code>[\s\S]*?)<\/code>)/;
             let matched = codeRegex.exec(htmlMessage);
@@ -146,11 +149,36 @@ const SendButton: FC<SendButtonProps> = ({ onStartSending, onStopSending, room }
                 }
                 matched = codeRegex.exec(htmlMessage)
             }
+            const paragraphRegex = /(?<paragraph> (?:class=".*?"|data-lexical-.*?=".*?")).*?/;
+            let paragraphMatched = paragraphRegex.exec(htmlMessage);
+            while (paragraphMatched !== null) {
+                if (paragraphMatched) {
+                    const { groups } = paragraphMatched;
+                    if (groups) {
+                        const { paragraph } = groups;
+                        htmlMessage = htmlMessage.replace(paragraph, "")
+                    }
+                }
+                paragraphMatched = paragraphRegex.exec(htmlMessage)
+            }
+            const spanRegex = /(?<span><span.*?>(?<content>.*?)<\/span>).*?/;
+            let spanMatched = spanRegex.exec(htmlMessage);
+            while (spanMatched !== null) {
+                if (spanMatched) {
+                    const { groups } = spanMatched;
+                    if (groups) {
+                        const { span, content } = groups;
+                        htmlMessage = htmlMessage.replace(span, content)
+                    }
+                }
+                spanMatched = spanRegex.exec(htmlMessage)
+            }
+
             const plainMessage = $convertToMarkdownString(TRANSFORMERS);
 
             console.log(htmlMessage)
             // TODO: local echo
-            if ((htmlMessage === "" && plainMessage === "") || htmlMessage === '<p class="editor-paragraph"><br></p>') {
+            if ((htmlMessage === "" && plainMessage === "") || htmlMessage === '<p><br></p>') {
                 return;
             }
             onStartSending();
@@ -286,6 +314,7 @@ const ChatInput: FC<ChatInputProps> = memo(({ namespace, room, id }: ChatInputPr
             TableRowNode,
             AutoLinkNode,
             LinkNode,
+            MentionNode,
             CustomParagraphNode,
             {
                 replace: ParagraphNode,
@@ -313,6 +342,7 @@ const ChatInput: FC<ChatInputProps> = memo(({ namespace, room, id }: ChatInputPr
                         <MarkdownShortcutPlugin transformers={TRANSFORMERS} />
                         <ClearEditorPlugin />
                         <RoomChangePlugin room={room} />
+                        <MentionsPlugin room={room} />
                         {/*<TreeViewPlugin />*/}
                     </div>
                 </div>

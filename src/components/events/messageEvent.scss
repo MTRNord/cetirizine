@@ -1,0 +1,32 @@
+#event {
+    #text-event {
+        h1 {
+            @apply text-2xl text-black font-bold;
+            margin: 0;
+            margin-bottom: 12px;
+            padding: 0;
+        }
+
+        h2 {
+            @apply text-xl text-black font-bold;
+            margin: 0;
+            margin-top: 10px;
+            padding: 0;
+        }
+
+        a[href^="https://matrix.to"],
+        a[href^="matrix:"] {
+            @apply rounded-lg bg-slate-300 p-1 select-none;
+            color: #000 !important;
+            display: inline-flex;
+            gap: 0.25rem;
+            line-height: normal;
+        }
+
+        a[href^="https://matrix.to"]::before,
+        a[href^="matrix:"]::before {
+            content: "@";
+            line-height: 101%;
+        }
+    }
+}
