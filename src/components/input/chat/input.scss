@@ -577,6 +577,9 @@
 
 .mentions-menu {
     width: 250px;
+    //transform: translateY(-120%);
+    position: absolute;
+    bottom: 30px;
 }
 
 .mention,
