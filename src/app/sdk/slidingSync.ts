@@ -474,12 +474,12 @@ export class MatrixSlidingSync extends EventEmitter {
             await this.user.e2ee.receiveSyncData(
                 JSON.stringify(json.extensions.to_device.events || []),
                 new DeviceLists(
-                    json.extensions.e2ee?.device_lists?.changed?.map(
+                    json.extensions.e2ee?.device_lists ? json.extensions.e2ee?.device_lists?.changed?.map(
                         user_id => new UserId(user_id)
-                    ),
-                    json.extensions.e2ee?.device_lists?.left?.map(
+                    ) : [],
+                    json.extensions.e2ee?.device_lists ? json.extensions.e2ee?.device_lists?.left?.map(
                         user_id => new UserId(user_id)
-                    )
+                    ) : []
                 ),
                 new Map(Object.entries(json.extensions.e2ee?.device_one_time_keys_count || [])),
                 new Set(json.extensions.e2ee?.device_unused_fallback_key_types)
