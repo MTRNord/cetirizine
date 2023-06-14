@@ -15,3 +15,8 @@ motivation.
 ## Build
 
 TODO
+
+## Issue tracker
+
+Please report bugs in the [Matrix room](https://matrix.to/#/#cetirizine:midnightthoughts.space).
+A readonly ticket system is here: https://redmine.midnightthoughts.space/projects/cetirizine/issues
