@@ -37,7 +37,7 @@ export type MessageWrapperProps = {
 
 export const MessageWrapper: FC<MessageWrapperProps> = memo(({ hasPreviousEvent, displayname, avatar_url, onlineState, isBot, dm, children }) => {
     return (
-        <div className={!hasPreviousEvent ? "flex flex-row gap-4 p-2 pb-1 hover:bg-gray-200 rounded-md duration-200 ease-in-out items-start" : "flex flex-row p-2 pb-1 pt-1 hover:bg-gray-200 rounded-md duration-200 ease-in-out"}>
+        <div className={!hasPreviousEvent ? "flex flex-row gap-4 p-2 pb-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-md duration-200 ease-in-out items-start" : "flex flex-row p-2 pb-1 pt-1 hover:bg-gray-200 dark:hover:bg-gray-700  rounded-md duration-200 ease-in-out"}>
             {!hasPreviousEvent && <Avatar
                 displayname={displayname}
                 avatarUrl={avatar_url}

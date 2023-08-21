@@ -223,7 +223,7 @@ export class Room extends EventEmitter {
         return name;
     }
 
-    public getMemberAvatar(userID: string, size: number = 32): string | undefined {
+    public getMemberAvatar(userID: string, size: number = 64): string | undefined {
         let avatarURL: string | undefined = undefined;
         this.stateEvents.forEach((event) => {
             if (event.type === "m.room.member" && event.state_key === userID && event.content.membership == "join") {

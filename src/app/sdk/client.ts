@@ -93,7 +93,7 @@ export class MatrixClient extends EventEmitter {
     public spacesInView: string[] = [];
     public spaceOpen: string[] = [];
     public database?: IDBPDatabase<MatrixDB>;
-    private profileInfo?: IProfileInfo;
+    public profileInfo?: IProfileInfo;
     public currentRoom?: string;
     private user: OwnUser = new OwnUser(this);
     private sync: MatrixSlidingSync = new MatrixSlidingSync(this, this.user);
@@ -489,7 +489,7 @@ export function useSpaces() {
 
 export function useProfile() {
     const client = useContext(MatrixContext);
-    const [profile, setProfile] = useState<IProfileInfo>({
+    const [profile, setProfile] = useState<IProfileInfo>(client.profileInfo || {
         displayname: client.mxid || "Unknown",
     });
 

@@ -31,7 +31,7 @@ const Input: FC<InputProps> = memo(({ placeholder, password = false, autoFocus =
     return (
         <input
             disabled={readonly}
-            className='text-base form-input rounded-lg disabled:bg-slate-200 disabled:cursor-not-allowed transition-colors ease-in-out delay-150'
+            className='text-base form-input rounded-lg disabled:bg-slate-200 disabled:cursor-not-allowed transition-colors ease-in-out delay-150 text-black'
             value={value}
             type={password ? "password" : "text"}
             autoFocus={autoFocus}

@@ -27,11 +27,11 @@ type ButtonProps = {
 
 const Button: FC<ButtonProps> = memo(({ type = "button", style = "primary", onClick, children, readonly }: ButtonProps) => {
     if (style === "secondary") {
-        return <button disabled={readonly} onClick={onClick} className="button bg-orange-400 hover:bg-orange-500 ease-out duration-150 disabled:bg-slate-200 disabled:cursor-not-allowed" type={type}>{children}</button>;
+        return <button disabled={readonly} onClick={onClick} className="button secondary" type={type}>{children}</button>;
     } else if (style === "abort") {
-        return <button disabled={readonly} onClick={onClick} className="button bg-red-400 hover:bg-red-500 ease-out duration-150 disabled:bg-slate-200 disabled:cursor-not-allowed" type={type}>{children}</button>;
+        return <button disabled={readonly} onClick={onClick} className="button abort" type={type}>{children}</button>;
     } else {
-        return <button disabled={readonly} onClick={onClick} className="button bg-green-400 hover:bg-green-500 ease-out duration-150 disabled:bg-slate-200 disabled:cursor-not-allowed" type={type}>{children}</button>;
+        return <button disabled={readonly} onClick={onClick} className="button primary" type={type}>{children}</button>;
     }
 })
 export default Button;

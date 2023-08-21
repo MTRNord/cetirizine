@@ -1,12 +1,15 @@
 .editor-container {
-    @apply text-black relative font-normal;
+    position: relative;
+    font-weight: var(--normal-font);
     line-height: 20px;
     text-align: left;
     height: 100%;
 }
 
 .editor-inner {
-    @apply bg-white relative overflow-y-auto;
+    overflow-y: auto;
+    position: relative;
+    background-color: var(--background-color);
     scrollbar-width: thin;
     max-height: 50lvh;
 }
@@ -34,15 +37,20 @@
     tab-size: 1;
     outline: 0;
     padding: 15px 10px;
-    caret-color: #444;
 }
 
 .toolbar {
     display: flex;
     margin-bottom: 1px;
-    background: #fff;
+    background: var(--background-color);
     padding: 4px;
     vertical-align: middle;
+
+    button {
+        svg {
+            stroke: var(--text-color);
+        }
+    }
 }
 
 .toolbar button.toolbar-item {
@@ -87,7 +95,7 @@
 }
 
 .toolbar .toolbar-item:hover:not([disabled]) {
-    background-color: #eee;
+    background-color: var(--background-color-hover);
 }
 
 .toolbar .divider {
@@ -120,7 +128,7 @@
     width: 200px;
     vertical-align: middle;
     font-size: 14px;
-    color: #777;
+    color: var(--text-color);
     text-overflow: ellipsis;
     width: 70px;
     overflow: hidden;

@@ -7,7 +7,6 @@ export default {
     "./index.html",
     "./src/**/*.{ts,tsx}",
   ],
-  darkMode: ['class', '[data-mode="dark"]'],
   theme: {
     extend: {
       fontFamily: {

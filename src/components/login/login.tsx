@@ -27,7 +27,7 @@ const Login = memo(() => {
         setLoginPending(false);
     }
     return (
-        <form className="flex flex-col rounded-md shadow p-4 bg-white gap-2 min-w-[30rem]" onSubmit={(e) => {
+        <form className="flex flex-col rounded-md shadow p-4 bg-white dark:bg-slate-900 gap-2 min-w-[30rem]" onSubmit={(e) => {
             e.preventDefault();
             startLogin();
         }}>

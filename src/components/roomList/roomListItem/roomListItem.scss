@@ -1,0 +1,18 @@
+.notificationCount {
+    .higlight {
+        background-color: red;
+    }
+
+    // Make round
+    border-radius: 50%;
+    background-color: var(--slate-200);
+    $size: 25px;
+    min-width: $size;
+    min-height: $size;
+    width: $size;
+    height: $size;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color:black;
+}

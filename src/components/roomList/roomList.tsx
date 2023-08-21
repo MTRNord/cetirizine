@@ -170,19 +170,20 @@ const RoomList: FC<RoomListProps> = memo(({ sections, rooms, dmRooms }: RoomList
 
     return (
         <div id='roomlist'>
-            <RoomSection
-                section={{
-                    sectionName: "DMs",
-                    roomID: "dms",
-                    subsections: [],
-                    rooms: dmRooms
-                }}
-                onRoomClick={(roomID: string) => {
-                    setActiveRoom(roomID);
-                    navigate(`/${encodeURIComponent(roomID)}`);
-                }}
-                activeRoom={activeRoom}
-            />
+            {dmRooms.length == 0 ? <></> :
+                <RoomSection
+                    section={{
+                        sectionName: "DMs",
+                        roomID: "dms",
+                        subsections: [],
+                        rooms: dmRooms
+                    }}
+                    onRoomClick={(roomID: string) => {
+                        setActiveRoom(roomID);
+                        navigate(`/${encodeURIComponent(roomID)}`);
+                    }}
+                    activeRoom={activeRoom}
+                />}
             {
                 sections.map(section => {
                     return (
@@ -198,7 +199,7 @@ const RoomList: FC<RoomListProps> = memo(({ sections, rooms, dmRooms }: RoomList
                     );
                 })
             }
-            <RoomSection
+            {rooms.length > 0 ? <RoomSection
                 section={{
                     sectionName: "Others",
                     roomID: "other",
@@ -210,7 +211,7 @@ const RoomList: FC<RoomListProps> = memo(({ sections, rooms, dmRooms }: RoomList
                     navigate(`/${encodeURIComponent(roomID)}`);
                 }}
                 activeRoom={activeRoom}
-            />
+            /> : <></>}
 
         </div>
     );

@@ -1,5 +1,6 @@
-import { FC, memo, useState } from "react";
+import { FC, memo } from "react";
 import { OnlineState } from "../../app/sdk/api/otherEnums";
+import './avatar.scss';
 
 type AvatarProps = {
     /**
@@ -23,38 +24,21 @@ type AvatarProps = {
      * @default false
      */
     isBot: boolean
+    size?: string
 };
 
-const Avatar: FC<AvatarProps> = memo(({ avatarUrl, displayname, dm = false, online = OnlineState.Unknown }: AvatarProps) => {
-    const [error, setError] = useState(false);
+const Avatar: FC<AvatarProps> = memo(({ avatarUrl, displayname, dm = false, online = OnlineState.Unknown, size = "2rem" }: AvatarProps) => {
 
-    if (avatarUrl && !error) {
-        return (
-            <div className="flex relative min-w-[2rem] min-h-[2rem] w-[2rem] h-[2rem] justify-center items-center text-xl rounded-full text-white">
-                <img className="rounded-full w-8 h-8 object-cover" alt={displayname} src={avatarUrl} onError={() => { setError(true) }} />
-                {
-                    dm ?
-                        (
-                            online === OnlineState.Online ?
-                                <div className="bg-green-500 rounded-full w-3 h-3 absolute right-0 bottom-0"></div> :
-                                (online === OnlineState.Offline ? <div className="bg-red-500 rounded-full w-3 h-3 absolute right-0 bottom-0"></div> :
-                                    <div className="bg-gray-500 rounded-full w-3 h-3 absolute right-0 bottom-0"></div>)
-                        ) :
-                        <></>
-                }
-            </div>
-        );
-    }
     return (
-        <div className="flex relative min-w-[2rem] min-h-[2rem] w-[2rem] h-[2rem] bg-orange-500 justify-center items-center m-0 mr-3 text-xl rounded-full text-white">
-            {displayname.replace('@', '').replace('!', '').replace('#', '')[0].toUpperCase()}
+        <div style={{ minWidth: size, minHeight: size, width: size, height: size }} className="avatar">
+            <img alt={displayname} src={avatarUrl} />
             {
                 dm ?
                     (
                         online === OnlineState.Online ?
-                            <div className="bg-green-500 rounded-full w-3 h-3 absolute right-0 bottom-0"></div> :
-                            (online === OnlineState.Offline ? <div className="bg-red-500 rounded-full w-3 h-3 absolute right-0 bottom-0"></div> :
-                                <div className="bg-gray-500 rounded-full w-3 h-3 absolute right-0 bottom-0"></div>)
+                            <div className="online"></div> :
+                            (online === OnlineState.Offline ? <div className="offline"></div> :
+                                <div className="unknown"></div>)
                     ) :
                     <></>
             }

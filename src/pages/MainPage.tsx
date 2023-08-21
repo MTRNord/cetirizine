@@ -1,4 +1,4 @@
-import { Settings } from 'lucide-react';
+import { Brush, Pencil, PersonStanding, Search, Settings, User, X } from 'lucide-react';
 import Avatar from '../components/avatar/avatar';
 import ChatInput from '../components/input/chat/input';
 import RoomList, { Section } from '../components/roomList/roomList';
@@ -15,6 +15,7 @@ import { IRoomEvent, IRoomMemberEvent } from '../app/sdk/api/events';
 import Linkify from 'linkify-react';
 import { OnlineState } from '../app/sdk/api/otherEnums';
 import { Virtuoso } from 'react-virtuoso';
+import ReactModal from 'react-modal';
 
 type ChatViewProps = {
     /**
@@ -314,6 +315,9 @@ const MainPage = memo(() => {
     const room = useRoom(decodeURIComponent(params.roomIdOrAlias || ""));
     client.setCurrentRoom(params.roomIdOrAlias ? decodeURIComponent(params.roomIdOrAlias) : undefined)
 
+    const [showSettings, setShowSettings] = useState(false);
+    const [searchTerm, setSearchTerm] = useState<string | null>(null);
+
     // Filter toplevel spaces.
     // A toplevel space is a space that is not a child of another space.
     // We can not rely only on the parent. We need to check in both directions.
@@ -390,6 +394,12 @@ const MainPage = memo(() => {
 
             // If the room is in the sync list, we can compare the indexes.
             return a_index - b_index;
+        }).filter(room => {
+            if (searchTerm) {
+                return room.getName().toLowerCase().includes(searchTerm.toLowerCase())
+            } else {
+                return true;
+            }
         }).map(room => {
             return {
                 roomID: room.roomID,
@@ -403,7 +413,13 @@ const MainPage = memo(() => {
         const generateSubsections = (subspace: Room): Section | undefined => {
             const subspaceMeta = [...spacesWithRooms].find(space => space.spaceRoom.roomID === subspace.roomID);
             if (subspaceMeta) {
-                const rooms = [...subspaceMeta?.children].filter(room => !room.isSpace() && !room.isTombstoned() && !room.isDM()).map(room => {
+                const rooms = [...subspaceMeta?.children].filter(room => !room.isSpace() && !room.isTombstoned() && !room.isDM()).filter(room => {
+                    if (searchTerm) {
+                        return room.getName().toLowerCase().includes(searchTerm.toLowerCase())
+                    } else {
+                        return true;
+                    }
+                }).map(room => {
                     return {
                         roomID: room.roomID,
                         displayname: room.getName(),
@@ -413,15 +429,23 @@ const MainPage = memo(() => {
                     }
                 });
 
+                const subsections = [...subspaceMeta?.children]
+                    .filter(room => room.isSpace() && !room.isTombstoned()).map(generateSubsections)
+                    .filter(section => section !== undefined) as Section[];
+                if (searchTerm && rooms.length === 0 && subsections.length == 0) {
+                    return undefined;
+                }
+
                 return {
                     sectionName: subspace.getName(),
                     rooms: rooms,
                     roomID: subspace.roomID,
-                    subsections: [...subspaceMeta?.children]
-                        .filter(room => room.isSpace() && !room.isTombstoned()).map(generateSubsections)
-                        .filter(section => section !== undefined) as Section[],
+                    subsections: subsections,
                 }
             }
+        }
+        if (searchTerm && rooms.length === 0) {
+            return undefined;
         }
 
         // Its a little weird sicne there are no children attached to the room object. Only to spacesWithRooms.
@@ -432,12 +456,18 @@ const MainPage = memo(() => {
             roomID: space.spaceRoom.roomID,
             subsections: [...space.children]
                 .filter(room => room.isSpace())
-                .map(generateSubsections),
+                .map(generateSubsections).filter(section => section !== undefined),
         } as Section;
-    });
+    }).filter(section => section !== undefined) as Section[];
 
     // Add the toplevel section "Other" to the end of the list.
-    const otherRooms = leftOverRooms.filter(room => !room.isSpace() && !room.isDM()).map(room => {
+    const otherRooms = leftOverRooms.filter(room => !room.isSpace() && !room.isDM()).filter(room => {
+        if (searchTerm) {
+            return room.getName().toLowerCase().includes(searchTerm.toLowerCase())
+        } else {
+            return true;
+        }
+    }).map(room => {
         return {
             roomID: room.roomID,
             displayname: room.getName(),
@@ -447,7 +477,13 @@ const MainPage = memo(() => {
         }
     });
 
-    const dmRooms = leftOverRooms.filter(room => !room.isSpace() && room.isDM()).map(room => {
+    const dmRooms = leftOverRooms.filter(room => !room.isSpace() && room.isDM()).filter(room => {
+        if (searchTerm) {
+            return room.getName().toLowerCase().includes(searchTerm.toLowerCase())
+        } else {
+            return true;
+        }
+    }).map(room => {
         return {
             roomID: room.roomID,
             displayname: room.getName(),
@@ -477,8 +513,23 @@ const MainPage = memo(() => {
             <div id="user-info">
                 <Avatar displayname={profile.displayname || client.mxid!} avatarUrl={profile?.avatar_url} dm={false} online={OnlineState.Unknown} isBot={false} />
                 <div id='username-container'>
-                    <span className='text-base font-semibold'>{profile?.displayname}</span>
-                    <Settings size={28} stroke='unset' className='stroke-slate-600 rounded-full hover:bg-slate-300 p-1 cursor-pointer' />
+
+                    <span>{profile?.displayname}</span>
+                    <Settings size={28} stroke='unset' className='stroke-slate-600 rounded-full hover:bg-slate-300 p-1 cursor-pointer' onClick={() => { setShowSettings(true) }} />
+                </div>
+                <div id='search-container'>
+                    <label className='flex relative flex-row items-center justify-start hover:bg-slate-400/25 bg-slate-400/50 flex-1 rounded-lg group'>
+                        <Search size={20} stroke='unset' className='stroke-slate-600 absolute top-2 left-2' />
+                        <input className='placeholder:text-slate-600 bg-transparent py-2 rounded-lg pl-8 group-hover:outline outline-slate-700 w-full outline-2 text-black' placeholder='Search' onInput={(e) => {
+                            e.preventDefault();
+                            const value = e.currentTarget.value;
+                            if (value === "") {
+                                setSearchTerm(null);
+                            } else {
+                                setSearchTerm(value);
+                            }
+                        }} />
+                    </label>
                 </div>
             </div>
             <RoomList sections={sections} rooms={otherRooms} dmRooms={dmRooms} />
@@ -489,15 +540,98 @@ const MainPage = memo(() => {
                 <div id='room-info'>
                     <Avatar displayname={room.getName()} avatarUrl={room.getAvatarURL()} dm={room.isDM()} online={room.presence} isBot={false} />
                     <div className='flex mr-2'>
-                        <h1 className='text-black font-semibold text-lg'>{room.getName()}</h1>
-                        <Linkify options={linkifyOptions} as='p' className="ml-2 text-slate-700 font-normal text-base line-clamp-2 text-ellipsis">{room.getTopic()}</Linkify>
+                        <h1 id='room-name'>{room.getName()}</h1>
+                        <Linkify options={linkifyOptions} as='p' className="ml-2 text-slate-700 dark:text-slate-400 font-normal text-base line-clamp-2 text-ellipsis">{room.getTopic()}</Linkify>
                     </div>
                 </div>
                 <ChatView id='chat-view' room={room} />
                 <ChatInput id='chat-editor' namespace='Editor' room={room} />
             </> : <></>
         }
-    </div>
+
+        <ReactModal
+            isOpen={showSettings}
+            id="modal"
+            overlayClassName="fixed top-0 bottom-0 right-0 left-0 bg-slate-700/75"
+            onRequestClose={() => { setShowSettings(false) }}
+        >
+            <SettingsView onClose={() => { setShowSettings(false) }} />
+        </ReactModal>
+    </div >
 })
 
 export default MainPage;
+
+type SettingsViewProps = {
+    onClose: () => void
+}
+
+const SettingsView: FC<SettingsViewProps> = memo(({ onClose }) => {
+    const [currentSettingsView, setCurrentSettingsView] = useState("profile");
+    return (
+        <>
+            <X id="modal-cross" size={28} stroke='unset' onClick={onClose}>Close Modal</X>
+            <nav id="modal-sidebar">
+                <button className={'p-1 bg-white w-full text-left hover:bg-slate-200 rounded flex items-center gap-1 ' + (currentSettingsView === "profile" ? '!bg-slate-200' : '')} onClick={() => { setCurrentSettingsView("profile") }}>
+                    <User size={28} stroke='unset' className='stroke-slate-600 p-1' /> Profile
+                </button>
+                <button className={'p-1 bg-white w-full text-left hover:bg-slate-200 rounded flex items-center gap-1 ' + (currentSettingsView === "design" ? '!bg-slate-200' : '')} onClick={() => { setCurrentSettingsView("design") }}>
+                    <Brush size={28} stroke='unset' className='stroke-slate-600 p-1' /> Design
+                </button>
+            </nav>
+            <div id='modal-content'>
+                {
+                    currentSettingsView === "profile" ?
+                        <SettingsProfileView /> :
+                        <SettingsDesignView />
+                }
+
+            </div>
+        </>
+    );
+});
+
+
+const SettingsProfileView = memo(() => {
+    const client = useContext(MatrixContext);
+    const profile = useProfile();
+    const [displayname, setDisplayname] = useState(profile.displayname);
+
+    return (
+        <div id="profile-view">
+            <h1 id="title"><User size={28} stroke='unset' className='stroke-slate-600 p-1' /> Profile</h1>
+
+            <div id="inputs">
+                <div id='displayname-container'>
+                    <span className='text-slate-700 font-semibold'>Displayname</span>
+                    <label>
+                        <Pencil size={20} stroke='unset' className='stroke-slate-600 absolute top-2 left-2' />
+                        <input value={displayname} onInput={(e) => {
+                            e.preventDefault();
+                            const value = e.currentTarget.value;
+                            setDisplayname(value);
+                        }} />
+                    </label>
+                </div>
+                <div id='matrixid'>
+                    <span className='text-slate-700 font-semibold'>MatrixID</span>
+                    <label>
+                        <PersonStanding size={20} stroke='unset' className='stroke-slate-600 absolute top-2 left-2' />
+                        <input disabled placeholder={client.mxid} />
+                    </label>
+                </div>
+            </div>
+            <div id="avatar">
+                <Avatar size='14rem' displayname={profile.displayname || client.mxid!} avatarUrl={profile?.avatar_url} dm={false} online={OnlineState.Unknown} isBot={false} />
+            </div>
+        </div>
+    )
+})
+
+const SettingsDesignView = memo(() => {
+    return (
+        <>
+            <h1 className='text-xl font-bold text-black flex items-center'><Brush size={28} stroke='unset' className='stroke-slate-600 p-1' /> Design</h1>
+        </>
+    )
+})

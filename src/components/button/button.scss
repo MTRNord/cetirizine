@@ -1,3 +1,46 @@
 .button {
-    @apply block uppercase mx-auto shadow text-black text-xs py-3 px-10 rounded font-medium;
+    display: block;
+    text-transform: uppercase;
+    margin-left: auto;
+    margin-right: auto;
+    box-shadow: var(--box-shadow);
+    color: black;
+    font-size: 0.694rem;
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
+    padding-left: 2.5rem;
+    padding-right: 2.5rem;
+    border-radius: var(--base-rounding);
+    font-weight: var(--medium-font);
+    transition-duration: 150ms;
+    transition-timing-function: cubic-bezier(0, 0, 0.2, 1);
+
+    &:disabled {
+        cursor: not-allowed;
+        background-color: var(--slate-200);
+    }
+}
+
+.secondary {
+    background-color: var(--orange-400);
+
+    &:hover {
+        background-color: var(--orange-500);
+    }
+}
+
+.abort {
+    background-color: var(--red-400);
+
+    &:hover {
+        background-color: var(--red-500);
+    }
+}
+
+.primary {
+    background-color: var(--green-400);
+
+    &:hover {
+        background-color: var(--green-500);
+    }
 }

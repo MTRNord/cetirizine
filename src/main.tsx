@@ -2,6 +2,7 @@ import { initAsync, start } from "@mtrnord/matrix-sdk-crypto-js";
 import React from 'react'
 import { createRoot } from 'react-dom/client';
 import './index.scss';
+import ReactModal from "react-modal";
 
 initAsync().then(() => {
   // if (Tracing.isAvailable()) {
@@ -18,6 +19,8 @@ initAsync().then(() => {
       console.log("Starting App")
       const container = document.getElementById('root')!;
       const root = createRoot(container);
+
+      ReactModal.setAppElement('#root');
 
       root.render(
         <React.StrictMode>

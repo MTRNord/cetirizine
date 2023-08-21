@@ -1,0 +1,1 @@
+Ensure that the placeholder is always present until the image loads by doing it within CSS.

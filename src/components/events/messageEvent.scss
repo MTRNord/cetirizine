@@ -1,14 +1,20 @@
 #event {
     #text-event {
+        color: var(--text-color);
+
         h1 {
-            @apply text-2xl text-black font-bold;
+            font-size: var(--font-size-2xl);
+            font-weight: var(--bold-font);
+            color: var(--text-color);
             margin: 0;
             margin-bottom: 12px;
             padding: 0;
         }
 
         h2 {
-            @apply text-xl text-black font-bold;
+            font-size: var(--font-size-xl);
+            font-weight: var(--bold-font);
+            color: var(--text-color);
             margin: 0;
             margin-top: 10px;
             padding: 0;

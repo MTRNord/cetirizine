@@ -1,8 +1,9 @@
 import { useInView } from "react-intersection-observer";
 import Avatar from "../../avatar/avatar";
 import { FC, memo, useContext } from "react";
-import { MatrixContext } from "../../../app/sdk/client";
+import { MatrixContext, useRoom } from "../../../app/sdk/client";
 import { OnlineState } from "../../../app/sdk/api/otherEnums";
+import "./roomListItem.scss";
 
 type RoomListItemProps = {
     /**
@@ -41,6 +42,7 @@ type RoomListItemProps = {
 
 const RoomListItem: FC<RoomListItemProps> = memo(({ roomId, avatarUrl, displayname, dm = false, online = OnlineState.Unknown, active = false, onClick, hidden }: RoomListItemProps) => {
     const matrixClient = useContext(MatrixContext);
+    const room = useRoom(roomId);
     const { ref, inView } = useInView({
         triggerOnce: true,
         skip: hidden,
@@ -60,11 +62,17 @@ const RoomListItem: FC<RoomListItemProps> = memo(({ roomId, avatarUrl, displayna
                     <div className="flex flex-row gap-2 p-1 bg-gray-300 hover:bg-gray-400 rounded-lg duration-200 ease-in-out items-center">
                         <Avatar avatarUrl={avatarUrl} displayname={displayname} dm={dm} online={online} isBot={false} />
                         <span title={displayname} className='text-slate-900 font-normal text-base max-w-[32ch] overflow-hidden text-ellipsis w-full whitespace-nowrap'>{displayname}</span>
+                        {(room?.getNotificationHighlightCount() !== 0 || room?.getNotificationCount() !== 0) && (room?.getNotificationHighlightCount() === 0 ?
+                            <div className="notificationCount">{room?.getNotificationCount()}</div>
+                            : <div className="notificationCount higlight">{room?.getNotificationCount() ?? 0 + (room?.getNotificationHighlightCount() ?? 0)}</div>)}
                     </div>
                 ) : (
                     <div className="flex flex-row gap-2 p-1 hover:bg-gray-300 rounded-lg duration-200 ease-in-out items-center">
                         <Avatar avatarUrl={avatarUrl} displayname={displayname} dm={dm} online={online} isBot={false} />
                         <span title={displayname} className='text-slate-900 font-normal text-base max-w-[32ch] overflow-hidden text-ellipsis w-full whitespace-nowrap'>{displayname}</span>
+                        {(room?.getNotificationHighlightCount() !== 0 || room?.getNotificationCount() !== 0) && (room?.getNotificationHighlightCount() === 0 ?
+                            <div className="notificationCount">{room?.getNotificationCount()}</div>
+                            : <div className="notificationCount higlight">{room?.getNotificationCount() ?? 0 + (room?.getNotificationHighlightCount() ?? 0)}</div>)}
                     </div>
                 ))
             }

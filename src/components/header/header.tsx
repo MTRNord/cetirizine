@@ -1,4 +1,5 @@
 import { FC, memo } from "react";
+import "./header.scss"
 
 type HeaderProps = {
     /**
@@ -8,7 +9,7 @@ type HeaderProps = {
 };
 
 const Header: FC<HeaderProps> = memo(({ children }: HeaderProps) => {
-    return <h1 className='text-black font-bold text-xl'>{children}</h1>;
+    return <h1 className='header'>{children}</h1>;
 })
 
 export default Header

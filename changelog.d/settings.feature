@@ -1,0 +1,1 @@
+Add a App Settings menu.

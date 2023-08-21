@@ -1,0 +1,1 @@
+Add a way to filter the roomlist for specific terms.
