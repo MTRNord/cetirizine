@@ -12,6 +12,7 @@ import * as ReactDOM from "react-dom";
 import { $createMentionNode } from "./MentionNode";
 import { Room } from "../../../../../app/sdk/room";
 import { IRoomMemberEvent } from "../../../../../app/sdk/api/events";
+import { SDKError } from "../../../../../app/sdk/utils";
 
 const PUNCTUATION =
     "\\.,\\+\\*\\?\\$\\@\\|#{}\\(\\)\\^\\-\\[\\]\\\\/!%'\"~=<>_:;";
@@ -85,7 +86,12 @@ const mentionsCache = new Map();
 const dummyLookupService = {
     search(string: string, room: Room, callback: (results: IRoomMemberEvent[]) => void): void {
         setTimeout(async () => {
-            const results = (await room.joinedMembers()).filter((member) => {
+            const members = await room.joinedMembers();
+            if (members instanceof SDKError) {
+                console.error(members);
+                return
+            }
+            const results = members.filter((member) => {
                 if (member.content.displayname) {
                     return member.content.displayname.toLowerCase().includes(string.toLowerCase()) || member.state_key.toLowerCase().includes(string.toLowerCase());
                 } else {

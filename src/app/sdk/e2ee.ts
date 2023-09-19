@@ -17,7 +17,7 @@ import { MatrixClient } from "./client";
 import { OwnUser } from "./ownUser";
 import { Room } from "./room";
 import { IRoomEvent } from "./api/events";
-import { HostnameMissingError, NotLogeedInError, OlmMachineNotSetup, SDKError } from "./utils";
+import { HostnameMissingError, NotLogeedInError, OlmMachineNotSetupError, SDKError } from "./utils";
 
 export class MatrixE2EE {
     private olmMachine?: OlmMachine;
@@ -49,7 +49,7 @@ export class MatrixE2EE {
             return new NotLogeedInError();
         }
         if (!this.olmMachine) {
-            return new OlmMachineNotSetup();
+            return new OlmMachineNotSetupError();
         }
         return await this.olmMachine?.encryptRoomEvent(roomID, type, content);
     }
@@ -71,7 +71,7 @@ export class MatrixE2EE {
             return new HostnameMissingError();
         }
         if (!this.olmMachine) {
-            return new OlmMachineNotSetup();
+            return new OlmMachineNotSetupError();
         }
 
         if (this.outgoingRequestsBeingProcessed) {
@@ -97,7 +97,7 @@ export class MatrixE2EE {
             return new HostnameMissingError();
         }
         if (!this.olmMachine) {
-            return new OlmMachineNotSetup();
+            return new OlmMachineNotSetupError();
         }
         const encryptionSettings = room.getEncryptionSettings();
         if (encryptionSettings) {
@@ -116,7 +116,7 @@ export class MatrixE2EE {
             return new HostnameMissingError();
         }
         if (!this.olmMachine) {
-            return new OlmMachineNotSetup();
+            return new OlmMachineNotSetupError();
         }
 
         if (this.missingSessionsBeingRequested) {
@@ -142,7 +142,7 @@ export class MatrixE2EE {
             return new HostnameMissingError();
         }
         if (!this.olmMachine) {
-            return new OlmMachineNotSetup();
+            return new OlmMachineNotSetupError();
         }
         // Check which type the request is
         if (request.type === RequestType.KeysUpload) {
