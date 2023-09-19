@@ -20,6 +20,12 @@ const meta: Meta<typeof RoomList> = {
             name: "Rooms",
             description: "Rooms outside of any Sections",
         },
+        dmRooms: {
+            required: true,
+            defaultValue: [],
+            name: "DMs",
+            description: "Rooms which are dms",
+        },
     }
 };
 
@@ -75,7 +81,7 @@ export const RootList: Story = {
                                 roomID: "1",
                                 displayname: "test",
                                 avatarUrl: "https://randomuser.me/api/portraits/men/62.jpg",
-                                dm: true,
+                                dm: false,
                                 online: OnlineState.Online,
                             }
                         ],
@@ -83,6 +89,20 @@ export const RootList: Story = {
                         subsections: []
                     }
                 ]
+            }
+        ],
+        dmRooms: [
+            {
+                roomID: "2",
+                displayname: "test1",
+                dm: false,
+                online: OnlineState.Unknown,
+            },
+            {
+                roomID: "3",
+                displayname: "test2",
+                dm: false,
+                online: OnlineState.Unknown,
             }
         ]
     }
