@@ -20,7 +20,7 @@ import {
 } from "idb";
 import { DeviceId, UserId } from "@mtrnord/matrix-sdk-crypto-js";
 import { MatrixSlidingSync } from "./slidingSync";
-import { isTesting } from './testUtil';
+import { NotLogeedInError, SDKError } from './utils';
 
 export interface MatrixClientEvents {
     // Used to notify about changes to the room list
@@ -233,12 +233,9 @@ export class MatrixClient extends EventEmitter {
         });
     }
 
-    public async decryptRoomEvent(roomID: string, event: IRoomEvent): Promise<IRoomEvent> {
+    public async decryptRoomEvent(roomID: string, event: IRoomEvent): Promise<SDKError | IRoomEvent> {
         if (!this.isLoggedIn) {
-            if (isTesting()) {
-                return { content: {}, event_id: "", type: "", sender: "", origin_server_ts: 0 };
-            }
-            throw Error("Not logged in");
+            return new NotLogeedInError();
         }
         const decryptedEvent = this.user.e2ee.decryptRoomEvent(roomID, event);
         return decryptedEvent;

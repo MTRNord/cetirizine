@@ -16,6 +16,7 @@ import Linkify from 'linkify-react';
 import { OnlineState } from '../app/sdk/api/otherEnums';
 import { Virtuoso } from 'react-virtuoso';
 import ReactModal from 'react-modal';
+import { SDKError } from '../app/sdk/utils';
 
 type ChatViewProps = {
     /**
@@ -59,6 +60,18 @@ const ChatView: FC<ChatViewProps> = memo(({ room, id }) => {
         if (event.type === "m.room.encrypted" && room?.roomID) {
             try {
                 const decrypted_event = await client.decryptRoomEvent(room.roomID, event);
+                if (decrypted_event instanceof SDKError) {
+                    // TODO: Show proper error instead
+                    return {
+                        ...event,
+                        unsigned: {
+                            ...event.unsigned,
+                            undecryptable: true,
+                            key: event.event_id,
+                            hasPreviousEvent: previousEventIsFromSameSender
+                        }
+                    }
+                }
                 if (decrypted_event) {
                     event = JSON.parse(decrypted_event.event) as IRoomEvent;
                     if (event.content["m.new_content"]) {

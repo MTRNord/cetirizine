@@ -2,7 +2,7 @@ import { DeviceId, UserId } from "@mtrnord/matrix-sdk-crypto-js";
 import { IErrorResp, ILoginFlows, ILoginResponse, IWellKnown } from "./api/apiTypes";
 import { MatrixClient, isRateLimitError } from "./client";
 import { MatrixE2EE } from "./e2ee";
-import { isTesting } from "./testUtil";
+import { HostnameMissingError, NotLogeedInError, SDKError } from "./utils";
 
 export class OwnUser {
     public access_token?: string;
@@ -18,18 +18,15 @@ export class OwnUser {
     }
 
     // TODO: call logout endpoint on logout
-    public async logout() {
+    public async logout(): Promise<void | SDKError> {
         if (!this.mxid) {
-            if (isTesting()) {
-                return;
-            }
-            throw Error("Not logged in");
+            return new NotLogeedInError();
         }
         if (!this.access_token) {
-            throw Error("Not logged in");
+            return new NotLogeedInError();
         }
         if (!this.hostname) {
-            throw Error("Hostname must be set first");
+            return new HostnameMissingError();
         }
         const resp = await fetch(`${this.hostname}/_matrix/client/v3/logout`, {
             method: "POST",

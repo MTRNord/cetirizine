@@ -5,7 +5,7 @@ import { Room } from "./room";
 import { OwnUser } from "./ownUser";
 import { DeviceLists, UserId } from "@mtrnord/matrix-sdk-crypto-js";
 import { IRoomEvent, IRoomStateEvent, isRoomStateEvent } from "./api/events";
-import { isTesting } from "./testUtil";
+import { HostnameMissingError, NotLogeedInError, SDKError } from "./utils";
 
 export interface MatrixSlidingSyncEvents {
     // Used to notify about changes to the room list
@@ -66,16 +66,13 @@ export class MatrixSlidingSync extends EventEmitter {
         this.abortController = new AbortController();
     }
 
-    public async startSync() {
+    public async startSync(): Promise<SDKError | void> {
         // @ts-ignore
         if (globalThis.IS_STORYBOOK) {
             await new Promise(r => setTimeout(r, 5000));
         }
         if (!this.client.isLoggedIn) {
-            if (isTesting()) {
-                return;
-            }
-            throw Error("Not logged in");
+            return new NotLogeedInError();
         }
         if (!this.client.database) {
             await this.client.createDatabase();
@@ -185,15 +182,12 @@ export class MatrixSlidingSync extends EventEmitter {
         this.shiftRight(listKey, ranges, max + 1, index);
     }
 
-    private async sync() {
+    private async sync(): Promise<SDKError | void> {
         if (!this.client.isLoggedIn) {
-            if (isTesting()) {
-                return;
-            }
-            throw Error("Not logged in");
+            return new NotLogeedInError();
         }
         if (!this.user.slidingSyncHostname) {
-            throw Error("Hostname must be set first");
+            return new HostnameMissingError();
         }
 
         // TODO: This might cause future issues

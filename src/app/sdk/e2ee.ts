@@ -17,7 +17,7 @@ import { MatrixClient } from "./client";
 import { OwnUser } from "./ownUser";
 import { Room } from "./room";
 import { IRoomEvent } from "./api/events";
-import { isTesting } from "./testUtil";
+import { HostnameMissingError, NotLogeedInError, OlmMachineNotSetup, SDKError } from "./utils";
 
 export class MatrixE2EE {
     private olmMachine?: OlmMachine;
@@ -44,15 +44,12 @@ export class MatrixE2EE {
         );
     }
 
-    public async encryptRoomEvent(roomID: RoomId, type: string, content: string): Promise<any> {
+    public async encryptRoomEvent(roomID: RoomId, type: string, content: string): Promise<SDKError | any> {
         if (!this.client.isLoggedIn) {
-            if (isTesting()) {
-                return null;
-            }
-            throw Error("Not logged in");
+            return new NotLogeedInError();
         }
         if (!this.olmMachine) {
-            throw Error("Olm machine must be set first");
+            return new OlmMachineNotSetup();
         }
         return await this.olmMachine?.encryptRoomEvent(roomID, type, content);
     }
@@ -66,18 +63,15 @@ export class MatrixE2EE {
         await this.olmMachine?.updateTrackedUsers(users);
     }
 
-    public async sendIdentifyAndOneTimeKeys(): Promise<void> {
+    public async sendIdentifyAndOneTimeKeys(): Promise<SDKError | void> {
         if (!this.client.isLoggedIn) {
-            if (isTesting()) {
-                return;
-            }
-            throw Error("Not logged in");
+            return new NotLogeedInError();
         }
         if (!this.user.hostname) {
-            throw Error("Hostname must be set first");
+            return new HostnameMissingError();
         }
         if (!this.olmMachine) {
-            throw Error("Olm machine must be set first");
+            return new OlmMachineNotSetup();
         }
 
         if (this.outgoingRequestsBeingProcessed) {
@@ -95,18 +89,15 @@ export class MatrixE2EE {
         this.outgoingRequestsBeingProcessed = false;
     }
 
-    public async shareKeysForRoom(room: Room): Promise<void> {
+    public async shareKeysForRoom(room: Room): Promise<SDKError | void> {
         if (!this.client.isLoggedIn) {
-            if (isTesting()) {
-                return;
-            }
-            throw Error("Not logged in");
+            return new NotLogeedInError();
         }
         if (!this.user.hostname) {
-            throw Error("Hostname must be set first");
+            return new HostnameMissingError();
         }
         if (!this.olmMachine) {
-            throw Error("Olm machine must be set first");
+            return new OlmMachineNotSetup();
         }
         const encryptionSettings = room.getEncryptionSettings();
         if (encryptionSettings) {
@@ -117,18 +108,15 @@ export class MatrixE2EE {
         }
     }
 
-    public async getMissingSessions(): Promise<void> {
+    public async getMissingSessions(): Promise<SDKError | void> {
         if (!this.client.isLoggedIn) {
-            if (isTesting()) {
-                return;
-            }
-            throw Error("Not logged in");
+            return new NotLogeedInError();
         }
         if (!this.user.hostname) {
-            throw Error("Hostname must be set first");
+            return new HostnameMissingError();
         }
         if (!this.olmMachine) {
-            throw Error("Olm machine must be set first");
+            return new OlmMachineNotSetup();
         }
 
         if (this.missingSessionsBeingRequested) {
@@ -146,18 +134,15 @@ export class MatrixE2EE {
         this.missingSessionsBeingRequested = false;
     }
 
-    private async processRequest(request: any): Promise<void> {
+    private async processRequest(request: any): Promise<SDKError | void> {
         if (!this.client.isLoggedIn) {
-            if (isTesting()) {
-                return;
-            }
-            throw Error("Not logged in");
+            return new NotLogeedInError();
         }
         if (!this.user.hostname) {
-            throw Error("Hostname must be set first");
+            return new HostnameMissingError();
         }
         if (!this.olmMachine) {
-            throw Error("Olm machine must be set first");
+            return new OlmMachineNotSetup();
         }
         // Check which type the request is
         if (request.type === RequestType.KeysUpload) {
