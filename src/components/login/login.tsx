@@ -18,11 +18,10 @@ const Login = memo(() => {
         }
     }
     const startLogin = async () => {
-        try {
-            setLoginPending(true);
-            await matrixClient.passwordLogin(username, password);
-        } catch (e: any) {
-            setLoginError(e.toString());
+        setLoginPending(true);
+        const error = await matrixClient.passwordLogin(username, password);
+        if (error) {
+            setLoginError(error.toString());
         }
         setLoginPending(false);
     }

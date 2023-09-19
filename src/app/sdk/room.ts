@@ -15,6 +15,7 @@ import { useEffect, useState } from "react";
 import { EncryptionAlgorithm, EncryptionSettings, RoomId } from "@mtrnord/matrix-sdk-crypto-js";
 import { OnlineState } from "./api/otherEnums";
 import { MatrixE2EE } from "./e2ee";
+import { AccessTokenMissingError, FailedSendingError, HostnameMissingError, ProfileFetchError, SDKError } from "./utils";
 
 export interface RoomEvents {
     // Used to notify about changes to the event list
@@ -251,13 +252,13 @@ export class Room extends EventEmitter {
         return isBot;
     }
 
-    public async joinedMembers(): Promise<IRoomMemberEvent[]> {
+    public async joinedMembers(): Promise<IRoomMemberEvent[] | SDKError> {
         if (!this.has_all_users) {
             if (!this.client.hostname) {
-                throw Error("Hostname must be set first");
+                return new HostnameMissingError();
             }
             if (!this.client.accessToken) {
-                throw Error("Access token must be set first");
+                return new AccessTokenMissingError();
             }
             // We dont have all members so we need to fetch them
             const resp = await fetch(`${this.client.hostname}/_matrix/client/v3/rooms/${this.roomID}/members`, {
@@ -273,8 +274,7 @@ export class Room extends EventEmitter {
                         }
                     });
                 }
-                console.error(resp);
-                throw Error("Error fetching profile info. See console for error.");
+                return new ProfileFetchError(resp);
             }
             const json = await resp.json() as { chunk: IRoomMemberEvent[] };
             this.stateEvents = [...this.stateEvents, ...json.chunk];
@@ -305,7 +305,7 @@ export class Room extends EventEmitter {
         this.emit("events", this.getEvents());
     }
 
-    public async sendHtmlMessage(html: string, plainText: string, callbackLocalEcho: () => void): Promise<string> {
+    public async sendHtmlMessage(html: string, plainText: string, callbackLocalEcho: () => void): Promise<string | SDKError> {
         const txn_id = Date.now().toString();
         // @ts-ignore: Intentionally incomplete
         const event = {
@@ -338,7 +338,7 @@ export class Room extends EventEmitter {
             });
             if (!resp.ok) {
                 this.deletePendingByEventID(event.event_id);
-                throw new Error(`Failed to send message: ${resp.status} ${resp.statusText}`);
+                return new FailedSendingError(resp);
             }
             const json = await resp.json();
             this.deletePendingByEventID(event.event_id);
@@ -362,7 +362,7 @@ export class Room extends EventEmitter {
             });
             if (!resp.ok) {
                 this.deletePendingByEventID(event.event_id);
-                throw new Error(`Failed to send message: ${resp.status} ${resp.statusText}`);
+                return new FailedSendingError(resp);
             }
             const json = await resp.json();
             this.deletePendingByEventID(event.event_id);
@@ -370,7 +370,7 @@ export class Room extends EventEmitter {
         }
     }
 
-    public async sendTextMessage(text: string, callbackLocalEcho: () => void): Promise<string> {
+    public async sendTextMessage(text: string, callbackLocalEcho: () => void): Promise<string | SDKError> {
         const txn_id = Date.now().toString();
         // @ts-ignore: Intentionally incomplete
         const event = {
@@ -401,7 +401,7 @@ export class Room extends EventEmitter {
             });
             if (!resp.ok) {
                 this.deletePendingByEventID(event.event_id);
-                throw new Error(`Failed to send message: ${resp.status} ${resp.statusText}`);
+                return new FailedSendingError(resp);
             }
             const json = await resp.json();
             this.deletePendingByEventID(event.event_id);
@@ -425,7 +425,7 @@ export class Room extends EventEmitter {
             });
             if (!resp.ok) {
                 this.deletePendingByEventID(event.event_id);
-                throw new Error(`Failed to send message: ${resp.status} ${resp.statusText}`);
+                return new FailedSendingError(resp);
             }
             const json = await resp.json();
             this.deletePendingByEventID(event.event_id);

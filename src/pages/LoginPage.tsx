@@ -2,6 +2,7 @@ import './LoginPage.scss';
 import Login from '../components/login/login';
 import { memo, useContext, useEffect, useState } from 'react';
 import { MatrixContext } from '../app/sdk/client';
+import { SDKError } from '../app/sdk/utils';
 
 const LoginPage = memo(() => {
     const matrixClient = useContext(MatrixContext);
@@ -10,7 +11,10 @@ const LoginPage = memo(() => {
     useEffect(() => {
         if (loading) {
             // Ensure logout worked
-            matrixClient.logout().then(() => {
+            matrixClient.logout().then((error) => {
+                if (error instanceof SDKError) {
+                    console.error(error)
+                }
                 setLoading(false)
             });
         }

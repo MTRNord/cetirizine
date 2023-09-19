@@ -5,7 +5,7 @@ import { Room } from "./room";
 import { OwnUser } from "./ownUser";
 import { DeviceLists, UserId } from "@mtrnord/matrix-sdk-crypto-js";
 import { IRoomEvent, IRoomStateEvent, isRoomStateEvent } from "./api/events";
-import { HostnameMissingError, NotLogeedInError, SDKError } from "./utils";
+import { HostnameMissingError, NotLogeedInError, SDKError, SyncError } from "./utils";
 
 export interface MatrixSlidingSyncEvents {
     // Used to notify about changes to the room list
@@ -462,10 +462,9 @@ export class MatrixSlidingSync extends EventEmitter {
                 return;
             } else if (resp.status === 401) {
                 await this.logout();
-                console.error(resp);
-                console.error("Error syncing. See console for error.");
+                return new SyncError(resp);
             } else {
-                throw new Error(`Error syncing. See console for error:\n\n${await resp.text()}`);
+                return new SyncError(resp);
             }
         }
         const json = await resp.json() as ISlidingSyncResp;

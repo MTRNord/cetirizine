@@ -2,7 +2,7 @@ import { DeviceId, UserId } from "@mtrnord/matrix-sdk-crypto-js";
 import { IErrorResp, ILoginFlows, ILoginResponse, IWellKnown } from "./api/apiTypes";
 import { MatrixClient, isRateLimitError } from "./client";
 import { MatrixE2EE } from "./e2ee";
-import { HostnameMissingError, NotLogeedInError, SDKError } from "./utils";
+import { HostnameMissingError, HostnameMissingHTTPSError, LoginError, LoginFlowRequestError, LogoutError, NotLogeedInError, PasswordLoginNotSupportedError, PasswordMissingError, SDKError, SlidingSyncProxyNotFoundError, UsernameMissingError } from "./utils";
 
 export class OwnUser {
     public access_token?: string;
@@ -36,8 +36,7 @@ export class OwnUser {
             },
         });
         if (!resp.ok) {
-            console.error(resp);
-            throw Error("Error logging out. See console for error.");
+            return new LogoutError(resp);
         }
 
         this.access_token = undefined;
@@ -47,9 +46,9 @@ export class OwnUser {
 
 
 
-    public async setHostname(hostname: string) {
+    public async setHostname(hostname: string): Promise<SDKError | void> {
         if (!hostname.startsWith("https://")) {
-            throw Error("Hostname must start with 'https://'");
+            return new HostnameMissingHTTPSError();
         }
         if (!this.client.database) {
             await this.client.createDatabase();
@@ -70,47 +69,48 @@ export class OwnUser {
         this.hostname = hostname;
     }
 
-    private async getLoginFlows(): Promise<ILoginFlows> {
+    private async getLoginFlows(): Promise<ILoginFlows | SDKError> {
         if (!this.hostname) {
-            throw Error("Hostname must be set first");
+            return new HostnameMissingError();
         }
         const resp = await fetch(`${this.hostname}/_matrix/client/v3/login`);
         if (!resp.ok) {
-            console.error(resp);
-            throw Error("Error requesting login flows. See console for error.");
+            return new LoginFlowRequestError(resp);
         }
         const json = await resp.json() as ILoginFlows;
         return json;
     }
 
-    private async getWellKnown(): Promise<IWellKnown> {
+    private async getWellKnown(): Promise<IWellKnown | SDKError> {
         if (!this.hostname) {
-            throw Error("Hostname must be set first");
+            return new HostnameMissingError();
         }
         const resp = await fetch(`${this.hostname}/.well-known/matrix/client`);
         if (!resp.ok) {
-            console.error(resp);
-            throw Error("Error requesting login flows. See console for error.");
+            return new LoginFlowRequestError(resp);
         }
         const json = await resp.json() as IWellKnown;
         return json;
     }
 
-    public async passwordLogin(username: string, password: string, triesLeft = 5) {
+    public async passwordLogin(username: string, password: string, triesLeft = 5): Promise<SDKError | void> {
         if (!this.client.database) {
             await this.client.createDatabase();
         }
         if (!username) {
-            throw Error("Username must be set");
+            return new UsernameMissingError();
         }
         if (!password) {
-            throw Error("Password must be set");
+            return new PasswordMissingError();
         }
         this.mxid = username;
         await this.setHostname(`https://${username.split(':')[1]}`);
 
         try {
             const well_known = await this.getWellKnown();
+            if (well_known instanceof SDKError) {
+                return well_known;
+            }
             if (well_known["m.homeserver"]?.base_url) {
                 await this.setHostname(well_known["m.homeserver"].base_url);
             }
@@ -129,15 +129,18 @@ export class OwnUser {
                 // Set the sliding sync proxy
                 this.slidingSyncHostname = well_known["org.matrix.msc3575.proxy"].url;
             } else {
-                throw Error("No sliding sync proxy found");
+                return new SlidingSyncProxyNotFoundError();
             }
         } catch (e: any) {
             console.warn(`No well-known found for ${this.hostname}:\n${e}`);
         }
 
         const loginFlows = await this.getLoginFlows();
+        if (loginFlows instanceof SDKError) {
+            return loginFlows;
+        }
         if ((loginFlows.flows.filter((flow) => flow.type === 'm.login.password')?.length || 0) == 0) {
-            throw Error("Password login is not supported by this homeserver");
+            return new PasswordLoginNotSupportedError();
         }
 
         const resp = await fetch(`${this.hostname}/_matrix/client/v3/login`, {
@@ -156,12 +159,11 @@ export class OwnUser {
             })
         });
         if (!resp.ok) {
-            console.error(resp);
-            throw Error("Error logging in. See console for error.");
+            return new LoginError(resp);
         }
         const json = await resp.json();
         if (isErrorResp(json)) {
-            throw Error(`Error logging in: ${json.errcode}: ${json.error}`);
+            return new LoginError(undefined, json);
         }
         if (isRateLimitError(json)) {
             console.error(`Rate limited. Retrying in ${json.retry_after_ms}ms. ${triesLeft} tries left.`);

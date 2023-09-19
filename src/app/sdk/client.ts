@@ -20,7 +20,7 @@ import {
 } from "idb";
 import { DeviceId, UserId } from "@mtrnord/matrix-sdk-crypto-js";
 import { MatrixSlidingSync } from "./slidingSync";
-import { NotLogeedInError, SDKError } from './utils';
+import { AccessTokenMissingError, HostnameMissingError, NotLogeedInError, ProfileFetchError, SDKError } from './utils';
 
 export interface MatrixClientEvents {
     // Used to notify about changes to the room list
@@ -119,8 +119,11 @@ export class MatrixClient extends EventEmitter {
         this.emit("rooms", rooms);
     }
 
-    public async passwordLogin(username: string, password: string) {
-        await this.user.passwordLogin(username, password);
+    public async passwordLogin(username: string, password: string): Promise<SDKError | void> {
+        const loginResp = await this.user.passwordLogin(username, password);
+        if (loginResp instanceof SDKError) {
+            return loginResp
+        }
         this.sync.on("rooms", (rooms) => this.onSyncRooms(rooms));
     }
 
@@ -241,10 +244,13 @@ export class MatrixClient extends EventEmitter {
         return decryptedEvent;
     }
 
-    public async logout() {
+    public async logout(): Promise<void | SDKError> {
         this.sync.logout();
         this.sync.off("rooms", this.onSyncRooms);
-        await this.user.logout();
+        const error = await this.user.logout();
+        if (error instanceof SDKError) {
+            return error;
+        }
         this.user.e2ee.logoutE2ee();
         if (this.user.mxid) {
             const syncInfoTX = this.database?.transaction('syncInfo', 'readwrite');
@@ -383,7 +389,7 @@ export class MatrixClient extends EventEmitter {
         await this.sync.startSync();
     }
 
-    public async fetchProfileInfo(userId: string): Promise<IProfileInfo> {
+    public async fetchProfileInfo(userId: string): Promise<SDKError | IProfileInfo> {
         // @ts-ignore
         if (globalThis.IS_STORYBOOK) {
             await new Promise(r => setTimeout(r, 5000))
@@ -392,13 +398,13 @@ export class MatrixClient extends EventEmitter {
             return this.profileInfo;
         }
         if (!this.user.hostname) {
-            throw Error("Hostname must be set first");
+            return new HostnameMissingError()
         }
         if (!this.database) {
             await this.createDatabase();
         }
         if (!this.user.access_token) {
-            throw Error("Access token must be set first");
+            return new AccessTokenMissingError();
         }
         const resp = await fetch(`${this.user.hostname}/_matrix/client/v3/profile/${userId}`, {
             headers: {
@@ -409,8 +415,7 @@ export class MatrixClient extends EventEmitter {
             if (resp.status === 404 || resp.status === 403) {
                 return {} as IProfileInfo;
             }
-            console.error(resp);
-            throw Error("Error fetching profile info. See console for error.");
+            return new ProfileFetchError(resp);
         }
         const json = await resp.json() as IProfileInfo;
         if (json.avatar_url) {
@@ -496,10 +501,12 @@ export function useProfile() {
 
     useEffect(() => {
         client.fetchProfileInfo(client.mxid!).then((profile) => {
-            if (!profile.displayname) {
-                profile.displayname = client.mxid || "Unknown";
+            if (!(profile instanceof SDKError)) {
+                if (!profile.displayname) {
+                    profile.displayname = client.mxid || "Unknown";
+                }
+                setProfile(profile);
             }
-            setProfile(profile);
         })
     }, [])
     return profile;
