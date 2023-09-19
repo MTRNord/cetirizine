@@ -8,10 +8,10 @@ jobs:
   changelog:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with: # Needed for comparison
           fetch-depth: 0
-      - uses: actions/setup-python@v1
+      - uses: actions/setup-python@v4
         with:
           python-version: '3.9'
       - run: pip install towncrier==21.9.0
