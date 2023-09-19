@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout 🛎️
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           persist-credentials: false
       - uses: actions/setup-node@v3
@@ -33,7 +33,7 @@ jobs:
           # also other environment variable
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Deploy 🚀
-        uses: JamesIves/github-pages-deploy-action@v4.4.1
+        uses: JamesIves/github-pages-deploy-action@v4.4.3
         with:
           folder: dist # The folder that the build-storybook script generates files.
           clean: true # Automatically remove deleted files from the deploy branch
