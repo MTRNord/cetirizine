@@ -6,7 +6,7 @@
   "dependencies": {
     "@lexical/react": "^0.10.0",
     "@mtrnord/matrix-sdk-crypto-js": "0.1.0-alpha.2",
-    "dompurify": "^3.0.3",
+    "dompurify": "^3.0.5",
     "events": "^3.3.0",
     "highlight.js": "^11.8.0",
     "idb": "^7.1.1",
