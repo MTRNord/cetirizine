@@ -170,7 +170,7 @@ const RoomList: FC<RoomListProps> = memo(({ sections, rooms, dmRooms }: RoomList
 
     return (
         <div id='roomlist'>
-            {dmRooms.length == 0 ? <></> :
+            {dmRooms?.length == 0 ? <></> :
                 <RoomSection
                     section={{
                         sectionName: "DMs",

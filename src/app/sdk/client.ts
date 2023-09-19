@@ -20,6 +20,7 @@ import {
 } from "idb";
 import { DeviceId, UserId } from "@mtrnord/matrix-sdk-crypto-js";
 import { MatrixSlidingSync } from "./slidingSync";
+import { isTesting } from './testUtil';
 
 export interface MatrixClientEvents {
     // Used to notify about changes to the room list
@@ -234,6 +235,9 @@ export class MatrixClient extends EventEmitter {
 
     public async decryptRoomEvent(roomID: string, event: IRoomEvent): Promise<IRoomEvent> {
         if (!this.isLoggedIn) {
+            if (isTesting()) {
+                return { content: {}, event_id: "", type: "", sender: "", origin_server_ts: 0 };
+            }
             throw Error("Not logged in");
         }
         const decryptedEvent = this.user.e2ee.decryptRoomEvent(roomID, event);

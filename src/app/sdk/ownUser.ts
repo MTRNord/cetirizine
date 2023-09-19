@@ -2,6 +2,7 @@ import { DeviceId, UserId } from "@mtrnord/matrix-sdk-crypto-js";
 import { IErrorResp, ILoginFlows, ILoginResponse, IWellKnown } from "./api/apiTypes";
 import { MatrixClient, isRateLimitError } from "./client";
 import { MatrixE2EE } from "./e2ee";
+import { isTesting } from "./testUtil";
 
 export class OwnUser {
     public access_token?: string;
@@ -19,8 +20,10 @@ export class OwnUser {
     // TODO: call logout endpoint on logout
     public async logout() {
         if (!this.mxid) {
-            console.log("Not logged in");
-            return;
+            if (isTesting()) {
+                return;
+            }
+            throw Error("Not logged in");
         }
         if (!this.access_token) {
             throw Error("Not logged in");

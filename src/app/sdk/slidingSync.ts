@@ -5,6 +5,7 @@ import { Room } from "./room";
 import { OwnUser } from "./ownUser";
 import { DeviceLists, UserId } from "@mtrnord/matrix-sdk-crypto-js";
 import { IRoomEvent, IRoomStateEvent, isRoomStateEvent } from "./api/events";
+import { isTesting } from "./testUtil";
 
 export interface MatrixSlidingSyncEvents {
     // Used to notify about changes to the room list
@@ -71,6 +72,9 @@ export class MatrixSlidingSync extends EventEmitter {
             await new Promise(r => setTimeout(r, 5000));
         }
         if (!this.client.isLoggedIn) {
+            if (isTesting()) {
+                return;
+            }
             throw Error("Not logged in");
         }
         if (!this.client.database) {
@@ -183,6 +187,9 @@ export class MatrixSlidingSync extends EventEmitter {
 
     private async sync() {
         if (!this.client.isLoggedIn) {
+            if (isTesting()) {
+                return;
+            }
             throw Error("Not logged in");
         }
         if (!this.user.slidingSyncHostname) {
