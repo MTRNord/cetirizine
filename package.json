@@ -22,7 +22,7 @@
     "react-modal": "^3.16.1",
     "react-router-dom": "^6.16.0",
     "react-spinners": "^0.13.8",
-    "react-virtuoso": "^4.5.1",
+    "react-virtuoso": "^4.6.1",
     "wavesurfer.js": "^6.6.3"
   },
   "scripts": {
