@@ -39,7 +39,7 @@ jobs:
       - name: Setup LCOV
         uses: hrishikesh-kadam/setup-lcov@v1
       - name: Report code coverage
-        uses: zgosalvez/github-actions-report-lcov@v3
+        uses: zgosalvez/github-actions-report-lcov@v4
         with:
           coverage-files: coverage/storybook/lcov.info
           # TODO: We want to later on reach 80-90% coverage but for now we allow any coverage
