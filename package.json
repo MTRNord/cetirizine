@@ -23,7 +23,7 @@
     "react-router-dom": "^6.16.0",
     "react-spinners": "^0.13.8",
     "react-virtuoso": "^4.5.1",
-    "wavesurfer.js": "^6.6.3"
+    "wavesurfer.js": "^7.4.4"
   },
   "scripts": {
     "start": "vite",
